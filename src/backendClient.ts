@@ -21,6 +21,15 @@ export type BackendSession = {
   userId: string
 }
 
+export type SessionRequest = {
+  accountType: 'candidate' | 'employer'
+  bootstrapToken?: string
+  displayName: string
+  email: string
+  role: 'candidate' | 'recruiter' | 'hiring_manager' | 'platform_admin'
+  tenantName: string
+}
+
 export type AuditEvent = {
   action: string
   actorType: string
@@ -62,26 +71,54 @@ export async function getBackendSession() {
   return readJson<{ authenticated: boolean; session: BackendSession }>(await fetch('/api/session'))
 }
 
-export async function createDevelopmentSession() {
+export async function createJobsFlowSession(input: SessionRequest) {
+  const headers = new Headers({
+    'content-type': 'application/json',
+  })
+
+  if (input.bootstrapToken) {
+    headers.set('x-jobsflow-bootstrap-token', input.bootstrapToken)
+  }
+
   return readJson<{ ok: boolean; session: BackendSession }>(
     await fetch('/api/session', {
       body: JSON.stringify({
-        accountType: 'candidate',
-        displayName: 'JobsFlow Founder',
-        email: 'founder@workflowfy.ai',
-        role: 'candidate',
-        tenantName: 'JobsFlow Founder Workspace',
+        accountType: input.accountType,
+        displayName: input.displayName,
+        email: input.email,
+        role: input.role,
+        tenantName: input.tenantName,
       }),
-      headers: {
-        'content-type': 'application/json',
-      },
+      headers,
       method: 'POST',
+    }),
+  )
+}
+
+export async function createDevelopmentSession() {
+  return createJobsFlowSession({
+    accountType: 'candidate',
+    displayName: 'JobsFlow Founder',
+    email: 'founder@workflowfy.ai',
+    role: 'candidate',
+    tenantName: 'JobsFlow Founder Workspace',
+  })
+}
+
+export async function deleteBackendSession() {
+  return readJson<{ ok: boolean }>(
+    await fetch('/api/session', {
+      method: 'DELETE',
     }),
   )
 }
 
 export async function listAuditEvents() {
   return readJson<{ events: AuditEvent[]; ok: boolean }>(await fetch('/api/audit'))
+}
+
+export async function listResumes() {
+  return readJson<{ ok: boolean; resumes: ResumeArtifact[] }>(await fetch('/api/resumes'))
 }
 
 export async function uploadResume(file: File) {

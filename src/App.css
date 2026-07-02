@@ -184,6 +184,113 @@
   border-radius: 8px;
 }
 
+.auth-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.45fr) minmax(260px, 0.8fr);
+  gap: 14px;
+  align-items: stretch;
+  margin-bottom: 18px;
+  padding: 18px;
+  background: #101820;
+  border: 1px solid #101820;
+  border-radius: 8px;
+}
+
+.auth-copy,
+.auth-form,
+.auth-state {
+  min-width: 0;
+}
+
+.auth-copy span,
+.auth-form label span {
+  color: #a7c6c2;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.auth-copy h2 {
+  margin: 5px 0 8px;
+  color: #ffffff;
+  font-size: 1.25rem;
+  line-height: 1.12;
+}
+
+.auth-copy p,
+.auth-state p {
+  margin: 0;
+  color: #d7e6e3;
+}
+
+.auth-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.auth-form input {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: #ffffff;
+  border: 1px solid #3b4b52;
+  border-radius: 8px;
+}
+
+.segmented-control {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  background: #223039;
+  border: 1px solid #35464f;
+  border-radius: 8px;
+}
+
+.segmented-control button {
+  min-height: 36px;
+  color: #d7e6e3;
+  font-weight: 850;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.segmented-control button.active {
+  color: var(--ink);
+  background: #ffffff;
+  border-color: #ffffff;
+}
+
+.auth-state {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 12px;
+  background: #18242c;
+  border: 1px solid #31424b;
+  border-radius: 8px;
+}
+
+.auth-state .session-summary strong {
+  color: #ffffff;
+}
+
+.auth-actions {
+  display: grid;
+  gap: 8px;
+}
+
 .onboarding-copy,
 .onboarding-detail,
 .command-item {
@@ -719,7 +826,7 @@
 
 .upload-control {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
   margin-top: 14px;
 }
@@ -733,7 +840,8 @@
 }
 
 .upload-control button,
-.backend-actions button {
+.backend-actions button,
+.auth-actions button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -749,7 +857,8 @@
 }
 
 .upload-control button:disabled,
-.backend-actions button:disabled {
+.backend-actions button:disabled,
+.auth-actions button:disabled {
   cursor: wait;
   opacity: 0.72;
 }
@@ -1116,6 +1225,41 @@
   margin-top: 10px;
 }
 
+.resume-artifact-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.resume-artifact-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.resume-artifact-row svg {
+  color: var(--teal);
+}
+
+.resume-artifact-row strong,
+.resume-artifact-row span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resume-artifact-row span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
 .audit-preview-row {
   display: grid;
   grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.5fr) auto;
@@ -1189,6 +1333,7 @@
   }
 
   .onboarding-panel,
+  .auth-panel,
   .packet-grid {
     grid-template-columns: 1fr;
   }
@@ -1257,6 +1402,8 @@
   .workspace-summary,
   .workspace-lead,
   .onboarding-panel,
+  .auth-panel,
+  .auth-form,
   .backend-grid,
   .onboarding-steps,
   .metrics-row,
@@ -1351,7 +1498,8 @@
   }
 
   .upload-control button,
-  .backend-actions button {
+  .backend-actions button,
+  .auth-actions button {
     width: 100%;
   }
 }

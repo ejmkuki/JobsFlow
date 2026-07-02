@@ -99,6 +99,17 @@ npx wrangler pages secret put AUTH_BOOTSTRAP_TOKEN --project-name=workflowfy-job
 
 Recommended auth path for the first protected beta is Cloudflare Access in front of the Pages app. JobsFlow also supports a private bootstrap-token path for the first founder/admin session. Public candidate signup should wait for a proper auth provider and email verification.
 
+## Production Smoke Test
+
+Use the smoke test after setting a private bootstrap token in the current terminal. The script creates a real signed session, uploads a tiny test PDF to R2, reads resume metadata from D1, and reads tenant-scoped audit events. It does not print the token.
+
+```powershell
+$env:JOBSFLOW_BOOTSTRAP_TOKEN="your-private-token"
+npm run cf:smoke
+```
+
+If the original generated bootstrap token was not stored, rotate `AUTH_BOOTSTRAP_TOKEN` in Cloudflare Pages first, then use the same value only in the terminal running the smoke test.
+
 ## Deploy
 
 Target domain: `https://jobsflow.workflowfy.ai`

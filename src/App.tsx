@@ -1,4 +1,4 @@
-import { type ChangeEvent, useEffect, useMemo, useState } from 'react'
+import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
   Bell,
@@ -11,10 +11,12 @@ import {
   CreditCard,
   DatabaseZap,
   FileCheck2,
+  FileText,
   Gauge,
   Globe2,
   Handshake,
   LayoutDashboard,
+  LogOut,
   ListChecks,
   LockKeyhole,
   MailCheck,
@@ -32,10 +34,13 @@ import {
   type AuditEvent,
   type BackendHealth,
   type BackendSession,
-  createDevelopmentSession,
+  type ResumeArtifact,
+  createJobsFlowSession,
+  deleteBackendSession,
   getBackendHealth,
   getBackendSession,
   listAuditEvents,
+  listResumes,
   uploadResume,
 } from './backendClient'
 import {
@@ -718,8 +723,188 @@ function CommandCenter({ items }: { items: Array<{ label: string; value: string;
   )
 }
 
-function ResumeStoragePanel() {
+function AuthPanel({
+  session,
+  onSessionChange,
+}: {
+  session: BackendSession | null
+  onSessionChange: (session: BackendSession | null) => void
+}) {
+  const [accountType, setAccountType] = useState<'candidate' | 'employer'>('candidate')
+  const [displayName, setDisplayName] = useState('')
+  const [email, setEmail] = useState('')
+  const [tenantName, setTenantName] = useState('')
+  const [bootstrapToken, setBootstrapToken] = useState('')
+  const [message, setMessage] = useState('Checking signed session...')
+  const [isBusy, setIsBusy] = useState(false)
+
+  const checkSession = useCallback(async () => {
+    setIsBusy(true)
+    try {
+      const result = await getBackendSession()
+      onSessionChange(result.session)
+      setMessage(`Signed in as ${result.session.email}.`)
+    } catch (error) {
+      onSessionChange(null)
+      setMessage(error instanceof Error ? error.message : 'No active signed session.')
+    } finally {
+      setIsBusy(false)
+    }
+  }, [onSessionChange])
+
+  async function handleCreateSession() {
+    const normalizedEmail = email.trim()
+    if (!normalizedEmail) {
+      setMessage('Enter an email before starting a session.')
+      return
+    }
+
+    const normalizedName = displayName.trim() || normalizedEmail.split('@')[0] || 'JobsFlow User'
+
+    setIsBusy(true)
+    try {
+      const result = await createJobsFlowSession({
+        accountType,
+        bootstrapToken: bootstrapToken.trim() || undefined,
+        displayName: normalizedName,
+        email: normalizedEmail,
+        role: accountType === 'employer' ? 'recruiter' : 'candidate',
+        tenantName:
+          tenantName.trim() ||
+          (accountType === 'employer'
+            ? `${normalizedName} Hiring Team`
+            : `${normalizedName} Career Workspace`),
+      })
+      onSessionChange(result.session)
+      setBootstrapToken('')
+      setMessage(`Private beta session created for ${result.session.email}.`)
+    } catch (error) {
+      onSessionChange(null)
+      setMessage(error instanceof Error ? error.message : 'Session creation failed.')
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  async function handleSignOut() {
+    setIsBusy(true)
+    try {
+      await deleteBackendSession()
+      onSessionChange(null)
+      setMessage('Signed out. Session cookie was cleared.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Sign out failed.')
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  useEffect(() => {
+    void checkSession()
+  }, [checkSession])
+
+  return (
+    <section className="auth-panel" aria-label="JobsFlow private beta access">
+      <div className="auth-copy">
+        <span>Private beta access</span>
+        <h2>Signed sessions for tenant-safe workflow</h2>
+        <p>
+          Cloudflare Pages Functions issue the HTTP-only session cookie. Candidate and
+          employer data stays scoped to the active tenant.
+        </p>
+      </div>
+
+      <div className="auth-form">
+        <div className="segmented-control" aria-label="Account type">
+          {(['candidate', 'employer'] as const).map((type) => (
+            <button
+              aria-pressed={accountType === type}
+              className={accountType === type ? 'active' : ''}
+              key={type}
+              onClick={() => setAccountType(type)}
+              type="button"
+            >
+              {type === 'candidate' ? 'Candidate' : 'Employer'}
+            </button>
+          ))}
+        </div>
+        <label>
+          <span>Email</span>
+          <input
+            autoComplete="email"
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="you@company.com"
+            type="email"
+            value={email}
+          />
+        </label>
+        <label>
+          <span>Name</span>
+          <input
+            autoComplete="name"
+            onChange={(event) => setDisplayName(event.target.value)}
+            placeholder="Workspace owner"
+            type="text"
+            value={displayName}
+          />
+        </label>
+        <label>
+          <span>Tenant</span>
+          <input
+            onChange={(event) => setTenantName(event.target.value)}
+            placeholder={accountType === 'employer' ? 'Hiring team name' : 'Career workspace name'}
+            type="text"
+            value={tenantName}
+          />
+        </label>
+        <label>
+          <span>Bootstrap token</span>
+          <input
+            autoComplete="one-time-code"
+            onChange={(event) => setBootstrapToken(event.target.value)}
+            placeholder="Required unless Cloudflare Access is active"
+            type="password"
+            value={bootstrapToken}
+          />
+        </label>
+      </div>
+
+      <div className="auth-state">
+        <StatusPill tone={session ? 'green' : 'amber'}>{session ? 'Signed in' : 'Auth required'}</StatusPill>
+        {session ? (
+          <div className="session-summary">
+            <strong>{session.displayName}</strong>
+            <span>{session.email}</span>
+            <small>
+              {session.role} / tenant {session.tenantId.slice(0, 8)}
+            </small>
+          </div>
+        ) : (
+          <p>{message}</p>
+        )}
+        {session ? <p className="runtime-message">{message}</p> : null}
+        <div className="auth-actions">
+          <button disabled={isBusy} onClick={checkSession} type="button">
+            <RefreshCw size={16} aria-hidden="true" />
+            Check session
+          </button>
+          <button disabled={isBusy} onClick={handleCreateSession} type="button">
+            <LockKeyhole size={16} aria-hidden="true" />
+            Start session
+          </button>
+          <button disabled={isBusy || !session} onClick={handleSignOut} type="button">
+            <LogOut size={16} aria-hidden="true" />
+            Sign out
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ResumeStoragePanel({ session }: { session: BackendSession | null }) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [resumes, setResumes] = useState<ResumeArtifact[]>([])
   const [status, setStatus] = useState('Choose a PDF or DOCX resume to store in private R2 storage.')
   const [isUploading, setIsUploading] = useState(false)
 
@@ -730,6 +915,11 @@ function ResumeStoragePanel() {
   }
 
   async function handleUpload() {
+    if (!session) {
+      setStatus('Sign in before storing a resume.')
+      return
+    }
+
     if (!selectedFile) {
       setStatus('Select a resume before storing it.')
       return
@@ -743,12 +933,41 @@ function ResumeStoragePanel() {
       setStatus(
         `${result.resume.filename} stored. Audit event and resume metadata were written by the backend.`,
       )
+      const nextResumes = await listResumes()
+      setResumes(nextResumes.resumes)
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Resume upload failed.')
     } finally {
       setIsUploading(false)
     }
   }
+
+  const refreshResumes = useCallback(async () => {
+    if (!session) {
+      setResumes([])
+      setStatus('Sign in before reading stored resume metadata.')
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      const result = await listResumes()
+      setResumes(result.resumes)
+      setStatus(`${result.resumes.length} resume artifact${result.resumes.length === 1 ? '' : 's'} loaded from D1.`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Resume metadata read failed.')
+    } finally {
+      setIsUploading(false)
+    }
+  }, [session])
+
+  useEffect(() => {
+    if (session) {
+      void refreshResumes()
+    } else {
+      setResumes([])
+    }
+  }, [refreshResumes, session])
 
   return (
     <article className="panel resume-storage-panel">
@@ -773,20 +992,42 @@ function ResumeStoragePanel() {
           <FileCheck2 size={16} aria-hidden="true" />
           {isUploading ? 'Storing...' : 'Store resume'}
         </button>
+        <button disabled={isUploading} onClick={refreshResumes} type="button">
+          <RefreshCw size={16} aria-hidden="true" />
+          Refresh list
+        </button>
       </div>
       <p className="runtime-message">{status}</p>
+      <div className="resume-artifact-list">
+        {resumes.map((resume) => (
+          <div className="resume-artifact-row" key={resume.id}>
+            <FileText size={16} aria-hidden="true" />
+            <div>
+              <strong>{resume.filename}</strong>
+              <span>
+                {(resume.sizeBytes / 1024).toFixed(1)} KB / {resume.approvalStatus}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
     </article>
   )
 }
 
-function BackendStatusPanel() {
+function BackendStatusPanel({
+  session,
+  onSessionChange,
+}: {
+  session: BackendSession | null
+  onSessionChange: (session: BackendSession | null) => void
+}) {
   const [health, setHealth] = useState<BackendHealth | null>(null)
-  const [session, setSession] = useState<BackendSession | null>(null)
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([])
   const [message, setMessage] = useState('Checking JobsFlow backend runtime...')
   const [isBusy, setIsBusy] = useState(false)
 
-  async function refreshBackend() {
+  const refreshBackend = useCallback(async () => {
     setIsBusy(true)
     try {
       const nextHealth = await getBackendHealth()
@@ -795,31 +1036,18 @@ function BackendStatusPanel() {
 
       try {
         const nextSession = await getBackendSession()
-        setSession(nextSession.session)
+        onSessionChange(nextSession.session)
       } catch {
-        setSession(null)
+        onSessionChange(null)
       }
     } catch (error) {
       setHealth(null)
-      setSession(null)
+      onSessionChange(null)
       setMessage(error instanceof Error ? error.message : 'Backend runtime check failed.')
     } finally {
       setIsBusy(false)
     }
-  }
-
-  async function createSession() {
-    setIsBusy(true)
-    try {
-      const result = await createDevelopmentSession()
-      setSession(result.session)
-      setMessage(`Session created for ${result.session.email}.`)
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Session creation failed.')
-    } finally {
-      setIsBusy(false)
-    }
-  }
+  }, [onSessionChange])
 
   async function loadAuditEvents() {
     setIsBusy(true)
@@ -836,7 +1064,7 @@ function BackendStatusPanel() {
 
   useEffect(() => {
     void refreshBackend()
-  }, [])
+  }, [refreshBackend])
 
   const bindingRows: Array<[string, boolean]> = health
     ? [
@@ -866,10 +1094,6 @@ function BackendStatusPanel() {
             <button disabled={isBusy} onClick={refreshBackend} type="button">
               <RefreshCw size={16} aria-hidden="true" />
               Refresh
-            </button>
-            <button disabled={isBusy} onClick={createSession} type="button">
-              <LockKeyhole size={16} aria-hidden="true" />
-              Create dev session
             </button>
             <button disabled={isBusy} onClick={loadAuditEvents} type="button">
               <DatabaseZap size={16} aria-hidden="true" />
@@ -921,9 +1145,11 @@ function BackendStatusPanel() {
 
 function CandidateWorkspace({
   automationMode,
+  session,
   onModeChange,
 }: {
   automationMode: string
+  session: BackendSession | null
   onModeChange: (mode: string) => void
 }) {
   return (
@@ -1002,7 +1228,7 @@ function CandidateWorkspace({
         </div>
       </article>
 
-      <ResumeStoragePanel />
+      <ResumeStoragePanel session={session} />
 
       <article className="panel packet-panel wide-panel">
         <div className="panel-title">
@@ -1398,7 +1624,13 @@ function EmployerWorkspace() {
   )
 }
 
-function TrustWorkspace() {
+function TrustWorkspace({
+  session,
+  onSessionChange,
+}: {
+  session: BackendSession | null
+  onSessionChange: (session: BackendSession | null) => void
+}) {
   const [gateState, setGateState] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(consentGateMatrix.map((gate) => [gate.key, gate.defaultEnabled])),
   )
@@ -1425,7 +1657,7 @@ function TrustWorkspace() {
 
       <CommandCenter items={trustCommandCenter} />
 
-      <BackendStatusPanel />
+      <BackendStatusPanel session={session} onSessionChange={onSessionChange} />
 
       <article className="panel wide-panel">
         <div className="panel-title">
@@ -1760,6 +1992,7 @@ function App() {
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace>('candidate')
   const [automationMode, setAutomationMode] = useState(automationModes[1].name)
   const [activeOnboardingStep, setActiveOnboardingStep] = useState(onboardingSteps[0].key)
+  const [session, setSession] = useState<BackendSession | null>(null)
 
   const activeSummary = useMemo(
     () => workspaces.find((workspace) => workspace.id === activeWorkspace)?.summary,
@@ -1811,6 +2044,8 @@ function App() {
           </div>
         </section>
 
+        <AuthPanel session={session} onSessionChange={setSession} />
+
         <ProductOnboarding
           activeStep={activeOnboardingStep}
           onStepChange={setActiveOnboardingStep}
@@ -1819,11 +2054,14 @@ function App() {
         {activeWorkspace === 'candidate' ? (
           <CandidateWorkspace
             automationMode={automationMode}
+            session={session}
             onModeChange={setAutomationMode}
           />
         ) : null}
         {activeWorkspace === 'employer' ? <EmployerWorkspace /> : null}
-        {activeWorkspace === 'trust' ? <TrustWorkspace /> : null}
+        {activeWorkspace === 'trust' ? (
+          <TrustWorkspace session={session} onSessionChange={setSession} />
+        ) : null}
       </main>
     </div>
   )
