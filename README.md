@@ -1,8 +1,8 @@
 # JobsFlow by Workflowfy AI
 
-Front-end scaffold for `https://jobsflow.workflowfy.ai`.
+JobsFlow by Workflowfy AI is the candidate-trusted, employer-ready AI hiring workflow platform for `https://jobsflow.workflowfy.ai`.
 
-JobsFlow is being shaped as a candidate-trusted, employer-ready AI hiring workflow OS. The current prototype is frontend-only: it does not authenticate users, call external APIs, submit applications, send email, charge cards, or scrape job boards.
+JobsFlow is being shaped as a candidate-trusted, employer-ready AI hiring workflow OS. The current build includes the frontend workspace plus a Cloudflare-ready backend slice for signed sessions, tenants, resume storage, and audit logs. It does not submit applications, send email, charge cards, scrape job boards, or run AI calls.
 
 Workflowfy AI is the public brand and operating layer for JobsFlow.
 
