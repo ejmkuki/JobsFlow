@@ -72,6 +72,14 @@ npm run build
 Create the production database and bucket:
 
 ```bash
+npm run cf:setup
+```
+
+The setup script creates or reuses the D1 database and R2 bucket, writes the bindings to `wrangler.jsonc`, sets generated Pages secrets without printing them, applies migrations, deploys, and validates `/api/health`.
+
+Manual equivalent:
+
+```bash
 npx wrangler d1 create jobsflow-prod
 npx wrangler r2 bucket create jobsflow-resumes
 ```
