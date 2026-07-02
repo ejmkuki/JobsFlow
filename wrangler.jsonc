@@ -2,20 +2,18 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "workflowfy-jobsflow",
   "pages_build_output_dir": "./dist",
-  "compatibility_date": "2026-07-02"
-
-  // Production bindings should be added after the resources exist:
-  // "d1_databases": [
-  //   {
-  //     "binding": "DB",
-  //     "database_name": "jobsflow-prod",
-  //     "database_id": "<cloudflare-d1-database-id>"
-  //   }
-  // ],
-  // "r2_buckets": [
-  //   {
-  //     "binding": "RESUME_BUCKET",
-  //     "bucket_name": "jobsflow-resumes"
-  //   }
-  // ]
+  "compatibility_date": "2026-07-02",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "jobsflow-prod",
+      "database_id": "f7789f2d-7199-4658-bcfd-d57ce5df8332"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RESUME_BUCKET",
+      "bucket_name": "jobsflow-resumes"
+    }
+  ]
 }
