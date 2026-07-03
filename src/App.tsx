@@ -1,4 +1,4 @@
-import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowRight,
   Bell,
@@ -1133,6 +1133,7 @@ function AuthPanel({
   const [message, setMessage] = useState('Looking for an active JobsFlow workspace...')
   const [isBusy, setIsBusy] = useState(false)
   const sso = useJobsFlowSso()
+  const autoSsoSessionAttempted = useRef(false)
   const selectedChecklist =
     accountType === 'candidate' ? candidateActivationChecklist : employerActivationChecklist
   const needsFreshCode =
@@ -1188,7 +1189,7 @@ function AuthPanel({
     }
   }
 
-  async function handleCreateSsoSession() {
+  const handleCreateSsoSession = useCallback(async () => {
     if (!sso.configured) {
       setMessage('SSO is selected for JobsFlow, but the provider keys are not connected yet.')
       return
@@ -1247,7 +1248,7 @@ function AuthPanel({
     } finally {
       setIsBusy(false)
     }
-  }
+  }, [accountType, displayName, email, onSessionChange, sso, tenantName])
 
   async function handleSignOut() {
     setIsBusy(true)
@@ -1256,6 +1257,7 @@ function AuthPanel({
       if (sso.isSignedIn) {
         await sso.signOut()
       }
+      autoSsoSessionAttempted.current = false
       onSessionChange(null)
       setMessage('Workspace closed. Your next action will need a fresh signed session.')
     } catch (error) {
@@ -1268,6 +1270,22 @@ function AuthPanel({
   useEffect(() => {
     void checkSession()
   }, [checkSession])
+
+  useEffect(() => {
+    if (!sso.isSignedIn) {
+      autoSsoSessionAttempted.current = false
+    }
+  }, [sso.isSignedIn])
+
+  useEffect(() => {
+    if (!sso.isLoaded || !sso.isSignedIn || session || isBusy || autoSsoSessionAttempted.current) {
+      return
+    }
+
+    autoSsoSessionAttempted.current = true
+    setMessage('SSO sign-in complete. Opening your JobsFlow workspace...')
+    void handleCreateSsoSession()
+  }, [handleCreateSsoSession, sso.isLoaded, sso.isSignedIn, session, isBusy])
 
   useEffect(() => {
     if (!session) {
