@@ -125,12 +125,31 @@ function Test-ClerkBackendKey {
   param([string]$Key)
 
   Write-Host "Validating Clerk backend key without printing it..."
-  $response = Invoke-WebRequest `
-    -Uri "https://api.clerk.com/v1/users?limit=1" `
-    -Headers @{ Authorization = "Bearer $Key" } `
-    -Method Get `
-    -TimeoutSec 30 `
-    -SkipHttpErrorCheck
+  try {
+    $response = Invoke-WebRequest `
+      -Uri "https://api.clerk.com/v1/users?limit=1" `
+      -Headers @{ Authorization = "Bearer $Key" } `
+      -Method Get `
+      -TimeoutSec 30 `
+      -UseBasicParsing
+  }
+  catch {
+    $statusCode = $null
+    if ($_.Exception.Response) {
+      try {
+        $statusCode = [int]$_.Exception.Response.StatusCode
+      }
+      catch {
+        $statusCode = $null
+      }
+    }
+
+    if ($statusCode) {
+      throw "Clerk backend key validation failed with HTTP $statusCode."
+    }
+
+    throw "Clerk backend key validation failed: $($_.Exception.Message)"
+  }
 
   if ($response.StatusCode -lt 200 -or $response.StatusCode -gt 299) {
     throw "Clerk backend key validation failed with HTTP $($response.StatusCode)."
