@@ -37,18 +37,42 @@ async function readBody(request: Request) {
   }
 }
 
-function hasBootstrapAccess(request: Request, env: RequestContext['env']) {
+function getBootstrapAccess(request: Request, env: RequestContext['env']) {
   const cloudflareAccessEmail = request.headers.get('cf-access-authenticated-user-email')
   if (cloudflareAccessEmail) {
-    return true
+    return { allowed: true as const, mode: 'cloudflare_access' }
   }
 
   const bootstrapToken = request.headers.get('x-jobsflow-bootstrap-token')
   if (env.AUTH_BOOTSTRAP_TOKEN && bootstrapToken === env.AUTH_BOOTSTRAP_TOKEN) {
-    return true
+    return { allowed: true as const, mode: 'bootstrap_token' }
   }
 
-  return env.ALLOW_DEV_AUTH === 'true' || isLocalRequest(request)
+  if (env.ALLOW_DEV_AUTH === 'true' || isLocalRequest(request)) {
+    return { allowed: true as const, mode: 'local_development' }
+  }
+
+  if (!env.AUTH_BOOTSTRAP_TOKEN) {
+    return {
+      allowed: false as const,
+      error: 'private_beta_not_configured',
+      message: 'Private beta access is not configured yet. Check the Cloudflare Pages bootstrap secret.',
+    }
+  }
+
+  if (bootstrapToken) {
+    return {
+      allowed: false as const,
+      error: 'invalid_private_beta_code',
+      message: 'Private beta code is invalid or expired. Use the latest code issued after the last production smoke test.',
+    }
+  }
+
+  return {
+    allowed: false as const,
+    error: 'private_beta_code_required',
+    message: 'Enter a private beta code to start a JobsFlow workspace.',
+  }
 }
 
 export async function onRequestGet({ request, env }: RequestContext) {
@@ -81,13 +105,13 @@ export async function onRequestPost({ request, env }: RequestContext) {
     return missingConfig('AUTH_SESSION_SECRET')
   }
 
-  if (!hasBootstrapAccess(request, env)) {
+  const bootstrapAccess = getBootstrapAccess(request, env)
+  if (!bootstrapAccess.allowed) {
     return json(
       {
         ok: false,
-        error: 'auth_not_configured',
-        message:
-          'Enable Cloudflare Access, provide x-jobsflow-bootstrap-token, or set ALLOW_DEV_AUTH=true for local development.',
+        error: bootstrapAccess.error,
+        message: bootstrapAccess.message,
       },
       403,
     )
@@ -180,7 +204,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
     metadata: {
       accountType,
       role,
-      accessMode: accessEmail ? 'cloudflare_access' : isLocalRequest(request) ? 'local_development' : 'bootstrap_token',
+      accessMode: bootstrapAccess.mode,
     },
   })
 
