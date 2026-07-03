@@ -1195,7 +1195,11 @@ function AuthPanel({
     }
 
     if (!sso.isLoaded) {
-      setMessage('SSO is still loading. Try again in a moment.')
+      setMessage(
+        sso.loadTimedOut
+          ? 'SSO is connected, but this browser could not load Clerk yet. Hard refresh, disable blockers for JobsFlow and Clerk, or use the private beta fallback.'
+          : 'SSO is loading. The sign-in buttons will unlock as soon as Clerk is ready.',
+      )
       return
     }
 
@@ -1305,7 +1309,12 @@ function AuthPanel({
           </p>
           <div className="sso-actions">
             {['Continue with Google', 'Continue with Apple', 'Continue with email'].map((label) => (
-              <button disabled={isBusy || !sso.configured} key={label} onClick={handleCreateSsoSession} type="button">
+              <button
+                disabled={isBusy || !sso.configured || !sso.isLoaded}
+                key={label}
+                onClick={handleCreateSsoSession}
+                type="button"
+              >
                 <ShieldCheck size={16} aria-hidden="true" />
                 {label}
               </button>
@@ -1315,7 +1324,11 @@ function AuthPanel({
             {sso.configured
               ? sso.isSignedIn
                 ? `SSO is signed in as ${sso.email ?? 'this user'}.`
-                : 'SSO is connected. Choose a sign-in method to continue.'
+                : sso.isLoaded
+                  ? 'SSO is connected. Choose a sign-in method to continue.'
+                  : sso.loadTimedOut
+                    ? 'SSO is connected, but the browser is blocking or still waiting on Clerk JS. Try a hard refresh or disable blockers for this site.'
+                    : 'SSO is connected. Loading the secure sign-in provider...'
               : 'SSO provider keys are not connected yet. Private beta access is still available below.'}
           </small>
         </div>

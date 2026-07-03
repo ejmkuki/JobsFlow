@@ -7,6 +7,7 @@ export type JobsFlowSsoContextValue = {
   getToken: () => Promise<string | null>
   isLoaded: boolean
   isSignedIn: boolean
+  loadTimedOut: boolean
   openSignIn: () => void
   signOut: () => Promise<void>
 }
@@ -18,6 +19,7 @@ export const disabledSso: JobsFlowSsoContextValue = {
   getToken: async () => null,
   isLoaded: true,
   isSignedIn: false,
+  loadTimedOut: false,
   openSignIn: () => undefined,
   signOut: async () => undefined,
 }
