@@ -64,7 +64,7 @@ function getBootstrapAccess(request: Request, env: RequestContext['env']) {
     return {
       allowed: false as const,
       error: 'invalid_private_beta_code',
-      message: 'Private beta code is invalid or expired. Use the latest code issued after the last production smoke test.',
+      message: 'Private beta code is invalid or expired. Use the latest private beta code.',
     }
   }
 

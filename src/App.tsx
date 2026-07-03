@@ -41,6 +41,7 @@ import {
   deleteBackendSession,
   getBackendHealth,
   getBackendSession,
+  humanizeJobsFlowError,
   listAuditEvents,
   listResumes,
   uploadResume,
@@ -1128,20 +1129,23 @@ function AuthPanel({
   const [email, setEmail] = useState('')
   const [tenantName, setTenantName] = useState('')
   const [bootstrapToken, setBootstrapToken] = useState('')
-  const [message, setMessage] = useState('Checking signed session...')
+  const [message, setMessage] = useState('Looking for an active JobsFlow workspace...')
   const [isBusy, setIsBusy] = useState(false)
   const selectedChecklist =
     accountType === 'candidate' ? candidateActivationChecklist : employerActivationChecklist
+  const needsFreshCode =
+    !session &&
+    (message.includes('no longer active') || message.includes('expired') || message.includes('fresh'))
 
   const checkSession = useCallback(async () => {
     setIsBusy(true)
     try {
       const result = await getBackendSession()
       onSessionChange(result.session)
-      setMessage(`Signed in as ${result.session.email}.`)
+      setMessage(`Workspace is open for ${result.session.email}.`)
     } catch (error) {
       onSessionChange(null)
-      setMessage(error instanceof Error ? error.message : 'No active signed session.')
+      setMessage(humanizeJobsFlowError(error, 'auth'))
     } finally {
       setIsBusy(false)
     }
@@ -1150,13 +1154,14 @@ function AuthPanel({
   async function handleCreateSession() {
     const normalizedEmail = email.trim()
     if (!normalizedEmail) {
-      setMessage('Enter an email before starting a session.')
+      setMessage('Add an email so JobsFlow knows who owns this workspace.')
       return
     }
 
     const normalizedName = displayName.trim() || normalizedEmail.split('@')[0] || 'JobsFlow User'
 
     setIsBusy(true)
+    setMessage('Checking the private beta gate...')
     try {
       const result = await createJobsFlowSession({
         accountType,
@@ -1172,10 +1177,10 @@ function AuthPanel({
       })
       onSessionChange(result.session)
       setBootstrapToken('')
-      setMessage(`Private beta session created for ${result.session.email}.`)
+      setMessage(`Workspace opened for ${result.session.email}. JobsFlow is ready to keep actions behind review.`)
     } catch (error) {
       onSessionChange(null)
-      setMessage(error instanceof Error ? error.message : 'Session creation failed.')
+      setMessage(humanizeJobsFlowError(error, 'auth'))
     } finally {
       setIsBusy(false)
     }
@@ -1186,9 +1191,9 @@ function AuthPanel({
     try {
       await deleteBackendSession()
       onSessionChange(null)
-      setMessage('Signed out. Session cookie was cleared.')
+      setMessage('Workspace closed. Your next action will need a fresh signed session.')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Sign out failed.')
+      setMessage(humanizeJobsFlowError(error, 'auth'))
     } finally {
       setIsBusy(false)
     }
@@ -1288,7 +1293,9 @@ function AuthPanel({
       </div>
 
       <div className="auth-state">
-        <StatusPill tone={session ? 'green' : 'amber'}>{session ? 'Signed in' : 'Auth required'}</StatusPill>
+        <StatusPill tone={session ? 'green' : needsFreshCode ? 'red' : 'amber'}>
+          {session ? 'Workspace open' : needsFreshCode ? 'Fresh code needed' : 'Private beta gate'}
+        </StatusPill>
         {session ? (
           <div className="session-summary">
             <strong>{session.displayName}</strong>
@@ -1309,7 +1316,7 @@ function AuthPanel({
           {!session ? (
             <button disabled={isBusy} onClick={handleCreateSession} type="button">
               <LockKeyhole size={16} aria-hidden="true" />
-              Start workspace
+              {isBusy ? 'Opening...' : 'Start workspace'}
             </button>
           ) : null}
           <button disabled={isBusy || !session} onClick={handleSignOut} type="button">
@@ -1378,39 +1385,39 @@ function ResumeStoragePanel({
 }) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [resumes, setResumes] = useState<ResumeArtifact[]>([])
-  const [status, setStatus] = useState('Choose a PDF or DOCX resume to store privately.')
+  const [status, setStatus] = useState('Choose a PDF or DOCX resume. JobsFlow will keep it private to this workspace.')
   const [isUploading, setIsUploading] = useState(false)
   const isActivation = variant === 'activation'
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null
     setSelectedFile(file)
-    setStatus(file ? `${file.name} selected for secure storage.` : 'Choose a PDF or DOCX resume to store privately.')
+    setStatus(file ? `${file.name} is ready to store privately.` : 'Choose a PDF or DOCX resume. JobsFlow will keep it private to this workspace.')
   }
 
   async function handleUpload() {
     if (!session) {
-      setStatus('Sign in before storing a resume.')
+      setStatus('Start a workspace first, then resume storage will unlock.')
       return
     }
 
     if (!selectedFile) {
-      setStatus('Select a resume before storing it.')
+      setStatus('Choose a resume first, then JobsFlow can store it safely.')
       return
     }
 
     setIsUploading(true)
-    setStatus('Contacting JobsFlow API...')
+    setStatus('Storing this resume inside the active workspace...')
 
     try {
       const result = await uploadResume(selectedFile)
       setStatus(
-        `${result.resume.filename} stored for this workspace. An audit event was recorded.`,
+        `${result.resume.filename} is stored privately. JobsFlow recorded the audit trail.`,
       )
       const nextResumes = await listResumes()
       setResumes(nextResumes.resumes)
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Resume upload failed.')
+      setStatus(humanizeJobsFlowError(error, 'resume'))
     } finally {
       setIsUploading(false)
     }
@@ -1419,7 +1426,7 @@ function ResumeStoragePanel({
   const refreshResumes = useCallback(async () => {
     if (!session) {
       setResumes([])
-      setStatus('Sign in before reading stored resume metadata.')
+      setStatus('Start a workspace first, then JobsFlow can show stored resume metadata.')
       return
     }
 
@@ -1429,7 +1436,7 @@ function ResumeStoragePanel({
       setResumes(result.resumes)
       setStatus(`${result.resumes.length} resume artifact${result.resumes.length === 1 ? '' : 's'} visible in this workspace.`)
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Resume metadata read failed.')
+      setStatus(humanizeJobsFlowError(error, 'resume'))
     } finally {
       setIsUploading(false)
     }
@@ -1498,7 +1505,7 @@ function BackendStatusPanel({
 }) {
   const [health, setHealth] = useState<BackendHealth | null>(null)
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([])
-  const [message, setMessage] = useState('Checking JobsFlow backend runtime...')
+  const [message, setMessage] = useState('Checking whether JobsFlow is ready to protect real workspace data...')
   const [isBusy, setIsBusy] = useState(false)
 
   const refreshBackend = useCallback(async () => {
@@ -1506,7 +1513,11 @@ function BackendStatusPanel({
     try {
       const nextHealth = await getBackendHealth()
       setHealth(nextHealth)
-      setMessage(nextHealth.databaseReady ? 'Backend runtime is reachable and D1 is migrated.' : 'Backend runtime is reachable; D1 still needs migration or binding.')
+      setMessage(
+        nextHealth.databaseReady
+          ? 'JobsFlow is awake. Workspace data, packet review, and audit trails are ready.'
+          : 'JobsFlow is reachable, but one production data table still needs attention.',
+      )
 
       try {
         const nextSession = await getBackendSession()
@@ -1517,7 +1528,7 @@ function BackendStatusPanel({
     } catch (error) {
       setHealth(null)
       onSessionChange(null)
-      setMessage(error instanceof Error ? error.message : 'Backend runtime check failed.')
+      setMessage(humanizeJobsFlowError(error, 'backend'))
     } finally {
       setIsBusy(false)
     }
@@ -1528,9 +1539,9 @@ function BackendStatusPanel({
     try {
       const result = await listAuditEvents()
       setAuditEvents(result.events)
-      setMessage(`${result.events.length} audit events loaded from D1.`)
+      setMessage(`${result.events.length} audit event${result.events.length === 1 ? '' : 's'} loaded for this workspace.`)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Audit log read failed.')
+      setMessage(humanizeJobsFlowError(error, 'audit'))
     } finally {
       setIsBusy(false)
     }
@@ -1542,11 +1553,11 @@ function BackendStatusPanel({
 
   const bindingRows: Array<[string, boolean]> = health
     ? [
-        ['D1 database', health.bindings.db],
-        ['R2 resume bucket', health.bindings.resumeBucket],
-        ['Session secret', health.bindings.sessionSecret],
-        ['Bootstrap token', health.bindings.bootstrapToken],
-        ['Packet review tables', Boolean(health.features?.packetReviewEngine)],
+        ['Workspace database', health.bindings.db],
+        ['Resume storage', health.bindings.resumeBucket],
+        ['Session signing', health.bindings.sessionSecret],
+        ['Private beta gate', health.bindings.bootstrapToken],
+        ['Packet review engine', Boolean(health.features?.packetReviewEngine)],
       ]
     : []
 
@@ -1555,15 +1566,15 @@ function BackendStatusPanel({
       <div className="panel-title">
         <div>
           <span>Live backend readiness</span>
-          <h3>Auth, tenants, resume storage, and audit logs</h3>
+          <h3>Secure workspaces, resume storage, and audit trails</h3>
         </div>
         <StatusPill tone={health?.databaseReady ? 'green' : 'amber'}>
-          {health ? 'API reachable' : 'Runtime pending'}
+          {health ? 'Ready' : 'Checking'}
         </StatusPill>
       </div>
       <div className="backend-grid">
         <div className="backend-card">
-          <strong>Cloudflare runtime</strong>
+          <strong>JobsFlow services</strong>
           <p>{message}</p>
           <div className="backend-actions">
             <button disabled={isBusy} onClick={refreshBackend} type="button">
@@ -1587,7 +1598,7 @@ function BackendStatusPanel({
                 </div>
               ))
             ) : (
-              <p>Run under Cloudflare Pages runtime to inspect bindings.</p>
+              <p>Open the deployed app to inspect live readiness.</p>
             )}
           </div>
         </div>
@@ -1629,7 +1640,7 @@ function CandidateWorkspace({
 }) {
   const [packetReviewResult, setPacketReviewResult] = useState<ApplicationPacketReview | null>(null)
   const [packetReviewMessage, setPacketReviewMessage] = useState(
-    'Start a workspace, then run the review engine to record packet gates and audit evidence.',
+    'Start a workspace, then JobsFlow can review this packet and explain whether it is ready or not yet.',
   )
   const [isReviewingPacket, setIsReviewingPacket] = useState(false)
   const packetReviewTone: Tone = packetReviewResult?.state === 'approved'
@@ -1645,7 +1656,7 @@ function CandidateWorkspace({
     }
 
     setIsReviewingPacket(true)
-    setPacketReviewMessage('Reviewing evidence, safeguards, and approval gates...')
+    setPacketReviewMessage('Checking the evidence, safeguards, and approval gates...')
 
     try {
       const result = await createApplicationPacketReview({
@@ -1683,11 +1694,14 @@ function CandidateWorkspace({
       })
 
       setPacketReviewResult(result.packet)
+      const reviewGateCount = result.packet.requiredReviews.length
       setPacketReviewMessage(
-        `${result.packet.readinessScore}% ready with ${result.packet.requiredReviews.length} review gate${result.packet.requiredReviews.length === 1 ? '' : 's'}. External action remains blocked.`,
+        reviewGateCount
+          ? `JobsFlow says not yet for ${reviewGateCount} reason${reviewGateCount === 1 ? '' : 's'}. The packet is ${result.packet.readinessScore}% ready, and external action stays blocked.`
+          : `JobsFlow says this packet is ready for candidate approval. External action still waits for explicit consent.`,
       )
     } catch (error) {
-      setPacketReviewMessage(error instanceof Error ? error.message : 'Packet review failed.')
+      setPacketReviewMessage(humanizeJobsFlowError(error, 'packet'))
     } finally {
       setIsReviewingPacket(false)
     }
@@ -1806,7 +1820,7 @@ function CandidateWorkspace({
             <div className="backend-actions">
               <button disabled={isReviewingPacket} onClick={handlePacketReview} type="button">
                 <ShieldCheck size={16} aria-hidden="true" />
-                Run review engine
+                {isReviewingPacket ? 'Checking...' : 'Run review engine'}
               </button>
             </div>
             <div className="runtime-message">

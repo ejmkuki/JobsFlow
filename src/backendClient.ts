@@ -108,18 +108,84 @@ export type ApplicationPacketReviewRequest = {
   targetRole: string
 }
 
+type JobsFlowErrorContext = 'audit' | 'auth' | 'backend' | 'packet' | 'resume'
+
+export class JobsFlowApiError extends Error {
+  code?: string
+  status: number
+
+  constructor(message: string, status: number, code?: string) {
+    super(message)
+    this.name = 'JobsFlowApiError'
+    this.status = status
+    this.code = code
+  }
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   const contentType = response.headers.get('content-type') ?? ''
   if (!contentType.includes('application/json')) {
-    throw new Error('JobsFlow API is not available from this dev server. Use Cloudflare Pages runtime for backend endpoints.')
+    throw new JobsFlowApiError(
+      'JobsFlow needs its secure runtime for this action. Open the deployed app or the Cloudflare Pages dev server.',
+      response.status,
+      'runtime_unavailable',
+    )
   }
 
-  const payload = (await response.json()) as T & { message?: string }
+  const payload = (await response.json()) as T & { error?: string; message?: string }
   if (!response.ok) {
-    throw new Error(payload.message ?? `JobsFlow API request failed with ${response.status}`)
+    throw new JobsFlowApiError(
+      payload.message ?? `JobsFlow could not complete that request. Status ${response.status}.`,
+      response.status,
+      payload.error,
+    )
   }
 
   return payload
+}
+
+export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorContext) {
+  if (error instanceof JobsFlowApiError) {
+    if (error.code === 'invalid_private_beta_code') {
+      return 'That private beta code is no longer active. Nothing is broken; access was rotated after the last production check.'
+    }
+
+    if (error.code === 'private_beta_code_required') {
+      return 'Enter a private beta code to open a secure JobsFlow workspace.'
+    }
+
+    if (error.code === 'private_beta_not_configured') {
+      return 'JobsFlow is protecting access because private beta access is not configured yet.'
+    }
+
+    if (error.code === 'unauthorized') {
+      if (context === 'packet') {
+        return 'Start a workspace first, then JobsFlow can review the packet and record the decision.'
+      }
+
+      if (context === 'resume') {
+        return 'Start a workspace first, then resume storage will unlock for this tenant.'
+      }
+
+      if (context === 'audit') {
+        return 'Start a workspace first, then the audit trail will show tenant-scoped activity.'
+      }
+
+      return 'No active workspace yet. Enter your email and private beta code to begin.'
+    }
+
+    if (error.code === 'wrong_workspace_type') {
+      return 'This action belongs in a candidate workspace. Switch to candidate mode before running it.'
+    }
+
+    if (error.code === 'missing_configuration') {
+      return 'JobsFlow is holding this action because a production setting is missing.'
+    }
+
+    return error.message
+  }
+
+  return error instanceof Error ? error.message : 'JobsFlow could not complete that action.'
 }
 
 export async function getBackendHealth() {
