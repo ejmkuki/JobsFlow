@@ -32,9 +32,11 @@ import type { LucideIcon } from 'lucide-react'
 import './App.css'
 import {
   type AuditEvent,
+  type ApplicationPacketReview,
   type BackendHealth,
   type BackendSession,
   type ResumeArtifact,
+  createApplicationPacketReview,
   createJobsFlowSession,
   deleteBackendSession,
   getBackendHealth,
@@ -1067,8 +1069,8 @@ function SignalOperationsLayer({
         <span>Signal operations</span>
         <h2>Run the next reviewed decision</h2>
         <p>
-          JobsFlow should feel like an operating system: every workspace shows what changed,
-          why it matters, and which reviewed action should happen next.
+          JobsFlow keeps each workspace focused on what changed, why it matters,
+          and which evidence-backed action should happen next.
         </p>
       </div>
 
@@ -1544,6 +1546,7 @@ function BackendStatusPanel({
         ['R2 resume bucket', health.bindings.resumeBucket],
         ['Session secret', health.bindings.sessionSecret],
         ['Bootstrap token', health.bindings.bootstrapToken],
+        ['Packet review tables', Boolean(health.features?.packetReviewEngine)],
       ]
     : []
 
@@ -1618,10 +1621,78 @@ function BackendStatusPanel({
 function CandidateWorkspace({
   automationMode,
   onModeChange,
+  session,
 }: {
   automationMode: string
   onModeChange: (mode: string) => void
+  session: BackendSession | null
 }) {
+  const [packetReviewResult, setPacketReviewResult] = useState<ApplicationPacketReview | null>(null)
+  const [packetReviewMessage, setPacketReviewMessage] = useState(
+    'Start a workspace, then run the review engine to record packet gates and audit evidence.',
+  )
+  const [isReviewingPacket, setIsReviewingPacket] = useState(false)
+  const packetReviewTone: Tone = packetReviewResult?.state === 'approved'
+    ? 'green'
+    : packetReviewResult?.state === 'blocked'
+      ? 'red'
+      : 'amber'
+
+  async function handlePacketReview() {
+    if (!session) {
+      setPacketReviewMessage('Start a candidate workspace before running the packet review engine.')
+      return
+    }
+
+    setIsReviewingPacket(true)
+    setPacketReviewMessage('Reviewing evidence, safeguards, and approval gates...')
+
+    try {
+      const result = await createApplicationPacketReview({
+        company: applicationPacket.company,
+        duplicateFound: false,
+        evidence: [
+          'Scaled intake workflow across 4 healthcare SaaS implementation teams',
+          'Owned vendor governance process for product operations handoffs',
+          'Reduced launch handoff time by 28% with a repeatable operating rhythm',
+          'Managed executive stakeholder communication during cross-functional rollout',
+        ],
+        jobDescription:
+          'Product Operations Manager role focused on healthcare SaaS delivery, vendor governance, claims operations, and cross-functional launch quality.',
+        requiredSkills: [
+          'Product operations',
+          'Healthcare SaaS',
+          'Vendor governance',
+          'Claims operations',
+        ],
+        salaryFloorCents: 11500000,
+        salaryRange: {
+          currency: 'USD',
+          maxCents: 13800000,
+          minCents: 11800000,
+        },
+        sensitiveAnswers: [
+          {
+            approved: false,
+            key: 'workday-sponsorship',
+            label: 'Workday sponsorship answer',
+            value: 'No current sponsorship requirement',
+          },
+        ],
+        targetRole: applicationPacket.role,
+      })
+
+      setPacketReviewResult(result.packet)
+      setPacketReviewMessage(
+        `${result.packet.readinessScore}% ready with ${result.packet.requiredReviews.length} review gate${result.packet.requiredReviews.length === 1 ? '' : 's'}. External action remains blocked.`,
+      )
+    } catch (error) {
+      setPacketReviewMessage(error instanceof Error ? error.message : 'Packet review failed.')
+    } finally {
+      setIsReviewingPacket(false)
+    }
+  }
+
   return (
     <section className="workspace-grid candidate-workspace">
       <div className="workspace-lead">
@@ -1723,13 +1794,31 @@ function CandidateWorkspace({
             </div>
           </div>
           <div className="review-gate-box">
-            <StatusPill tone="amber">Review gate required</StatusPill>
+            <StatusPill tone={packetReviewResult ? packetReviewTone : 'amber'}>
+              {packetReviewResult ? packetReviewResult.state.replaceAll('_', ' ') : 'Review gate required'}
+            </StatusPill>
             <h4>Before anything external</h4>
             <ul className="plain-list">
               {applicationPacket.blockers.map((blocker) => (
                 <li key={blocker}>{blocker}</li>
               ))}
             </ul>
+            <div className="backend-actions">
+              <button disabled={isReviewingPacket} onClick={handlePacketReview} type="button">
+                <ShieldCheck size={16} aria-hidden="true" />
+                Run review engine
+              </button>
+            </div>
+            <div className="runtime-message">
+              <strong>{packetReviewMessage}</strong>
+              {packetReviewResult ? (
+                <p>
+                  Skill coverage: {packetReviewResult.skillCoverageScore}% / proof strength:{' '}
+                  {packetReviewResult.proofStrength}. Required next action:{' '}
+                  {packetReviewResult.requiredReviews[0]?.requiredAction ?? 'Candidate approval can proceed.'}
+                </p>
+              ) : null}
+            </div>
           </div>
         </div>
       </article>
@@ -2654,7 +2743,7 @@ function App() {
       <main className="app-main">
         <section className="workspace-summary" aria-label="Current workspace">
           <div>
-            <span>Hiring workflow OS</span>
+            <span>Evidence-first hiring platform</span>
             <h1>JobsFlow by Workflowfy AI</h1>
             <p>{activeSummary}</p>
           </div>
@@ -2681,6 +2770,7 @@ function App() {
           <CandidateWorkspace
             automationMode={automationMode}
             onModeChange={setAutomationMode}
+            session={session}
           />
         ) : null}
         {activeWorkspace === 'employer' ? <EmployerWorkspace /> : null}

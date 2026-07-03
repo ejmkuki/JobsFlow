@@ -25,7 +25,7 @@ type SessionRequestBody = {
 
 const sessionMaxAgeSeconds = 60 * 60 * 24 * 7
 
-function isAllowedRole(value: string): value is SessionRequestBody['role'] {
+function isAllowedRole(value: string): value is NonNullable<SessionRequestBody['role']> {
   return ['candidate', 'recruiter', 'hiring_manager', 'platform_admin'].includes(value)
 }
 

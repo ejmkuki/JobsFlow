@@ -7,6 +7,9 @@ export type BackendHealth = {
   }
   databaseReady: boolean
   externalSubmissionsEnabled: boolean
+  features?: {
+    packetReviewEngine: boolean
+  }
   ok: boolean
   runtime: string
   service: string
@@ -47,6 +50,62 @@ export type ResumeArtifact = {
   id: string
   sizeBytes: number
   sourceHash: string
+}
+
+export type PacketReviewState = 'approved' | 'blocked' | 'candidate_approval_required'
+
+export type PacketReviewFinding = {
+  detail: string
+  key: string
+  requiredAction: string
+  riskLevel: 'low' | 'medium' | 'high'
+  type: string
+}
+
+export type PacketReviewSafeguard = {
+  detail: string
+  key: string
+  status: 'blocked' | 'passed' | 'review'
+}
+
+export type ApplicationPacketReview = {
+  createdAt?: string
+  evidence: string[]
+  externalActionBlockReason: string
+  externalActionBlocked: boolean
+  gaps: PacketReviewFinding[]
+  id: string
+  proofStrength: 'light' | 'moderate' | 'strong'
+  readinessScore: number
+  requiredReviews: PacketReviewFinding[]
+  safeguards: PacketReviewSafeguard[]
+  skillCoverageScore: number
+  state: PacketReviewState
+  targetCompany: string
+  targetRole: string
+  updatedAt?: string
+}
+
+export type ApplicationPacketReviewRequest = {
+  company: string
+  duplicateFound?: boolean
+  evidence: string[]
+  exclusions?: string[]
+  jobDescription?: string
+  requiredSkills: string[]
+  salaryFloorCents?: number
+  salaryRange?: {
+    currency?: string
+    maxCents?: number
+    minCents?: number
+  }
+  sensitiveAnswers?: Array<{
+    approved: boolean
+    key: string
+    label: string
+    value: string
+  }>
+  targetRole: string
 }
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -128,6 +187,22 @@ export async function uploadResume(file: File) {
   return readJson<{ ok: boolean; resume: ResumeArtifact }>(
     await fetch('/api/resumes', {
       body: formData,
+      method: 'POST',
+    }),
+  )
+}
+
+export async function listApplicationPacketReviews() {
+  return readJson<{ ok: boolean; packets: ApplicationPacketReview[] }>(await fetch('/api/packet-review'))
+}
+
+export async function createApplicationPacketReview(input: ApplicationPacketReviewRequest) {
+  return readJson<{ ok: boolean; packet: ApplicationPacketReview }>(
+    await fetch('/api/packet-review', {
+      body: JSON.stringify(input),
+      headers: {
+        'content-type': 'application/json',
+      },
       method: 'POST',
     }),
   )

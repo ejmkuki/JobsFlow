@@ -4,13 +4,17 @@ import { json, requireDb } from '../_shared'
 export async function onRequestGet({ env }: RequestContext) {
   const db = requireDb(env)
   let databaseReady = false
+  let packetReviewEngineReady = false
 
   if (db) {
     try {
       const row = await db.prepare('SELECT COUNT(*) AS count FROM tenants').first<{ count: number }>()
-      databaseReady = typeof row?.count === 'number'
+      const packetRow = await db.prepare('SELECT COUNT(*) AS count FROM application_packets').first<{ count: number }>()
+      databaseReady = typeof row?.count === 'number' && typeof packetRow?.count === 'number'
+      packetReviewEngineReady = typeof packetRow?.count === 'number'
     } catch {
       databaseReady = false
+      packetReviewEngineReady = false
     }
   }
 
@@ -25,6 +29,9 @@ export async function onRequestGet({ env }: RequestContext) {
       bootstrapToken: Boolean(env.AUTH_BOOTSTRAP_TOKEN),
     },
     databaseReady,
+    features: {
+      packetReviewEngine: packetReviewEngineReady,
+    },
     externalSubmissionsEnabled: false,
   })
 }

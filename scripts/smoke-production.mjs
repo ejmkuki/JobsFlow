@@ -106,7 +106,53 @@ console.log(`Resume uploaded: ${upload.resume.filename}`)
 const resumes = await getJson('/api/resumes', cookie)
 console.log(`Resume metadata rows visible to tenant: ${resumes.resumes.length}`)
 
+const packetReviewResponse = await fetch(`${baseUrl}/api/packet-review`, {
+  body: JSON.stringify({
+    company: 'Kora Health',
+    duplicateFound: false,
+    evidence: [
+      'Scaled intake workflow across 4 healthcare SaaS implementation teams',
+      'Owned vendor governance process for product operations handoffs',
+      'Reduced launch handoff time by 28% with a repeatable operating rhythm',
+      'Managed executive stakeholder communication during cross-functional rollout',
+    ],
+    jobDescription:
+      'Product Operations Manager role focused on healthcare SaaS delivery, vendor governance, claims operations, and cross-functional launch quality.',
+    requiredSkills: [
+      'Product operations',
+      'Healthcare SaaS',
+      'Vendor governance',
+      'Claims operations',
+    ],
+    salaryFloorCents: 11500000,
+    salaryRange: {
+      currency: 'USD',
+      maxCents: 13800000,
+      minCents: 11800000,
+    },
+    sensitiveAnswers: [
+      {
+        approved: false,
+        key: 'workday-sponsorship',
+        label: 'Workday sponsorship answer',
+        value: 'No current sponsorship requirement',
+      },
+    ],
+    targetRole: 'Product Operations Manager',
+  }),
+  headers: {
+    'content-type': 'application/json',
+    cookie,
+  },
+  method: 'POST',
+})
+
+const packetReview = await readResponse(packetReviewResponse)
+console.log(
+  `Packet reviewed: ${packetReview.packet.readinessScore}% ready, ${packetReview.packet.requiredReviews.length} review gates, external action blocked=${packetReview.packet.externalActionBlocked}`,
+)
+
 const audit = await getJson('/api/audit', cookie)
 console.log(`Audit events visible to tenant: ${audit.events.length}`)
 
-console.log('Production session, R2 upload, D1 metadata, and audit flow passed.')
+console.log('Production session, R2 upload, packet review, D1 metadata, and audit flow passed.')

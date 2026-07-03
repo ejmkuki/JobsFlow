@@ -2,9 +2,9 @@
 
 JobsFlow by Workflowfy AI is the candidate-trusted, employer-ready AI hiring workflow platform for `https://jobsflow.workflowfy.ai`.
 
-JobsFlow is being shaped as a candidate-trusted, employer-ready AI hiring workflow OS. The current build includes the frontend workspace plus a Cloudflare-ready backend slice for signed sessions, tenants, resume storage, and audit logs. It does not submit applications, send email, charge cards, scrape job boards, or run AI calls.
+JobsFlow is being shaped as a candidate-trusted, employer-ready AI hiring workflow platform. The current build includes the frontend workspace plus a Cloudflare-ready backend slice for signed sessions, tenants, resume storage, and audit logs. It does not submit applications, send email, charge cards, scrape job boards, or run AI calls.
 
-Workflowfy AI is the public brand and operating layer for JobsFlow.
+Workflowfy AI is the public brand and product layer for JobsFlow.
 
 ## Strategy Memo
 
@@ -36,7 +36,7 @@ Workflowfy AI is the public brand and operating layer for JobsFlow.
 
 ## Phase 2.1 Signal Operations Layer
 
-JobsFlow now has a cross-workspace operating layer designed to reduce anxiety and increase decision quality:
+JobsFlow now has a cross-workspace decision layer designed to reduce anxiety and increase decision quality:
 
 - Candidate decision queue: shows the next packet review, proof gap, approval gate, and reputation safeguards.
 - Employer decision queue: shows the scorecard lock, compensation/fairness blockers, and outreach readiness.
@@ -72,10 +72,23 @@ The app now includes a real Cloudflare-ready backend surface:
 - `functions/api/health.ts`: reports runtime, D1, R2, session secret, and bootstrap-token readiness.
 - `functions/api/session.ts`: creates signed HTTP-only sessions through Cloudflare Access, a private bootstrap token, or localhost development mode.
 - `functions/api/resumes.ts`: stores PDF/DOCX resumes in R2, writes metadata to D1, and records an audit event.
+- `functions/api/packet-review.ts`: reviews candidate application packet evidence, computes readiness, creates review gates, records state transitions, and keeps external action blocked.
 - `functions/api/audit.ts`: returns tenant-scoped audit events for the active session.
 - `migrations/0001_initial.sql`: creates tenants, users, sessions, candidate profiles, resume artifacts, and audit events.
+- `migrations/0002_application_packet_review.sql`: creates application packets, review gates, and state transitions.
 
 The backend fails closed when bindings or secrets are missing. It does not submit applications, send email, scrape jobs, charge cards, or expose resume files publicly.
+
+## Application Packet Review Engine
+
+The first workflow-native candidate engine is now present behind `/api/packet-review`.
+
+- Inputs: target role, company, salary range, required skills, evidence bullets, sensitive answers, exclusions, and duplicate-risk signal.
+- Evaluation: deterministic evidence coverage, proof strength, salary floor guardrail, exclusion checks, duplicate prevention, and sensitive-answer approval.
+- Outputs: packet readiness score, skill coverage score, proof strength, safeguards, gaps, required review gates, and external-action block reason.
+- Persistence: tenant-scoped `application_packets`, `review_gates`, `state_transitions`, and `audit_events` rows.
+
+This engine intentionally does not submit applications or send outreach. It creates the reviewed decision record that must exist before any future external integration can act.
 
 ## Run Locally
 
