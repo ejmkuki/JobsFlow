@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "cf:setup": "powershell -ExecutionPolicy Bypass -File ./scripts/setup-cloudflare.ps1",
     "cf:deploy": "npm run build && npx wrangler pages deploy dist --project-name=workflowfy-jobsflow --branch=main --commit-dirty=true",
+    "cf:activate-clerk": "powershell -ExecutionPolicy Bypass -File ./scripts/activate-clerk-production.ps1",
     "cf:smoke": "node ./scripts/smoke-production.mjs",
     "cf:d1:migrate:local": "npx wrangler d1 migrations apply jobsflow-prod --local",
     "cf:d1:migrate:remote": "npx wrangler d1 migrations apply jobsflow-prod --remote"

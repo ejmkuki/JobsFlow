@@ -102,6 +102,19 @@ CLERK_AUTHORIZED_PARTIES=https://jobsflow.workflowfy.ai
 
 The frontend shows SSO as the recommended sign-in path when the publishable key is present. The backend only accepts Clerk sessions after verifying the JWT signature, issuer, expiration, optional authorized party, and Clerk user email through the Clerk Backend API. If SSO keys are not configured, JobsFlow keeps the private beta gate active and reports SSO as not connected.
 
+Production activation:
+
+```powershell
+. .\.cloudflare.local.ps1
+$env:NODE_OPTIONS="--use-system-ca"
+npm run cf:activate-clerk -- `
+  -PublishableKey "pk_live_..." `
+  -Issuer "https://your-clerk-issuer" `
+  -SecretKey "sk_live_..."
+```
+
+The activation script derives `CLERK_JWKS_URL` from the issuer unless it is passed explicitly, validates the JWKS endpoint, validates the Clerk backend key without printing it, installs backend values as Cloudflare Pages secrets, rebuilds the Vite bundle with `VITE_CLERK_PUBLISHABLE_KEY`, deploys, and verifies that `/api/health` reports `features.ssoProvider=true`. If JobsFlow later moves from direct upload deploys to Cloudflare-hosted builds, add `VITE_CLERK_PUBLISHABLE_KEY` as a Pages build environment variable too.
+
 ## Application Packet Review Engine
 
 The first workflow-native candidate engine is now present behind `/api/packet-review`.
