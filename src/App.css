@@ -203,7 +203,10 @@
 }
 
 .auth-copy span,
-.auth-form label span {
+.auth-form label span,
+.activation-next-copy span,
+.employer-activation-preview span,
+.market-row span {
   color: #a7c6c2;
   font-size: 0.76rem;
   font-weight: 900;
@@ -221,6 +224,45 @@
 .auth-state p {
   margin: 0;
   color: #d7e6e3;
+}
+
+.activation-path {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.activation-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  background: #17242c;
+  border: 1px solid #31424b;
+  border-radius: 8px;
+}
+
+.activation-item b {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: var(--teal);
+  font-size: 0.75rem;
+  background: #e9f5f3;
+  border-radius: 999px;
+}
+
+.activation-item strong {
+  display: block;
+  color: #ffffff;
+}
+
+.activation-item p {
+  margin-top: 3px;
+  color: #b9cfcb;
+  font-size: 0.88rem;
 }
 
 .auth-form {
@@ -243,6 +285,13 @@
   background: #ffffff;
   border: 1px solid #3b4b52;
   border-radius: 8px;
+}
+
+.auth-helper {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #b9cfcb;
+  font-size: 0.88rem;
 }
 
 .segmented-control {
@@ -289,6 +338,83 @@
 .auth-actions {
   display: grid;
   gap: 8px;
+}
+
+.activation-next {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+  gap: 14px;
+  align-items: stretch;
+  padding: 14px;
+  background: #17242c;
+  border: 1px solid #31424b;
+  border-radius: 8px;
+}
+
+.activation-next-copy {
+  min-width: 0;
+}
+
+.activation-next-copy h3 {
+  margin: 5px 0 8px;
+  color: #ffffff;
+  font-size: 1.15rem;
+  line-height: 1.15;
+}
+
+.activation-next-copy p {
+  margin: 0;
+  color: #d7e6e3;
+}
+
+.activation-placeholder,
+.employer-activation-preview,
+.activation-resume {
+  min-width: 0;
+  padding: 14px;
+  background: #f7fbfa;
+  border: 1px solid #c7e2de;
+  border-radius: 8px;
+}
+
+.activation-placeholder {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.activation-placeholder strong,
+.employer-activation-preview strong {
+  color: var(--ink);
+}
+
+.activation-placeholder p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.employer-activation-preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.employer-activation-preview div {
+  min-width: 0;
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.employer-activation-preview span,
+.market-row span {
+  color: var(--teal);
+}
+
+.activation-resume .panel-title {
+  margin-bottom: 10px;
 }
 
 .onboarding-copy,
@@ -945,6 +1071,7 @@
 .priority-grid,
 .analytics-grid,
 .integration-grid,
+.market-grid,
 .pricing-grid,
 .trust-grid,
 .consent-grid,
@@ -1035,6 +1162,29 @@
 .analytics-grid span {
   display: block;
   margin-top: 6px;
+  color: var(--muted);
+}
+
+.market-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.market-row {
+  display: grid;
+  gap: 8px;
+  min-height: 164px;
+  align-content: start;
+  padding: 14px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.market-row strong {
+  color: var(--ink);
+}
+
+.market-row p {
   color: var(--muted);
 }
 
@@ -1334,6 +1484,7 @@
 
   .onboarding-panel,
   .auth-panel,
+  .activation-next,
   .packet-grid {
     grid-template-columns: 1fr;
   }
@@ -1351,6 +1502,7 @@
   .roadmap-grid,
   .packet-checklist,
   .guardrail-grid,
+  .market-grid,
   .states-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1403,7 +1555,9 @@
   .workspace-lead,
   .onboarding-panel,
   .auth-panel,
+  .activation-next,
   .auth-form,
+  .employer-activation-preview,
   .backend-grid,
   .onboarding-steps,
   .metrics-row,
@@ -1414,6 +1568,7 @@
   .trust-grid,
   .consent-grid,
   .integration-grid,
+  .market-grid,
   .pricing-grid,
   .schema-grid,
   .readiness-grid,
@@ -1471,6 +1626,9 @@
   .workspace-summary,
   .workspace-lead,
   .onboarding-panel,
+  .auth-panel,
+  .activation-next,
+  .activation-resume,
   .panel,
   .metric-tile {
     padding: 14px;

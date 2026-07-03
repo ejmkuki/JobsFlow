@@ -24,10 +24,23 @@ Workflowfy AI is the public brand and operating layer for JobsFlow.
 ## Phase 2 Product Surface
 
 - Product onboarding now walks users through signal target, employer criteria, review gates, and affordable access before automation is considered.
+- Activation Center now brings candidate signup, employer signup, and first useful action into one surface: candidates upload a resume immediately after starting a workspace, while employers clarify the first role before ranking anyone.
 - Candidate command center now includes application packet review, salary floor guardrails, company exclusions, duplicate prevention, and blocked-action visibility.
 - Employer command center now includes scorecard weighting, interview coordination, collaboration placeholders, and decision-risk context.
 - Trust & Platform now includes product states, data ownership controls, abuse prevention, and plan entitlements mapped to future Stripe billing.
 - Empty, loading, error, and blocked-state copy remains frontend-only and does not call external services.
+
+## Market-Inspired JobsFlow Modules
+
+JobsFlow studies the useful patterns in major recruiting platforms without copying their branding, copy, layouts, or volume-first behavior.
+
+- Professional network pattern: relationship-aware targets and future profile imports, guarded by privacy controls.
+- Job inventory pattern: curated match queues ranked by fit evidence, salary floor, exclusions, and proof strength.
+- Invite-to-apply pattern: employer "invite to review" drafts that require human approval and audit logging before outreach.
+- Employer-brand pattern: trust profiles with salary bands, interview plans, role clarity, and response expectations.
+- Early-talent pattern: pathway mode for internships, apprenticeships, graduate hiring, events, and entry-level scorecards.
+
+These modules remain consent-first. The prototype does not scrape external platforms, submit applications, send outreach, or syndicate jobs.
 
 ## Production Foundations Added
 

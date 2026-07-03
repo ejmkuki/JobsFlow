@@ -323,6 +323,72 @@ const prepItems = [
   'Send AsterCloud availability after candidate approval',
 ]
 
+const candidateActivationChecklist = [
+  {
+    step: 'Create private workspace',
+    detail: 'Signed session, tenant boundary, and audit trail before resume storage.',
+  },
+  {
+    step: 'Upload resume',
+    detail: 'Store the source file, then build profile facts from reviewed evidence.',
+  },
+  {
+    step: 'Set target rules',
+    detail: 'Role targets, salary floor, location preferences, and company exclusions.',
+  },
+  {
+    step: 'Review first matches',
+    detail: 'Only high-fit roles with visible evidence move into packet review.',
+  },
+]
+
+const employerActivationChecklist = [
+  {
+    step: 'Create hiring workspace',
+    detail: 'Company, team role, and hiring owners stay scoped to the employer tenant.',
+  },
+  {
+    step: 'Add first role',
+    detail: 'Clarify must-haves, nice-to-haves, compensation, and decision criteria.',
+  },
+  {
+    step: 'Lock scorecard',
+    detail: 'Ranking starts only after the team agrees what good fit means.',
+  },
+  {
+    step: 'Review shortlist',
+    detail: 'Candidates are recommended with evidence, gaps, and outreach context.',
+  },
+]
+
+const candidateMarketPlays = [
+  {
+    pattern: 'Professional graph',
+    jobsFlowMove: 'Relationship-aware targets',
+    detail: 'Future profile imports should identify warm paths and referrals without exposing private contacts.',
+  },
+  {
+    pattern: 'Job inventory',
+    jobsFlowMove: 'Curated match queue',
+    detail: 'Broad discovery becomes a smaller queue ranked by fit, salary floor, exclusions, and proof strength.',
+  },
+  {
+    pattern: 'Mobile alerts',
+    jobsFlowMove: 'Review-ready alerts',
+    detail: 'Candidates get notified when a role is worth attention, not when every new posting appears.',
+  },
+  {
+    pattern: 'Salary and reviews',
+    jobsFlowMove: 'Company transparency brief',
+    detail: 'Compensation, interview signals, and reputation notes become part of the packet review gate.',
+  },
+  {
+    pattern: 'Early-career networks',
+    jobsFlowMove: 'Pathway mode',
+    detail: 'Students and career switchers can separate internships, apprenticeships, and first-role evidence.',
+  },
+]
+
 const employerCompany = {
   company: 'Northstar Labs',
   role: 'Senior Customer Success Lead',
@@ -496,6 +562,41 @@ const fairnessChecks: Array<[string, boolean]> = [
   ['Compensation band visible to team', false],
   ['Candidate evidence shown before AI summary', true],
   ['Interview scorecard consistent across candidates', true],
+]
+
+const employerMarketPlays = [
+  {
+    pattern: 'Talent search',
+    jobsFlowMove: 'Evidence-filtered sourcing',
+    detail: 'Search by skills, seniority, location, and proof signals after criteria are locked.',
+  },
+  {
+    pattern: 'Invite to apply',
+    jobsFlowMove: 'Invite to review',
+    detail: 'Employers can draft targeted invitations, but outreach waits for human review and audit logging.',
+  },
+  {
+    pattern: 'Employer brand',
+    jobsFlowMove: 'Trust profile',
+    detail: 'Teams publish role clarity, salary band, interview plan, and response expectations before outreach.',
+  },
+  {
+    pattern: 'Sponsored reach',
+    jobsFlowMove: 'Distribution readiness',
+    detail: 'Paid distribution is blocked until the role has clear criteria, comp visibility, and fairness checks.',
+  },
+  {
+    pattern: 'Campus recruiting',
+    jobsFlowMove: 'Early-talent lanes',
+    detail: 'Internship and graduate hiring can run with event pipelines, school cohorts, and entry-level scorecards.',
+  },
+]
+
+const employerActivationPreview = [
+  ['Role', 'Senior Customer Success Lead'],
+  ['Must-have evidence', 'Enterprise renewals, playbook building, executive communication'],
+  ['Compensation check', '$115k - $145k band needs final approval'],
+  ['Next gate', 'Lock scorecard before inviting candidates'],
 ]
 
 const trustCommandCenter = [
@@ -737,6 +838,8 @@ function AuthPanel({
   const [bootstrapToken, setBootstrapToken] = useState('')
   const [message, setMessage] = useState('Checking signed session...')
   const [isBusy, setIsBusy] = useState(false)
+  const selectedChecklist =
+    accountType === 'candidate' ? candidateActivationChecklist : employerActivationChecklist
 
   const checkSession = useCallback(async () => {
     setIsBusy(true)
@@ -803,15 +906,34 @@ function AuthPanel({
     void checkSession()
   }, [checkSession])
 
+  useEffect(() => {
+    if (!session) {
+      return
+    }
+
+    setAccountType(session.role === 'candidate' ? 'candidate' : 'employer')
+  }, [session])
+
   return (
-    <section className="auth-panel" aria-label="JobsFlow private beta access">
+    <section className="auth-panel" aria-label="JobsFlow activation center">
       <div className="auth-copy">
-        <span>Private beta access</span>
-        <h2>Signed sessions for tenant-safe workflow</h2>
+        <span>Activation center</span>
+        <h2>Start with the workflow that matters</h2>
         <p>
-          Cloudflare Pages Functions issue the HTTP-only session cookie. Candidate and
-          employer data stays scoped to the active tenant.
+          Candidates begin with a private resume workspace. Employers begin with role
+          clarity and a scorecard. JobsFlow keeps every external action behind review.
         </p>
+        <div className="activation-path">
+          {selectedChecklist.map((item, index) => (
+            <div className="activation-item" key={item.step}>
+              <b>{String(index + 1).padStart(2, '0')}</b>
+              <div>
+                <strong>{item.step}</strong>
+                <p>{item.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="auth-form">
@@ -858,15 +980,19 @@ function AuthPanel({
           />
         </label>
         <label>
-          <span>Bootstrap token</span>
+          <span>Private beta code</span>
           <input
             autoComplete="one-time-code"
             onChange={(event) => setBootstrapToken(event.target.value)}
-            placeholder="Required unless Cloudflare Access is active"
+            placeholder="Required until public signup opens"
             type="password"
             value={bootstrapToken}
           />
         </label>
+        <p className="auth-helper">
+          This is a controlled beta gate, not the final signup flow. Public auth will
+          replace the private code before launch.
+        </p>
       </div>
 
       <div className="auth-state">
@@ -886,32 +1012,88 @@ function AuthPanel({
         <div className="auth-actions">
           <button disabled={isBusy} onClick={checkSession} type="button">
             <RefreshCw size={16} aria-hidden="true" />
-            Check session
+            Refresh status
           </button>
-          <button disabled={isBusy} onClick={handleCreateSession} type="button">
-            <LockKeyhole size={16} aria-hidden="true" />
-            Start session
-          </button>
+          {!session ? (
+            <button disabled={isBusy} onClick={handleCreateSession} type="button">
+              <LockKeyhole size={16} aria-hidden="true" />
+              Start workspace
+            </button>
+          ) : null}
           <button disabled={isBusy || !session} onClick={handleSignOut} type="button">
             <LogOut size={16} aria-hidden="true" />
             Sign out
           </button>
         </div>
       </div>
+
+      <div className="activation-next">
+        {accountType === 'candidate' ? (
+          <>
+            <div className="activation-next-copy">
+              <span>Candidate first action</span>
+              <h3>Upload the resume that becomes your evidence base</h3>
+              <p>
+                The best candidate experience starts with one concrete action. Once
+                signed in, store your resume here, then JobsFlow can build profile
+                health, match evidence, and packet review around it.
+              </p>
+            </div>
+            {session ? (
+              <ResumeStoragePanel session={session} variant="activation" />
+            ) : (
+              <div className="activation-placeholder">
+                <StatusPill tone="amber">Session needed</StatusPill>
+                <strong>Start a workspace to unlock secure resume upload.</strong>
+                <p>
+                  Resume storage uses the signed session so files and metadata stay
+                  scoped to the active tenant.
+                </p>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="activation-next-copy">
+              <span>Employer first action</span>
+              <h3>Clarify the role before JobsFlow ranks anyone</h3>
+              <p>
+                The employer path starts with role criteria, scorecard weights, and
+                compensation visibility. Better shortlists begin with better intake.
+              </p>
+            </div>
+            <div className="employer-activation-preview">
+              {employerActivationPreview.map(([label, value]) => (
+                <div key={label}>
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </section>
   )
 }
 
-function ResumeStoragePanel({ session }: { session: BackendSession | null }) {
+function ResumeStoragePanel({
+  session,
+  variant = 'panel',
+}: {
+  session: BackendSession | null
+  variant?: 'panel' | 'activation'
+}) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [resumes, setResumes] = useState<ResumeArtifact[]>([])
-  const [status, setStatus] = useState('Choose a PDF or DOCX resume to store in private R2 storage.')
+  const [status, setStatus] = useState('Choose a PDF or DOCX resume to store privately.')
   const [isUploading, setIsUploading] = useState(false)
+  const isActivation = variant === 'activation'
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null
     setSelectedFile(file)
-    setStatus(file ? `${file.name} selected for secure storage.` : 'Choose a PDF or DOCX resume to store in private R2 storage.')
+    setStatus(file ? `${file.name} selected for secure storage.` : 'Choose a PDF or DOCX resume to store privately.')
   }
 
   async function handleUpload() {
@@ -931,7 +1113,7 @@ function ResumeStoragePanel({ session }: { session: BackendSession | null }) {
     try {
       const result = await uploadResume(selectedFile)
       setStatus(
-        `${result.resume.filename} stored. Audit event and resume metadata were written by the backend.`,
+        `${result.resume.filename} stored for this workspace. An audit event was recorded.`,
       )
       const nextResumes = await listResumes()
       setResumes(nextResumes.resumes)
@@ -953,7 +1135,7 @@ function ResumeStoragePanel({ session }: { session: BackendSession | null }) {
     try {
       const result = await listResumes()
       setResumes(result.resumes)
-      setStatus(`${result.resumes.length} resume artifact${result.resumes.length === 1 ? '' : 's'} loaded from D1.`)
+      setStatus(`${result.resumes.length} resume artifact${result.resumes.length === 1 ? '' : 's'} visible in this workspace.`)
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Resume metadata read failed.')
     } finally {
@@ -970,17 +1152,17 @@ function ResumeStoragePanel({ session }: { session: BackendSession | null }) {
   }, [refreshResumes, session])
 
   return (
-    <article className="panel resume-storage-panel">
+    <article className={isActivation ? 'resume-storage-panel activation-resume' : 'panel resume-storage-panel'}>
       <div className="panel-title">
         <div>
           <span>Secure resume storage</span>
-          <h3>R2 upload with D1 metadata</h3>
+          <h3>{isActivation ? 'Upload resume and begin' : 'Private resume workspace'}</h3>
         </div>
         <DatabaseZap size={22} aria-hidden="true" />
       </div>
       <p className="muted-line">
-        This control calls the real JobsFlow API. It requires a signed session, D1 binding,
-        and R2 bucket binding.
+        Your file stays private to this workspace. JobsFlow stores the resume, keeps
+        metadata tenant-scoped, and records the action for audit review.
       </p>
       <div className="upload-control">
         <input
@@ -990,11 +1172,11 @@ function ResumeStoragePanel({ session }: { session: BackendSession | null }) {
         />
         <button disabled={isUploading} onClick={handleUpload} type="button">
           <FileCheck2 size={16} aria-hidden="true" />
-          {isUploading ? 'Storing...' : 'Store resume'}
+          {isUploading ? 'Uploading...' : 'Upload resume'}
         </button>
         <button disabled={isUploading} onClick={refreshResumes} type="button">
           <RefreshCw size={16} aria-hidden="true" />
-          Refresh list
+          Refresh
         </button>
       </div>
       <p className="runtime-message">{status}</p>
@@ -1145,11 +1327,9 @@ function BackendStatusPanel({
 
 function CandidateWorkspace({
   automationMode,
-  session,
   onModeChange,
 }: {
   automationMode: string
-  session: BackendSession | null
   onModeChange: (mode: string) => void
 }) {
   return (
@@ -1228,8 +1408,6 @@ function CandidateWorkspace({
         </div>
       </article>
 
-      <ResumeStoragePanel session={session} />
-
       <article className="panel packet-panel wide-panel">
         <div className="panel-title">
           <div>
@@ -1294,6 +1472,25 @@ function CandidateWorkspace({
                 <EvidenceList items={match.evidence} />
                 <p className="risk-note">{match.gaps.join(', ')}</p>
               </div>
+            </div>
+          ))}
+        </div>
+      </article>
+
+      <article className="panel market-panel wide-panel">
+        <div className="panel-title">
+          <div>
+            <span>Market-inspired candidate tools</span>
+            <h3>Keep the reach, remove the noise</h3>
+          </div>
+          <Globe2 size={22} aria-hidden="true" />
+        </div>
+        <div className="market-grid">
+          {candidateMarketPlays.map((play) => (
+            <div className="market-row" key={play.pattern}>
+              <span>{play.pattern}</span>
+              <strong>{play.jobsFlowMove}</strong>
+              <p>{play.detail}</p>
             </div>
           ))}
         </div>
@@ -1499,6 +1696,25 @@ function EmployerWorkspace() {
                 <EvidenceList items={candidate.evidence} />
                 <p className="risk-note">{candidate.risks.join(', ')}</p>
               </div>
+            </div>
+          ))}
+        </div>
+      </article>
+
+      <article className="panel market-panel wide-panel">
+        <div className="panel-title">
+          <div>
+            <span>Market-inspired employer tools</span>
+            <h3>Source, invite, and build trust without hiding judgment</h3>
+          </div>
+          <Handshake size={22} aria-hidden="true" />
+        </div>
+        <div className="market-grid">
+          {employerMarketPlays.map((play) => (
+            <div className="market-row" key={play.pattern}>
+              <span>{play.pattern}</span>
+              <strong>{play.jobsFlowMove}</strong>
+              <p>{play.detail}</p>
             </div>
           ))}
         </div>
@@ -2054,7 +2270,6 @@ function App() {
         {activeWorkspace === 'candidate' ? (
           <CandidateWorkspace
             automationMode={automationMode}
-            session={session}
             onModeChange={setAutomationMode}
           />
         ) : null}
