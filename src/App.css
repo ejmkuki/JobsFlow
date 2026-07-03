@@ -1,7 +1,8 @@
 .app-root {
   min-height: 100vh;
   color: var(--ink);
-  background: var(--page);
+  background:
+    linear-gradient(180deg, #e9f7ff 0%, #f8fcff 34%, #ffffff 100%);
 }
 
 .app-shell-header {
@@ -9,12 +10,12 @@
   top: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) auto;
-  gap: 18px;
+  grid-template-columns: 190px minmax(0, 1fr) auto;
+  gap: 14px;
   align-items: center;
   min-height: 76px;
-  padding: 12px 28px;
-  background: rgba(248, 251, 250, 0.96);
+  padding: 12px 24px;
+  background: rgba(247, 252, 255, 0.94);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(18px);
 }
@@ -65,17 +66,17 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   padding: 4px;
-  background: #eef5f3;
+  background: #e9f6fb;
   border: 1px solid var(--line);
   border-radius: 8px;
 }
 
 .workspace-tab {
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   min-height: 42px;
   min-width: 0;
-  padding: 0 12px;
+  padding: 0 10px;
   color: var(--muted);
   font-weight: 850;
   background: transparent;
@@ -94,14 +95,14 @@
   color: var(--ink);
   background: #ffffff;
   border-color: var(--line);
-  box-shadow: 0 8px 20px rgba(16, 24, 32, 0.08);
+  box-shadow: 0 10px 24px rgba(14, 116, 144, 0.1);
 }
 
 .header-status {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 10px;
 }
 
 .header-status a {
@@ -143,9 +144,9 @@
 }
 
 .tone-blue {
-  color: #1f5f78;
-  background: #e8f4f7;
-  border-color: #b9dbe4;
+  color: #075985;
+  background: #e0f2fe;
+  border-color: #bae6fd;
 }
 
 .tone-neutral {
@@ -167,9 +168,11 @@
   align-items: end;
   margin-bottom: 18px;
   padding: 20px;
-  background: #ffffff;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(232, 247, 255, 0.88));
   border: 1px solid var(--line);
   border-radius: 8px;
+  box-shadow: 0 18px 48px rgba(14, 116, 144, 0.08);
 }
 
 .onboarding-panel {
@@ -317,14 +320,16 @@
 
 .auth-panel {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.45fr) minmax(260px, 0.8fr);
-  gap: 14px;
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.28fr) minmax(260px, 0.74fr);
+  gap: 16px;
   align-items: stretch;
   margin-bottom: 18px;
-  padding: 18px;
-  background: #101820;
-  border: 1px solid #101820;
+  padding: 20px;
+  background:
+    linear-gradient(135deg, rgba(232, 248, 255, 0.95), rgba(255, 255, 255, 0.98));
+  border: 1px solid #bfdbfe;
   border-radius: 8px;
+  box-shadow: 0 24px 70px rgba(14, 116, 144, 0.13);
 }
 
 .auth-copy,
@@ -338,7 +343,7 @@
 .activation-next-copy span,
 .employer-activation-preview span,
 .market-row span {
-  color: #a7c6c2;
+  color: var(--teal);
   font-size: 0.76rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -346,15 +351,15 @@
 
 .auth-copy h2 {
   margin: 5px 0 8px;
-  color: #ffffff;
-  font-size: 1.25rem;
-  line-height: 1.12;
+  color: var(--ink);
+  font-size: 1.55rem;
+  line-height: 1.08;
 }
 
 .auth-copy p,
 .auth-state p {
   margin: 0;
-  color: #d7e6e3;
+  color: var(--muted);
 }
 
 .activation-path {
@@ -369,8 +374,8 @@
   gap: 10px;
   align-items: start;
   padding: 10px;
-  background: #17242c;
-  border: 1px solid #31424b;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid #d7ebf6;
   border-radius: 8px;
 }
 
@@ -387,12 +392,12 @@
 
 .activation-item strong {
   display: block;
-  color: #ffffff;
+  color: var(--ink);
 }
 
 .activation-item p {
   margin-top: 3px;
-  color: #b9cfcb;
+  color: var(--muted);
   font-size: 0.88rem;
 }
 
@@ -400,40 +405,43 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  align-content: start;
 }
 
 .sso-card {
   grid-column: 1 / -1;
   display: grid;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
-  padding: 14px;
-  background: #17242c;
-  border: 1px solid #31424b;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #bae6fd;
   border-radius: 8px;
+  box-shadow: 0 16px 38px rgba(14, 116, 144, 0.1);
 }
 
 .sso-card > span,
 .sso-card small {
-  color: #a7c6c2;
+  color: var(--teal);
   font-size: 0.76rem;
   font-weight: 900;
   text-transform: uppercase;
 }
 
 .sso-card strong {
-  color: #ffffff;
-  font-size: 1rem;
+  color: var(--ink);
+  font-size: 1.25rem;
+  line-height: 1.18;
 }
 
 .sso-card p {
   margin: 0;
-  color: #d7e6e3;
+  color: var(--muted);
 }
 
 .sso-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
@@ -444,13 +452,21 @@
   gap: 8px;
   min-height: 40px;
   min-width: 0;
-  padding: 0 10px;
+  padding: 0 14px;
   color: var(--ink);
   font-weight: 850;
   background: #ffffff;
   border: 1px solid #c7e2de;
   border-radius: 8px;
   cursor: pointer;
+}
+
+.sso-actions .primary-sso {
+  min-height: 48px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0284c7, #0f766e);
+  border-color: #0284c7;
+  box-shadow: 0 14px 30px rgba(14, 116, 144, 0.22);
 }
 
 .sso-actions button:disabled {
@@ -470,15 +486,37 @@
   padding: 0 10px;
   color: var(--ink);
   background: #ffffff;
-  border: 1px solid #3b4b52;
+  border: 1px solid #bfdbfe;
   border-radius: 8px;
 }
 
 .auth-helper {
   grid-column: 1 / -1;
   margin: 0;
-  color: #b9cfcb;
+  color: var(--muted);
   font-size: 0.88rem;
+}
+
+.beta-fallback {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid #d7ebf6;
+  border-radius: 8px;
+}
+
+.beta-fallback summary {
+  color: #075985;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.beta-fallback-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .segmented-control {
@@ -487,14 +525,14 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   padding: 4px;
-  background: #223039;
-  border: 1px solid #35464f;
+  background: #e8f7ff;
+  border: 1px solid #bfdbfe;
   border-radius: 8px;
 }
 
 .segmented-control button {
   min-height: 36px;
-  color: #d7e6e3;
+  color: var(--muted);
   font-weight: 850;
   background: transparent;
   border: 1px solid transparent;
@@ -503,28 +541,77 @@
 }
 
 .segmented-control button.active {
-  color: var(--ink);
+  color: #075985;
   background: #ffffff;
-  border-color: #ffffff;
+  border-color: #bae6fd;
 }
 
 .auth-state {
   display: grid;
   gap: 10px;
   align-content: start;
-  padding: 12px;
-  background: #18242c;
-  border: 1px solid #31424b;
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid #d7ebf6;
   border-radius: 8px;
+  box-shadow: 0 14px 34px rgba(14, 116, 144, 0.08);
 }
 
 .auth-state .session-summary strong {
-  color: #ffffff;
+  color: var(--ink);
+}
+
+.auth-state-title {
+  color: var(--ink);
+  font-size: 1.05rem;
 }
 
 .auth-actions {
   display: grid;
   gap: 8px;
+}
+
+.auth-actions button {
+  color: #ffffff;
+  background: #0369a1;
+  border-color: #0369a1;
+}
+
+.auth-actions button:last-child {
+  color: #0f172a;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.auth-actions button:disabled {
+  color: #64748b;
+  background: #f1f5f9;
+  border-color: #dbeafe;
+}
+
+.session-ready-card {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  color: var(--ink);
+  background: #f0fdf9;
+  border: 1px solid #99f6e4;
+  border-radius: 8px;
+}
+
+.session-ready-card strong {
+  font-size: 1.15rem;
+}
+
+.session-ready-card span {
+  color: #0f766e;
+  font-weight: 850;
+}
+
+.session-ready-card p {
+  margin: 0;
+  color: var(--muted);
 }
 
 .activation-next {
@@ -534,8 +621,8 @@
   gap: 14px;
   align-items: stretch;
   padding: 14px;
-  background: #17242c;
-  border: 1px solid #31424b;
+  background: #f8fcff;
+  border: 1px solid #d7ebf6;
   border-radius: 8px;
 }
 
@@ -545,14 +632,14 @@
 
 .activation-next-copy h3 {
   margin: 5px 0 8px;
-  color: #ffffff;
+  color: var(--ink);
   font-size: 1.15rem;
   line-height: 1.15;
 }
 
 .activation-next-copy p {
   margin: 0;
-  color: #d7e6e3;
+  color: var(--muted);
 }
 
 .activation-placeholder,
@@ -1294,8 +1381,8 @@
 .runtime-message {
   margin-top: 12px;
   padding: 10px;
-  color: var(--muted);
-  background: var(--soft);
+  color: #164e63;
+  background: #ecfeff;
   border: 1px solid var(--line);
   border-radius: 8px;
 }
@@ -1901,6 +1988,7 @@
   .activation-next,
   .auth-form,
   .sso-actions,
+  .beta-fallback-grid,
   .employer-activation-preview,
   .backend-grid,
   .onboarding-steps,

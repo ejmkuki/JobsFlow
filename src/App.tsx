@@ -131,19 +131,19 @@ const workspaces: Array<{
 }> = [
   {
     id: 'candidate',
-    label: 'Candidate Workspace',
+    label: 'Candidate',
     icon: UsersRound,
     summary: 'Readiness, fit evidence, applications, interviews, and controls.',
   },
   {
     id: 'employer',
-    label: 'Employer Workspace',
+    label: 'Employer',
     icon: Building2,
     summary: 'Role criteria, ranked candidates, outreach, pipeline, and fairness.',
   },
   {
     id: 'trust',
-    label: 'Trust & Platform',
+    label: 'Trust',
     icon: ShieldCheck,
     summary: 'Consent, auditability, integrations, pricing, and production gates.',
   },
@@ -1278,6 +1278,20 @@ function AuthPanel({
   }, [sso.isSignedIn])
 
   useEffect(() => {
+    if (!sso.email && !sso.displayName) {
+      return
+    }
+
+    if (sso.email && !email) {
+      setEmail(sso.email)
+    }
+
+    if (sso.displayName && !displayName) {
+      setDisplayName(sso.displayName)
+    }
+  }, [displayName, email, sso.displayName, sso.email])
+
+  useEffect(() => {
     if (!sso.isLoaded || !sso.isSignedIn || session || isBusy || autoSsoSessionAttempted.current) {
       return
     }
@@ -1298,14 +1312,14 @@ function AuthPanel({
   return (
     <section className="auth-panel" aria-label="JobsFlow activation center">
       <div className="auth-copy">
-        <span>Activation center</span>
-        <h2>Start with the workflow that matters</h2>
+        <span>Private workspace</span>
+        <h2>Open JobsFlow, then decide what leaves the room</h2>
         <p>
-          Candidates begin with a private resume workspace. Employers begin with role
-          clarity and a scorecard. JobsFlow keeps every external action behind review.
+          Sign in once. Upload evidence, review matches, and keep every employer-facing
+          action behind consent.
         </p>
         <div className="activation-path">
-          {selectedChecklist.map((item, index) => (
+          {selectedChecklist.slice(0, 3).map((item, index) => (
             <div className="activation-item" key={item.step}>
               <b>{String(index + 1).padStart(2, '0')}</b>
               <div>
@@ -1319,93 +1333,111 @@ function AuthPanel({
 
       <div className="auth-form">
         <div className="sso-card">
-          <span>Recommended sign-in</span>
-          <strong>Use trusted SSO instead of a private code</strong>
+          <span>Secure access</span>
+          <strong>
+            {sso.isSignedIn ? 'You are signed in. Open your workspace.' : 'Sign in or create your JobsFlow account'}
+          </strong>
           <p>
-            JobsFlow is ready for a hosted provider with Google, Apple, email, and phone-based
-            sign-in. The private beta code remains only as a temporary fallback.
+            Use the secure Clerk window for Google or email. More providers can be enabled
+            later without changing this workspace flow.
           </p>
           <div className="sso-actions">
-            {['Continue with Google', 'Continue with Apple', 'Continue with email'].map((label) => (
-              <button
-                disabled={isBusy || !sso.configured || !sso.isLoaded}
-                key={label}
-                onClick={handleCreateSsoSession}
-                type="button"
-              >
-                <ShieldCheck size={16} aria-hidden="true" />
-                {label}
-              </button>
-            ))}
+            <button
+              className="primary-sso"
+              disabled={isBusy || !sso.configured || !sso.isLoaded}
+              onClick={handleCreateSsoSession}
+              type="button"
+            >
+              <ShieldCheck size={18} aria-hidden="true" />
+              {sso.isSignedIn ? 'Open workspace from SSO' : 'Sign in or create account'}
+            </button>
           </div>
           <small>
             {sso.configured
               ? sso.isSignedIn
                 ? `SSO is signed in as ${sso.email ?? 'this user'}.`
                 : sso.isLoaded
-                  ? 'SSO is connected. Choose a sign-in method to continue.'
+                  ? 'Google and email are available inside the secure sign-in window.'
                   : sso.loadTimedOut
                     ? 'SSO is connected, but the browser is blocking or still waiting on Clerk JS. Try a hard refresh or disable blockers for this site.'
                     : 'SSO is connected. Loading the secure sign-in provider...'
               : 'SSO provider keys are not connected yet. Private beta access is still available below.'}
           </small>
         </div>
-        <div className="segmented-control" aria-label="Account type">
-          {(['candidate', 'employer'] as const).map((type) => (
-            <button
-              aria-pressed={accountType === type}
-              className={accountType === type ? 'active' : ''}
-              key={type}
-              onClick={() => setAccountType(type)}
-              type="button"
-            >
-              {type === 'candidate' ? 'Candidate' : 'Employer'}
-            </button>
-          ))}
-        </div>
-        <label>
-          <span>Email</span>
-          <input
-            autoComplete="email"
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@company.com"
-            type="email"
-            value={email}
-          />
-        </label>
-        <label>
-          <span>Name</span>
-          <input
-            autoComplete="name"
-            onChange={(event) => setDisplayName(event.target.value)}
-            placeholder="Workspace owner"
-            type="text"
-            value={displayName}
-          />
-        </label>
-        <label>
-          <span>Tenant</span>
-          <input
-            onChange={(event) => setTenantName(event.target.value)}
-            placeholder={accountType === 'employer' ? 'Hiring team name' : 'Career workspace name'}
-            type="text"
-            value={tenantName}
-          />
-        </label>
-        <label>
-          <span>Private beta code</span>
-          <input
-            autoComplete="one-time-code"
-            onChange={(event) => setBootstrapToken(event.target.value)}
-            placeholder="Required until public signup opens"
-            type="password"
-            value={bootstrapToken}
-          />
-        </label>
-        <p className="auth-helper">
-          This is a controlled beta gate, not the final signup flow. Public auth will
-          replace the private code before launch.
-        </p>
+        {session ? (
+          <div className="session-ready-card">
+            <StatusPill tone="green">Workspace ready</StatusPill>
+            <strong>{session.displayName}</strong>
+            <span>{session.email}</span>
+            <p>
+              Resume upload, packet review, and the consent gate are unlocked for this
+              signed session.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="segmented-control" aria-label="Account type">
+              {(['candidate', 'employer'] as const).map((type) => (
+                <button
+                  aria-pressed={accountType === type}
+                  className={accountType === type ? 'active' : ''}
+                  key={type}
+                  onClick={() => setAccountType(type)}
+                  type="button"
+                >
+                  {type === 'candidate' ? 'Candidate' : 'Employer'}
+                </button>
+              ))}
+            </div>
+            <details className="beta-fallback" open={!sso.configured || needsFreshCode}>
+              <summary>Need the private beta fallback?</summary>
+              <div className="beta-fallback-grid">
+                <label>
+                  <span>Email</span>
+                  <input
+                    autoComplete="email"
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="you@company.com"
+                    type="email"
+                    value={email}
+                  />
+                </label>
+                <label>
+                  <span>Name</span>
+                  <input
+                    autoComplete="name"
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    placeholder="Workspace owner"
+                    type="text"
+                    value={displayName}
+                  />
+                </label>
+                <label>
+                  <span>Workspace</span>
+                  <input
+                    onChange={(event) => setTenantName(event.target.value)}
+                    placeholder={accountType === 'employer' ? 'Hiring team name' : 'Career workspace name'}
+                    type="text"
+                    value={tenantName}
+                  />
+                </label>
+                <label>
+                  <span>Private beta code</span>
+                  <input
+                    autoComplete="one-time-code"
+                    onChange={(event) => setBootstrapToken(event.target.value)}
+                    placeholder="Fallback only"
+                    type="password"
+                    value={bootstrapToken}
+                  />
+                </label>
+                <p className="auth-helper">
+                  SSO is the main path. Use this only if the hosted sign-in provider is unavailable.
+                </p>
+              </div>
+            </details>
+          </>
+        )}
       </div>
 
       <div className="auth-state">
@@ -1421,7 +1453,10 @@ function AuthPanel({
             </small>
           </div>
         ) : (
-          <p>{message}</p>
+          <>
+            <strong className="auth-state-title">Ready when you are</strong>
+            <p>{message}</p>
+          </>
         )}
         {session ? <p className="runtime-message">{message}</p> : null}
         <div className="auth-actions">
@@ -1432,7 +1467,7 @@ function AuthPanel({
           {!session ? (
             <button disabled={isBusy} onClick={handleCreateSession} type="button">
               <LockKeyhole size={16} aria-hidden="true" />
-              {isBusy ? 'Opening...' : 'Start workspace'}
+              {isBusy ? 'Opening...' : 'Use beta fallback'}
             </button>
           ) : null}
           <button disabled={isBusy || !session} onClick={handleSignOut} type="button">
