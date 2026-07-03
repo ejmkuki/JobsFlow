@@ -8,7 +8,7 @@ Workflowfy AI is the public brand and operating layer for JobsFlow.
 
 ## Strategy Memo
 
-- Current state: polished frontend SaaS scaffold with three local-state workspaces for candidates, employers, and platform trust.
+- Current state: polished frontend SaaS scaffold with three local-state workspaces, a real Cloudflare backend slice, and a signal operations layer for reviewed next decisions.
 - Competitive gap: most job tools optimize volume, templates, or tracking; JobsFlow should optimize signal, consent, fit evidence, and measurable hiring workflow.
 - Candidate opportunity: high-fidelity profile, resume intelligence, review-only AI drafts, follow-up control, interview prep, and reputation guardrails.
 - Employer opportunity: structured role intake, ranked shortlists, evidence-first screening, outreach coordination, fairness checks, and pipeline health.
@@ -25,10 +25,26 @@ Workflowfy AI is the public brand and operating layer for JobsFlow.
 
 - Product onboarding now walks users through signal target, employer criteria, review gates, and affordable access before automation is considered.
 - Activation Center now brings candidate signup, employer signup, and first useful action into one surface: candidates upload a resume immediately after starting a workspace, while employers clarify the first role before ranking anyone.
+- Signal Operations now gives every workspace a reviewed decision spine: what changed, why it matters, what to do next, who owns it, and what evidence supports it.
 - Candidate command center now includes application packet review, salary floor guardrails, company exclusions, duplicate prevention, and blocked-action visibility.
+- Candidate fit evidence review now separates evidence, gaps, safeguards, and approval gates before a packet moves forward.
 - Employer command center now includes scorecard weighting, interview coordination, collaboration placeholders, and decision-risk context.
+- Employer shortlist decision review now maps each recommendation to scorecard criteria, evidence, risks, owner, and next action before outreach.
 - Trust & Platform now includes product states, data ownership controls, abuse prevention, and plan entitlements mapped to future Stripe billing.
+- Compliance readiness now tracks consent receipts, resume privacy, external-action blocks, affordable billing, fairness review, and export/delete controls.
 - Empty, loading, error, and blocked-state copy remains frontend-only and does not call external services.
+
+## Phase 2.1 Signal Operations Layer
+
+JobsFlow now has a cross-workspace operating layer designed to reduce anxiety and increase decision quality:
+
+- Candidate decision queue: shows the next packet review, proof gap, approval gate, and reputation safeguards.
+- Employer decision queue: shows the scorecard lock, compensation/fairness blockers, and outreach readiness.
+- Platform decision queue: shows which trust controls are production gates before any external automation.
+- Evidence review surfaces: candidate and employer workflows both show proof, gaps, risks, and next action instead of hiding behind a score.
+- Compliance ledger: trust work now has a visible readiness map for privacy, consent, billing, fairness, and deletion controls.
+
+This layer keeps JobsFlow distinct from volume-first job tools: it turns broad recruiting functionality into reviewed, evidence-backed workflow.
 
 ## Market-Inspired JobsFlow Modules
 
@@ -131,7 +147,7 @@ Cloudflare Pages Direct Upload:
 
 ```bash
 npm run build
-npx wrangler pages deploy dist --project-name=workflowfy-jobsflow --branch=main
+npx wrangler pages deploy dist --project-name=workflowfy-jobsflow --branch=main --commit-dirty=true
 ```
 
 Or use the npm script:

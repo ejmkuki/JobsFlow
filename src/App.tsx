@@ -72,6 +72,53 @@ type Mode = {
   log: string
 }
 
+type SignalDecision = {
+  workspace: Workspace
+  label: string
+  title: string
+  status: string
+  owner: string
+  changed: string
+  matters: string
+  next: string
+  tone: Tone
+  evidence: string[]
+}
+
+type CandidateEvidenceReview = {
+  role: string
+  company: string
+  fit: string
+  decision: string
+  gate: string
+  evidence: string[]
+  gaps: string[]
+  safeguards: string[]
+  next: string
+  tone: Tone
+}
+
+type EmployerEvidenceReview = {
+  candidate: string
+  recommendation: string
+  score: string
+  owner: string
+  rubric: Array<[string, string]>
+  evidence: string[]
+  risks: string[]
+  next: string
+  tone: Tone
+}
+
+type ComplianceLedgerItem = {
+  control: string
+  status: string
+  owner: string
+  proof: string
+  next: string
+  tone: Tone
+}
+
 const workspaces: Array<{
   id: Workspace
   label: string
@@ -95,6 +142,45 @@ const workspaces: Array<{
     label: 'Trust & Platform',
     icon: ShieldCheck,
     summary: 'Consent, auditability, integrations, pricing, and production gates.',
+  },
+]
+
+const signalDecisions: SignalDecision[] = [
+  {
+    workspace: 'candidate',
+    label: 'Candidate decision',
+    title: 'Approve Kora packet only after the proof gap is fixed',
+    status: 'Review gate open',
+    owner: 'Maya',
+    changed: 'Resume storage and packet builder are ready for the first high-fit role.',
+    matters: 'A missing claims-operations example could make the tailored packet feel generic.',
+    next: 'Add one evidence bullet, then approve the resume variant and two ATS answers.',
+    tone: 'amber',
+    evidence: ['96% role fit', '$118k floor satisfied', 'No company exclusion'],
+  },
+  {
+    workspace: 'employer',
+    label: 'Employer decision',
+    title: 'Lock the scorecard before outreach leaves draft mode',
+    status: 'Manager input needed',
+    owner: 'Hiring manager',
+    changed: 'Shortlist is usable, but compensation and product analytics criteria are not final.',
+    matters: 'Ranking before criteria are locked creates fairness and expectation risk.',
+    next: 'Confirm comp band and whether product analytics is required or coachable.',
+    tone: 'amber',
+    evidence: ['24 qualified candidates', '5 of 6 fairness checks', 'Two candidate gaps flagged'],
+  },
+  {
+    workspace: 'trust',
+    label: 'Platform decision',
+    title: 'Keep external actions blocked until consent receipts exist',
+    status: 'Production gate',
+    owner: 'Platform',
+    changed: 'D1, R2, session cookies, and audit writes are live in the beta stack.',
+    matters: 'Real automation needs export/delete, retention, abuse review, and billing controls.',
+    next: 'Ship production auth UI, consent receipts, and audit review before any integration sends.',
+    tone: 'green',
+    evidence: ['Live health check passes', 'R2 upload smoke test passes', 'External submissions disabled'],
   },
 ]
 
@@ -201,6 +287,45 @@ const applicationPacket = {
     'Confirm the Workday answer about sponsorship is still accurate.',
   ],
 }
+
+const candidateEvidenceReviews: CandidateEvidenceReview[] = [
+  {
+    role: 'Product Operations Manager',
+    company: 'Kora Health',
+    fit: '96%',
+    decision: 'Approve after proof gap',
+    gate: 'Candidate approval required',
+    evidence: ['Scaled intake workflow', 'Healthcare SaaS delivery', 'Vendor operations ownership'],
+    gaps: ['Add a claims-operations example to strengthen the packet.'],
+    safeguards: ['$118k salary floor satisfied', 'No duplicate application found', 'No exclusion conflict'],
+    next: 'Add one quantified claims workflow bullet, then review the resume variant and ATS answers.',
+    tone: 'amber',
+  },
+  {
+    role: 'Customer Success Lead',
+    company: 'Northstar Labs',
+    fit: '92%',
+    decision: 'Hold for salary review',
+    gate: 'Salary guardrail active',
+    evidence: ['B2B revenue operations', 'Team leadership', 'Renewal process rebuild'],
+    gaps: ['Compensation range is below current floor unless candidate overrides.'],
+    safeguards: ['Travel tolerance needs confirmation', 'AsterCloud duplicate checked', 'Follow-up remains draft-only'],
+    next: 'Confirm whether this role is strategic enough to override the salary floor.',
+    tone: 'amber',
+  },
+  {
+    role: 'AI Program Coordinator',
+    company: 'SignalForge AI',
+    fit: '89%',
+    decision: 'Watchlist, do not packet yet',
+    gate: 'Role-level fit review',
+    evidence: ['AI rollout support', 'Client-facing launch rhythm', 'Strong coordination history'],
+    gaps: ['Seniority may be below target and title scope needs validation.'],
+    safeguards: ['No external action queued', 'Candidate reputation risk low', 'Company research still needed'],
+    next: 'Wait for role clarification or a senior program opening before drafting materials.',
+    tone: 'blue',
+  },
+]
 
 const candidateGuardrails = [
   {
@@ -475,6 +600,57 @@ const candidateShortlist = [
   },
 ]
 
+const employerEvidenceReviews: EmployerEvidenceReview[] = [
+  {
+    candidate: 'Maya Thompson',
+    recommendation: 'Advance to recruiter screen',
+    score: '94%',
+    owner: 'Recruiter',
+    rubric: [
+      ['Renewal ownership', 'Strong'],
+      ['Playbook building', 'Strong'],
+      ['Product feedback synthesis', 'Needs example'],
+      ['Executive communication', 'Strong'],
+    ],
+    evidence: ['Healthcare SaaS workflow rebuild', 'Executive customer communication', 'Renewal process improvements'],
+    risks: ['Product analytics example is not yet explicit.'],
+    next: 'Personalize outreach with healthcare workflow evidence after manager confirms the analytics gap is coachable.',
+    tone: 'green',
+  },
+  {
+    candidate: 'Jordan Lee',
+    recommendation: 'Pause until compensation alignment',
+    score: '88%',
+    owner: 'Hiring manager',
+    rubric: [
+      ['Renewal ownership', 'Strong'],
+      ['Playbook building', 'Moderate'],
+      ['Product feedback synthesis', 'Strong'],
+      ['Executive communication', 'Moderate'],
+    ],
+    evidence: ['Enterprise CS ownership', 'Expansion motions', 'Team leadership'],
+    risks: ['Compensation target may exceed approved band.'],
+    next: 'Confirm compensation flexibility before asking the recruiter to schedule a screen.',
+    tone: 'amber',
+  },
+  {
+    candidate: 'Priya Shah',
+    recommendation: 'Nurture for implementation track',
+    score: '84%',
+    owner: 'Talent ops',
+    rubric: [
+      ['Renewal ownership', 'Light'],
+      ['Playbook building', 'Strong'],
+      ['Product feedback synthesis', 'Moderate'],
+      ['Executive communication', 'Moderate'],
+    ],
+    evidence: ['Implementation operations', 'Customer storytelling', 'Structured enablement'],
+    risks: ['Less direct renewal ownership for the current role.'],
+    next: 'Move to future implementation lead nurture lane with a clear role note.',
+    tone: 'blue',
+  },
+]
+
 const employerPipeline = [
   ['Sourced', '42'],
   ['Qualified', '24'],
@@ -655,6 +831,57 @@ const dataOwnershipControls = [
   },
 ]
 
+const complianceLedger: ComplianceLedgerItem[] = [
+  {
+    control: 'Consent receipts',
+    status: 'Modeled',
+    owner: 'Platform',
+    proof: 'Consent matrix identifies required approvals and audit event names.',
+    next: 'Persist consent receipts with scope, actor, expiration, and action preview.',
+    tone: 'blue',
+  },
+  {
+    control: 'Resume privacy',
+    status: 'Live foundation',
+    owner: 'Platform',
+    proof: 'R2 upload, D1 metadata, tenant session, and audit event smoke test passed.',
+    next: 'Add private download, malware scanning, source hash, and deletion workflow.',
+    tone: 'green',
+  },
+  {
+    control: 'External actions',
+    status: 'Blocked',
+    owner: 'Trust policy',
+    proof: 'Prototype has no application submission, outreach send, scraping, or payment behavior.',
+    next: 'Require certified integrations, per-action approval, and audit review before launch.',
+    tone: 'green',
+  },
+  {
+    control: 'Affordable billing',
+    status: 'Stripe-ready design',
+    owner: 'Growth and finance',
+    proof: 'Plan entitlements and candidate affordability philosophy are visible.',
+    next: 'Create Stripe products, portal, coupons, hardship policy, and entitlement checks.',
+    tone: 'amber',
+  },
+  {
+    control: 'Fairness review',
+    status: 'Prototype checklist',
+    owner: 'Hiring team',
+    proof: 'Employer workspace requires criteria before ranking and shows gap/risk indicators.',
+    next: 'Persist scorecard versions and decision notes with role-level audit history.',
+    tone: 'amber',
+  },
+  {
+    control: 'Export and deletion',
+    status: 'Policy needed',
+    owner: 'Privacy',
+    proof: 'Data ownership surface defines candidate and employer control expectations.',
+    next: 'Build export/delete endpoints, retention jobs, and user-facing confirmation receipts.',
+    tone: 'red',
+  },
+]
+
 const abusePreventionRules = [
   'Daily action limits for any guarded queue',
   'Duplicate detection before packet review',
@@ -821,6 +1048,69 @@ function CommandCenter({ items }: { items: Array<{ label: string; value: string;
         </div>
       ))}
     </div>
+  )
+}
+
+function SignalOperationsLayer({
+  activeWorkspace,
+  onWorkspaceChange,
+}: {
+  activeWorkspace: Workspace
+  onWorkspaceChange: (workspace: Workspace) => void
+}) {
+  const activeDecision = signalDecisions.find((decision) => decision.workspace === activeWorkspace)
+  const relatedDecisions = signalDecisions.filter((decision) => decision.workspace !== activeWorkspace)
+
+  return (
+    <section className="ops-layer" aria-label="Signal operations layer">
+      <div className="ops-copy">
+        <span>Signal operations</span>
+        <h2>Run the next reviewed decision</h2>
+        <p>
+          JobsFlow should feel like an operating system: every workspace shows what changed,
+          why it matters, and which reviewed action should happen next.
+        </p>
+      </div>
+
+      {activeDecision ? (
+        <article className="ops-decision primary-decision">
+          <div className="decision-topline">
+            <StatusPill tone={activeDecision.tone}>{activeDecision.status}</StatusPill>
+            <span>{activeDecision.owner}</span>
+          </div>
+          <strong>{activeDecision.title}</strong>
+          <div className="decision-flow">
+            <div>
+              <span>Changed</span>
+              <p>{activeDecision.changed}</p>
+            </div>
+            <div>
+              <span>Matters</span>
+              <p>{activeDecision.matters}</p>
+            </div>
+            <div>
+              <span>Next</span>
+              <p>{activeDecision.next}</p>
+            </div>
+          </div>
+          <EvidenceList items={activeDecision.evidence} />
+        </article>
+      ) : null}
+
+      <aside className="ops-router" aria-label="Other workspace decisions">
+        {relatedDecisions.map((decision) => (
+          <button
+            key={decision.label}
+            onClick={() => onWorkspaceChange(decision.workspace)}
+            type="button"
+          >
+            <span>{decision.label}</span>
+            <strong>{decision.title}</strong>
+            <small>{decision.next}</small>
+          </button>
+        ))}
+      </aside>
+    </section>
   )
 }
 
@@ -1477,6 +1767,48 @@ function CandidateWorkspace({
         </div>
       </article>
 
+      <article className="panel evidence-review-panel wide-panel">
+        <div className="panel-title">
+          <div>
+            <span>Fit evidence review</span>
+            <h3>Decide with proof, gaps, and guardrails visible</h3>
+          </div>
+          <StatusPill tone="amber">Human approval required</StatusPill>
+        </div>
+        <div className="evidence-review-grid">
+          {candidateEvidenceReviews.map((review) => (
+            <div className="review-card" key={`${review.company}-${review.role}`}>
+              <div className="review-card-header">
+                <div>
+                  <strong>{review.role}</strong>
+                  <span>{review.company}</span>
+                </div>
+                <StatusPill tone={review.tone}>{review.decision}</StatusPill>
+              </div>
+              <div className="review-score">
+                <b>{review.fit}</b>
+                <span>{review.gate}</span>
+              </div>
+              <div className="review-columns">
+                <div>
+                  <h4>Evidence</h4>
+                  <EvidenceList items={review.evidence} />
+                </div>
+                <div>
+                  <h4>Gaps and safeguards</h4>
+                  <ul className="plain-list">
+                    {[...review.gaps, ...review.safeguards].map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <p className="next-action">{review.next}</p>
+            </div>
+          ))}
+        </div>
+      </article>
+
       <article className="panel market-panel wide-panel">
         <div className="panel-title">
           <div>
@@ -1696,6 +2028,56 @@ function EmployerWorkspace() {
                 <EvidenceList items={candidate.evidence} />
                 <p className="risk-note">{candidate.risks.join(', ')}</p>
               </div>
+            </div>
+          ))}
+        </div>
+      </article>
+
+      <article className="panel evidence-review-panel wide-panel">
+        <div className="panel-title">
+          <div>
+            <span>Shortlist decision review</span>
+            <h3>Scorecard evidence before outreach</h3>
+          </div>
+          <StatusPill tone="blue">Review before contact</StatusPill>
+        </div>
+        <div className="employer-review-grid">
+          {employerEvidenceReviews.map((review) => (
+            <div className="review-card" key={review.candidate}>
+              <div className="review-card-header">
+                <div>
+                  <strong>{review.candidate}</strong>
+                  <span>{review.owner}</span>
+                </div>
+                <StatusPill tone={review.tone}>{review.recommendation}</StatusPill>
+              </div>
+              <div className="review-score">
+                <b>{review.score}</b>
+                <span>Evidence score</span>
+              </div>
+              <div className="rubric-grid">
+                {review.rubric.map(([criterion, level]) => (
+                  <div className="rubric-row" key={`${review.candidate}-${criterion}`}>
+                    <span>{criterion}</span>
+                    <strong>{level}</strong>
+                  </div>
+                ))}
+              </div>
+              <div className="review-columns">
+                <div>
+                  <h4>Evidence</h4>
+                  <EvidenceList items={review.evidence} />
+                </div>
+                <div>
+                  <h4>Risks</h4>
+                  <ul className="plain-list">
+                    {review.risks.map((risk) => (
+                      <li key={risk}>{risk}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <p className="next-action">{review.next}</p>
             </div>
           ))}
         </div>
@@ -1974,6 +2356,29 @@ function TrustWorkspace({
               <strong>{state.surface}</strong>
               <p>{state.message}</p>
               <small>{state.recovery}</small>
+            </div>
+          ))}
+        </div>
+      </article>
+
+      <article className="panel compliance-panel wide-panel">
+        <div className="panel-title">
+          <div>
+            <span>Compliance readiness ledger</span>
+            <h3>Controls that must exist before scale</h3>
+          </div>
+          <StatusPill tone="amber">Beta hardening</StatusPill>
+        </div>
+        <div className="ledger-grid">
+          {complianceLedger.map((item) => (
+            <div className="ledger-row" key={item.control}>
+              <div>
+                <strong>{item.control}</strong>
+                <span>{item.owner}</span>
+              </div>
+              <StatusPill tone={item.tone}>{item.status}</StatusPill>
+              <p>{item.proof}</p>
+              <small>{item.next}</small>
             </div>
           ))}
         </div>
@@ -2265,6 +2670,11 @@ function App() {
         <ProductOnboarding
           activeStep={activeOnboardingStep}
           onStepChange={setActiveOnboardingStep}
+        />
+
+        <SignalOperationsLayer
+          activeWorkspace={activeWorkspace}
+          onWorkspaceChange={setActiveWorkspace}
         />
 
         {activeWorkspace === 'candidate' ? (

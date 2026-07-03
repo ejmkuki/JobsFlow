@@ -184,6 +184,137 @@
   border-radius: 8px;
 }
 
+.ops-layer {
+  display: grid;
+  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.38fr) minmax(280px, 0.8fr);
+  gap: 14px;
+  align-items: stretch;
+  margin-bottom: 18px;
+  padding: 18px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.ops-copy,
+.ops-decision,
+.ops-router {
+  min-width: 0;
+}
+
+.ops-copy {
+  display: grid;
+  align-content: start;
+}
+
+.ops-copy span,
+.decision-flow span,
+.ops-router span,
+.review-card span,
+.ledger-row span {
+  color: var(--teal);
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ops-copy h2 {
+  margin: 5px 0 8px;
+  font-size: 1.25rem;
+  line-height: 1.12;
+}
+
+.ops-copy p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.ops-decision {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: #101820;
+  border: 1px solid #101820;
+  border-radius: 8px;
+}
+
+.primary-decision > strong {
+  color: #ffffff;
+  font-size: 1.18rem;
+  line-height: 1.2;
+}
+
+.decision-topline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.decision-topline > span {
+  color: #a7c6c2;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.decision-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.decision-flow div {
+  min-width: 0;
+  padding: 10px;
+  background: #17242c;
+  border: 1px solid #31424b;
+  border-radius: 8px;
+}
+
+.decision-flow p {
+  margin: 5px 0 0;
+  color: #d7e6e3;
+}
+
+.ops-decision .evidence-list li {
+  color: #f7fbfa;
+}
+
+.ops-router {
+  display: grid;
+  gap: 8px;
+}
+
+.ops-router button {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  color: inherit;
+  text-align: left;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.ops-router button:hover,
+.ops-router button:focus-visible {
+  border-color: #a9d7cf;
+  outline: none;
+}
+
+.ops-router strong {
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.ops-router small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .auth-panel {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.45fr) minmax(260px, 0.8fr);
@@ -903,6 +1034,121 @@
   font-size: 0.88rem;
 }
 
+.evidence-review-grid,
+.employer-review-grid,
+.ledger-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.evidence-review-grid,
+.employer-review-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.review-card {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  align-content: start;
+  padding: 14px;
+  background: #fbfdfd;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.review-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.review-card-header strong {
+  display: block;
+  color: var(--ink);
+  line-height: 1.15;
+}
+
+.review-card-header span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-transform: none;
+}
+
+.review-score {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  background: #eef9f6;
+  border: 1px solid #c7e2de;
+  border-radius: 8px;
+}
+
+.review-score b {
+  color: var(--teal);
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.review-score span,
+.next-action,
+.ledger-row small {
+  color: var(--muted);
+}
+
+.review-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.review-columns h4 {
+  margin: 0 0 8px;
+  font-size: 0.88rem;
+}
+
+.next-action {
+  padding: 10px;
+  background: #fff8e8;
+  border: 1px solid #f1d28a;
+  border-radius: 8px;
+}
+
+.rubric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rubric-row {
+  min-width: 0;
+  padding: 9px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.rubric-row span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.rubric-row strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink);
+}
+
 .packet-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
@@ -1303,6 +1549,41 @@
   align-content: start;
 }
 
+.ledger-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ledger-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+  padding: 12px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.ledger-row strong {
+  display: block;
+  color: var(--ink);
+}
+
+.ledger-row span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: none;
+}
+
+.ledger-row p,
+.ledger-row small {
+  grid-column: 1 / -1;
+}
+
 .backend-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr) minmax(240px, 0.7fr);
@@ -1483,6 +1764,7 @@
   }
 
   .onboarding-panel,
+  .ops-layer,
   .auth-panel,
   .activation-next,
   .packet-grid {
@@ -1503,7 +1785,10 @@
   .packet-checklist,
   .guardrail-grid,
   .market-grid,
-  .states-grid {
+  .states-grid,
+  .evidence-review-grid,
+  .employer-review-grid,
+  .ledger-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1538,7 +1823,8 @@
   }
 
   .candidate-row,
-  .audit-row {
+  .audit-row,
+  .decision-flow {
     grid-template-columns: 1fr;
   }
 }
@@ -1554,6 +1840,7 @@
   .workspace-summary,
   .workspace-lead,
   .onboarding-panel,
+  .ops-layer,
   .auth-panel,
   .activation-next,
   .auth-form,
@@ -1577,7 +1864,13 @@
   .packet-checklist,
   .guardrail-grid,
   .states-grid,
-  .scorecard-row {
+  .scorecard-row,
+  .evidence-review-grid,
+  .employer-review-grid,
+  .review-columns,
+  .rubric-grid,
+  .ledger-grid,
+  .ledger-row {
     grid-template-columns: 1fr;
   }
 
@@ -1626,6 +1919,7 @@
   .workspace-summary,
   .workspace-lead,
   .onboarding-panel,
+  .ops-layer,
   .auth-panel,
   .activation-next,
   .activation-resume,
