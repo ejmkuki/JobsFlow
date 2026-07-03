@@ -31,6 +31,10 @@ export type Env = {
   AUTH_SESSION_SECRET?: string
   AUTH_BOOTSTRAP_TOKEN?: string
   ALLOW_DEV_AUTH?: string
+  CLERK_AUTHORIZED_PARTIES?: string
+  CLERK_ISSUER?: string
+  CLERK_JWKS_URL?: string
+  CLERK_SECRET_KEY?: string
 }
 
 export type RequestContext = {

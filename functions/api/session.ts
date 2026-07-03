@@ -23,7 +23,60 @@ type SessionRequestBody = {
   tenantName?: string
 }
 
+type SessionAccess =
+  | {
+      allowed: true
+      externalUserId?: string
+      identity?: {
+        displayName: string
+        email: string
+      }
+      mode: 'bootstrap_token' | 'clerk_sso' | 'cloudflare_access' | 'local_development'
+    }
+  | {
+      allowed: false
+      error: string
+      message: string
+    }
+
+type JwtHeader = {
+  alg?: string
+  kid?: string
+  typ?: string
+}
+
+type JwtPayload = {
+  azp?: string
+  email?: string
+  exp?: number
+  iss?: string
+  nbf?: number
+  sub?: string
+}
+
+type JwksPayload = {
+  keys?: ClerkJwk[]
+}
+
+type ClerkJwk = JsonWebKey & {
+  kid?: string
+}
+
+type ClerkEmailAddress = {
+  email_address?: string
+  id?: string
+}
+
+type ClerkUser = {
+  email_addresses?: ClerkEmailAddress[]
+  first_name?: string | null
+  last_name?: string | null
+  primary_email_address_id?: string | null
+  username?: string | null
+}
+
 const sessionMaxAgeSeconds = 60 * 60 * 24 * 7
+const tokenEncoder = new TextEncoder()
 
 function isAllowedRole(value: string): value is NonNullable<SessionRequestBody['role']> {
   return ['candidate', 'recruiter', 'hiring_manager', 'platform_admin'].includes(value)
@@ -37,7 +90,181 @@ async function readBody(request: Request) {
   }
 }
 
-function getBootstrapAccess(request: Request, env: RequestContext['env']) {
+function decodeBase64Url(value: string) {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')
+  const binary = atob(padded)
+  const bytes = new Uint8Array(binary.length)
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+
+  return bytes
+}
+
+function decodeJwtPart<T>(value: string) {
+  return JSON.parse(new TextDecoder().decode(decodeBase64Url(value))) as T
+}
+
+function readBearerToken(request: Request) {
+  const authorization = request.headers.get('authorization') ?? ''
+  const [scheme, token] = authorization.split(' ')
+
+  if (scheme?.toLowerCase() !== 'bearer' || !token) {
+    return null
+  }
+
+  return token
+}
+
+function clerkConfigReady(env: RequestContext['env']) {
+  return Boolean(env.CLERK_JWKS_URL && env.CLERK_ISSUER && env.CLERK_SECRET_KEY)
+}
+
+async function verifyClerkToken(token: string, env: RequestContext['env']) {
+  if (!env.CLERK_JWKS_URL || !env.CLERK_ISSUER || !env.CLERK_SECRET_KEY) {
+    throw new Error('sso_not_configured')
+  }
+
+  const parts = token.split('.')
+  if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
+    throw new Error('invalid_sso_token')
+  }
+
+  const [encodedHeader, encodedPayload, encodedSignature] = parts
+  const header = decodeJwtPart<JwtHeader>(encodedHeader)
+  const payload = decodeJwtPart<JwtPayload>(encodedPayload)
+
+  if (header.alg !== 'RS256' || !header.kid) {
+    throw new Error('invalid_sso_token')
+  }
+
+  const jwksResponse = await fetch(env.CLERK_JWKS_URL, {
+    headers: {
+      accept: 'application/json',
+    },
+  })
+
+  if (!jwksResponse.ok) {
+    throw new Error('sso_provider_unavailable')
+  }
+
+  const jwks = (await jwksResponse.json()) as JwksPayload
+  const jwk = jwks.keys?.find((key) => key.kid === header.kid)
+  if (!jwk) {
+    throw new Error('invalid_sso_token')
+  }
+
+  const key = await crypto.subtle.importKey(
+    'jwk',
+    jwk,
+    { hash: 'SHA-256', name: 'RSASSA-PKCS1-v1_5' },
+    false,
+    ['verify'],
+  )
+  const verified = await crypto.subtle.verify(
+    'RSASSA-PKCS1-v1_5',
+    key,
+    decodeBase64Url(encodedSignature),
+    tokenEncoder.encode(`${encodedHeader}.${encodedPayload}`),
+  )
+
+  if (!verified) {
+    throw new Error('invalid_sso_token')
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000)
+  if (!payload.sub || payload.iss !== env.CLERK_ISSUER) {
+    throw new Error('invalid_sso_token')
+  }
+
+  if (typeof payload.exp !== 'number' || payload.exp <= nowSeconds) {
+    throw new Error('expired_sso_token')
+  }
+
+  if (typeof payload.nbf === 'number' && payload.nbf > nowSeconds + 60) {
+    throw new Error('invalid_sso_token')
+  }
+
+  const authorizedParties = (env.CLERK_AUTHORIZED_PARTIES ?? '')
+    .split(',')
+    .map((party) => party.trim())
+    .filter(Boolean)
+
+  if (authorizedParties.length && (!payload.azp || !authorizedParties.includes(payload.azp))) {
+    throw new Error('invalid_sso_origin')
+  }
+
+  return payload.sub
+}
+
+async function getClerkIdentity(subject: string, env: RequestContext['env']) {
+  if (!env.CLERK_SECRET_KEY) {
+    throw new Error('sso_not_configured')
+  }
+
+  const response = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(subject)}`, {
+    headers: {
+      accept: 'application/json',
+      authorization: `Bearer ${env.CLERK_SECRET_KEY}`,
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error('sso_provider_unavailable')
+  }
+
+  const user = (await response.json()) as ClerkUser
+  const primaryEmail =
+    user.email_addresses?.find((email) => email.id === user.primary_email_address_id)?.email_address ??
+    user.email_addresses?.[0]?.email_address
+  const displayName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || user.username
+
+  if (!primaryEmail) {
+    throw new Error('sso_email_missing')
+  }
+
+  return {
+    displayName: safeString(displayName, primaryEmail.split('@')[0] ?? 'JobsFlow User'),
+    email: normalizeEmail(primaryEmail),
+  }
+}
+
+async function getSessionAccess(request: Request, env: RequestContext['env']): Promise<SessionAccess> {
+  const bearerToken = readBearerToken(request)
+  if (bearerToken) {
+    if (!clerkConfigReady(env)) {
+      return {
+        allowed: false,
+        error: 'sso_not_configured',
+        message: 'SSO is not connected to JobsFlow yet. Private beta access is still active.',
+      }
+    }
+
+    try {
+      const subject = await verifyClerkToken(bearerToken, env)
+      const identity = await getClerkIdentity(subject, env)
+      return {
+        allowed: true,
+        externalUserId: subject,
+        identity,
+        mode: 'clerk_sso',
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'invalid_sso_token'
+
+      return {
+        allowed: false,
+        error: message,
+        message:
+          message === 'sso_provider_unavailable'
+            ? 'SSO provider is temporarily unavailable. Try again in a moment.'
+            : 'SSO could not verify this sign-in. Please try again.',
+      }
+    }
+  }
+
   const cloudflareAccessEmail = request.headers.get('cf-access-authenticated-user-email')
   if (cloudflareAccessEmail) {
     return { allowed: true as const, mode: 'cloudflare_access' }
@@ -105,22 +332,22 @@ export async function onRequestPost({ request, env }: RequestContext) {
     return missingConfig('AUTH_SESSION_SECRET')
   }
 
-  const bootstrapAccess = getBootstrapAccess(request, env)
-  if (!bootstrapAccess.allowed) {
+  const body = await readBody(request)
+  const sessionAccess = await getSessionAccess(request, env)
+  if (!sessionAccess.allowed) {
     return json(
       {
         ok: false,
-        error: bootstrapAccess.error,
-        message: bootstrapAccess.message,
+        error: sessionAccess.error,
+        message: sessionAccess.message,
       },
       403,
     )
   }
 
-  const body = await readBody(request)
   const accessEmail = request.headers.get('cf-access-authenticated-user-email')
-  const email = normalizeEmail(accessEmail ?? safeString(body.email, 'founder@workflowfy.ai'))
-  const displayName = safeString(body.displayName, email.split('@')[0] ?? 'JobsFlow User')
+  const email = sessionAccess.identity?.email ?? normalizeEmail(accessEmail ?? safeString(body.email, 'founder@workflowfy.ai'))
+  const displayName = sessionAccess.identity?.displayName ?? safeString(body.displayName, email.split('@')[0] ?? 'JobsFlow User')
   const accountType = body.accountType === 'employer' ? 'employer' : 'candidate'
   const role = isAllowedRole(safeString(body.role, accountType)) ? safeString(body.role, accountType) : accountType
   const tenantName = safeString(
@@ -204,7 +431,8 @@ export async function onRequestPost({ request, env }: RequestContext) {
     metadata: {
       accountType,
       role,
-      accessMode: bootstrapAccess.mode,
+      accessMode: sessionAccess.mode,
+      externalUserId: sessionAccess.externalUserId,
     },
   })
 

@@ -70,7 +70,7 @@ These modules remain consent-first. The prototype does not scrape external platf
 The app now includes a real Cloudflare-ready backend surface:
 
 - `functions/api/health.ts`: reports runtime, D1, R2, session secret, and bootstrap-token readiness.
-- `functions/api/session.ts`: creates signed HTTP-only sessions through Cloudflare Access, a private bootstrap token, or localhost development mode.
+- `functions/api/session.ts`: creates signed HTTP-only sessions through Clerk SSO, Cloudflare Access, a private bootstrap token, or localhost development mode.
 - `functions/api/resumes.ts`: stores PDF/DOCX resumes in R2, writes metadata to D1, and records an audit event.
 - `functions/api/packet-review.ts`: reviews candidate application packet evidence, computes readiness, creates review gates, records state transitions, and keeps external action blocked.
 - `functions/api/audit.ts`: returns tenant-scoped audit events for the active session.
@@ -78,6 +78,29 @@ The app now includes a real Cloudflare-ready backend surface:
 - `migrations/0002_application_packet_review.sql`: creates application packets, review gates, and state transitions.
 
 The backend fails closed when bindings or secrets are missing. It does not submit applications, send email, scrape jobs, charge cards, or expose resume files publicly.
+
+## SSO Direction
+
+JobsFlow should not own password auth. The production path is a hosted SSO provider, with Clerk selected as the first candidate/employer login layer because it supports Vite React, prebuilt sign-in UI, social connections such as Google and Apple, phone/email flows, and backend JWT verification.
+
+Current auth posture:
+
+- Primary target: Clerk SSO for public candidate and employer sign-in.
+- Temporary fallback: private beta bootstrap code for controlled testing.
+- Existing backend boundary: JobsFlow still mints its own signed HTTP-only workspace session after SSO is verified.
+- Enterprise future: WorkOS/AuthKit can be added later for employer SAML, SCIM, directory sync, and enterprise RBAC.
+
+Clerk environment required before SSO becomes active:
+
+```bash
+VITE_CLERK_PUBLISHABLE_KEY=pk_live_...
+CLERK_ISSUER=https://your-clerk-issuer
+CLERK_JWKS_URL=https://your-clerk-issuer/.well-known/jwks.json
+CLERK_SECRET_KEY=sk_live_...
+CLERK_AUTHORIZED_PARTIES=https://jobsflow.workflowfy.ai
+```
+
+The frontend shows SSO as the recommended sign-in path when the publishable key is present. The backend only accepts Clerk sessions after verifying the JWT signature, issuer, expiration, optional authorized party, and Clerk user email through the Clerk Backend API. If SSO keys are not configured, JobsFlow keeps the private beta gate active and reports SSO as not connected.
 
 ## Application Packet Review Engine
 

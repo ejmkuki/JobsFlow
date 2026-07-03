@@ -30,6 +30,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import './App.css'
+import { useJobsFlowSso } from './jobsFlowSsoContext'
 import {
   type AuditEvent,
   type ApplicationPacketReview,
@@ -1131,6 +1132,7 @@ function AuthPanel({
   const [bootstrapToken, setBootstrapToken] = useState('')
   const [message, setMessage] = useState('Looking for an active JobsFlow workspace...')
   const [isBusy, setIsBusy] = useState(false)
+  const sso = useJobsFlowSso()
   const selectedChecklist =
     accountType === 'candidate' ? candidateActivationChecklist : employerActivationChecklist
   const needsFreshCode =
@@ -1186,10 +1188,70 @@ function AuthPanel({
     }
   }
 
+  async function handleCreateSsoSession() {
+    if (!sso.configured) {
+      setMessage('SSO is selected for JobsFlow, but the provider keys are not connected yet.')
+      return
+    }
+
+    if (!sso.isLoaded) {
+      setMessage('SSO is still loading. Try again in a moment.')
+      return
+    }
+
+    if (!sso.isSignedIn) {
+      sso.openSignIn()
+      return
+    }
+
+    const token = await sso.getToken()
+    if (!token) {
+      setMessage('SSO is signed in, but JobsFlow could not read a secure session token yet.')
+      return
+    }
+
+    const normalizedEmail = sso.email ?? email.trim()
+    if (!normalizedEmail) {
+      setMessage('SSO worked, but JobsFlow still needs an email to create the workspace.')
+      return
+    }
+
+    const normalizedName =
+      sso.displayName || displayName.trim() || normalizedEmail.split('@')[0] || 'JobsFlow User'
+
+    setIsBusy(true)
+    setMessage('Opening a JobsFlow workspace from SSO...')
+
+    try {
+      const result = await createJobsFlowSession({
+        accountType,
+        displayName: normalizedName,
+        email: normalizedEmail,
+        role: accountType === 'employer' ? 'recruiter' : 'candidate',
+        ssoToken: token,
+        tenantName:
+          tenantName.trim() ||
+          (accountType === 'employer'
+            ? `${normalizedName} Hiring Team`
+            : `${normalizedName} Career Workspace`),
+      })
+      onSessionChange(result.session)
+      setMessage(`Workspace opened from SSO for ${result.session.email}. JobsFlow is ready to keep actions behind review.`)
+    } catch (error) {
+      onSessionChange(null)
+      setMessage(humanizeJobsFlowError(error, 'auth'))
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
   async function handleSignOut() {
     setIsBusy(true)
     try {
       await deleteBackendSession()
+      if (sso.isSignedIn) {
+        await sso.signOut()
+      }
       onSessionChange(null)
       setMessage('Workspace closed. Your next action will need a fresh signed session.')
     } catch (error) {
@@ -1234,6 +1296,29 @@ function AuthPanel({
       </div>
 
       <div className="auth-form">
+        <div className="sso-card">
+          <span>Recommended sign-in</span>
+          <strong>Use trusted SSO instead of a private code</strong>
+          <p>
+            JobsFlow is ready for a hosted provider with Google, Apple, email, and phone-based
+            sign-in. The private beta code remains only as a temporary fallback.
+          </p>
+          <div className="sso-actions">
+            {['Continue with Google', 'Continue with Apple', 'Continue with email'].map((label) => (
+              <button disabled={isBusy || !sso.configured} key={label} onClick={handleCreateSsoSession} type="button">
+                <ShieldCheck size={16} aria-hidden="true" />
+                {label}
+              </button>
+            ))}
+          </div>
+          <small>
+            {sso.configured
+              ? sso.isSignedIn
+                ? `SSO is signed in as ${sso.email ?? 'this user'}.`
+                : 'SSO is connected. Choose a sign-in method to continue.'
+              : 'SSO provider keys are not connected yet. Private beta access is still available below.'}
+          </small>
+        </div>
         <div className="segmented-control" aria-label="Account type">
           {(['candidate', 'employer'] as const).map((type) => (
             <button
@@ -1557,6 +1642,7 @@ function BackendStatusPanel({
         ['Resume storage', health.bindings.resumeBucket],
         ['Session signing', health.bindings.sessionSecret],
         ['Private beta gate', health.bindings.bootstrapToken],
+        ['SSO provider', Boolean(health.features?.ssoProvider)],
         ['Packet review engine', Boolean(health.features?.packetReviewEngine)],
       ]
     : []

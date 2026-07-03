@@ -31,6 +31,7 @@ export async function onRequestGet({ env }: RequestContext) {
     databaseReady,
     features: {
       packetReviewEngine: packetReviewEngineReady,
+      ssoProvider: Boolean(env.CLERK_JWKS_URL && env.CLERK_ISSUER && env.CLERK_SECRET_KEY),
     },
     externalSubmissionsEnabled: false,
   })

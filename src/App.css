@@ -402,6 +402,62 @@
   gap: 10px;
 }
 
+.sso-card {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  background: #17242c;
+  border: 1px solid #31424b;
+  border-radius: 8px;
+}
+
+.sso-card > span,
+.sso-card small {
+  color: #a7c6c2;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.sso-card strong {
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.sso-card p {
+  margin: 0;
+  color: #d7e6e3;
+}
+
+.sso-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sso-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  min-width: 0;
+  padding: 0 10px;
+  color: var(--ink);
+  font-weight: 850;
+  background: #ffffff;
+  border: 1px solid #c7e2de;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.sso-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .auth-form label {
   display: grid;
   gap: 6px;
@@ -1844,6 +1900,7 @@
   .auth-panel,
   .activation-next,
   .auth-form,
+  .sso-actions,
   .employer-activation-preview,
   .backend-grid,
   .onboarding-steps,

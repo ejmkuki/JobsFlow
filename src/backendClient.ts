@@ -9,6 +9,7 @@ export type BackendHealth = {
   externalSubmissionsEnabled: boolean
   features?: {
     packetReviewEngine: boolean
+    ssoProvider?: boolean
   }
   ok: boolean
   runtime: string
@@ -30,6 +31,7 @@ export type SessionRequest = {
   displayName: string
   email: string
   role: 'candidate' | 'recruiter' | 'hiring_manager' | 'platform_admin'
+  ssoToken?: string
   tenantName: string
 }
 
@@ -203,6 +205,10 @@ export async function createJobsFlowSession(input: SessionRequest) {
 
   if (input.bootstrapToken) {
     headers.set('x-jobsflow-bootstrap-token', input.bootstrapToken)
+  }
+
+  if (input.ssoToken) {
+    headers.set('authorization', `Bearer ${input.ssoToken}`)
   }
 
   return readJson<{ ok: boolean; session: BackendSession }>(
