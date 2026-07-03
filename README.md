@@ -109,11 +109,10 @@ Production activation:
 $env:NODE_OPTIONS="--use-system-ca"
 npm run cf:activate-clerk -- `
   -PublishableKey "pk_live_..." `
-  -Issuer "https://your-clerk-issuer" `
-  -SecretKey "sk_live_..."
+  -Issuer "https://your-clerk-frontend-api-url"
 ```
 
-The activation script derives `CLERK_JWKS_URL` from the issuer unless it is passed explicitly, validates the JWKS endpoint, validates the Clerk backend key without printing it, installs backend values as Cloudflare Pages secrets, rebuilds the Vite bundle with `VITE_CLERK_PUBLISHABLE_KEY`, deploys, and verifies that `/api/health` reports `features.ssoProvider=true`. If JobsFlow later moves from direct upload deploys to Cloudflare-hosted builds, add `VITE_CLERK_PUBLISHABLE_KEY` as a Pages build environment variable too.
+The script prompts for `CLERK_SECRET_KEY` securely so it does not appear in terminal history. The activation script derives `CLERK_JWKS_URL` from the issuer unless it is passed explicitly, validates the JWKS endpoint, validates the Clerk backend key without printing it, installs backend values as Cloudflare Pages secrets, rebuilds the Vite bundle with `VITE_CLERK_PUBLISHABLE_KEY`, deploys, and verifies that `/api/health` reports `features.ssoProvider=true`. If JobsFlow later moves from direct upload deploys to Cloudflare-hosted builds, add `VITE_CLERK_PUBLISHABLE_KEY` as a Pages build environment variable too.
 
 ## Application Packet Review Engine
 

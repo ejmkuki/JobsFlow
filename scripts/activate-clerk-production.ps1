@@ -1,11 +1,9 @@
 param(
-  [Parameter(Mandatory = $true)]
-  [string]$PublishableKey,
-  [Parameter(Mandatory = $true)]
-  [string]$Issuer,
+  [string]$PublishableKey = "",
+  [string]$Issuer = "",
   [string]$JwksUrl = "",
-  [Parameter(Mandatory = $true)]
-  [string]$SecretKey,
+  [string]$SecretKey = "",
+  [SecureString]$SecretKeySecure,
   [string]$AuthorizedParties = "https://jobsflow.workflowfy.ai",
   [string]$ProjectName = "workflowfy-jobsflow",
   [string]$CustomDomain = "https://jobsflow.workflowfy.ai",
@@ -23,6 +21,61 @@ function Assert-Value {
   if ([string]::IsNullOrWhiteSpace($Value)) {
     throw "$Name is required."
   }
+}
+
+function Read-RequiredValue {
+  param(
+    [string]$Name,
+    [string]$Prompt,
+    [string]$ExistingValue
+  )
+
+  if (-not [string]::IsNullOrWhiteSpace($ExistingValue)) {
+    return $ExistingValue
+  }
+
+  $value = Read-Host $Prompt
+  Assert-Value -Name $Name -Value $value
+  return $value
+}
+
+function Convert-SecureStringToPlainText {
+  param([SecureString]$Value)
+
+  if (-not $Value) {
+    return ""
+  }
+
+  $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Value)
+  try {
+    return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer)
+  }
+  finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer)
+  }
+}
+
+function Read-SecretValue {
+  param(
+    [string]$ExistingValue,
+    [SecureString]$ExistingSecureValue
+  )
+
+  if (-not [string]::IsNullOrWhiteSpace($ExistingValue)) {
+    Write-Host "Using CLERK_SECRET_KEY from command input. Prefer the secure prompt next time to avoid terminal history exposure." -ForegroundColor Yellow
+    return $ExistingValue
+  }
+
+  if ($ExistingSecureValue) {
+    $secureValue = $ExistingSecureValue
+  }
+  else {
+    $secureValue = Read-Host "CLERK_SECRET_KEY, starts sk_live_" -AsSecureString
+  }
+
+  $value = Convert-SecureStringToPlainText -Value $secureValue
+  Assert-Value -Name "CLERK_SECRET_KEY" -Value $value
+  return $value
 }
 
 function Assert-HttpsUrl {
@@ -100,6 +153,18 @@ function Get-LiveHealth {
   $separator = if ($BaseUrl.Contains("?")) { "&" } else { "?" }
   return Invoke-RestMethod -Uri "$BaseUrl/api/health${separator}activation=$(Get-Date -UFormat %s)" -TimeoutSec 30
 }
+
+$PublishableKey = Read-RequiredValue `
+  -Name "VITE_CLERK_PUBLISHABLE_KEY" `
+  -Prompt "VITE_CLERK_PUBLISHABLE_KEY, starts pk_live_" `
+  -ExistingValue $PublishableKey
+
+$Issuer = Read-RequiredValue `
+  -Name "CLERK_ISSUER" `
+  -Prompt "CLERK_ISSUER, use Clerk Frontend API URL" `
+  -ExistingValue $Issuer
+
+$SecretKey = Read-SecretValue -ExistingValue $SecretKey -ExistingSecureValue $SecretKeySecure
 
 Assert-Value -Name "VITE_CLERK_PUBLISHABLE_KEY" -Value $PublishableKey
 Assert-Value -Name "CLERK_ISSUER" -Value $Issuer
