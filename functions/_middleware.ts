@@ -6,9 +6,9 @@ const contentSecurityPolicy = [
   "frame-ancestors 'none'",
   "form-action 'self' https://clerk.workflowfy.ai",
   "img-src 'self' data: https://img.clerk.com https://images.clerk.dev",
-  "script-src 'self' https://clerk.workflowfy.ai https://static.cloudflareinsights.com",
+  "script-src 'self' https://clerk.workflowfy.ai https://challenges.cloudflare.com https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline'",
-  "connect-src 'self' https://clerk.workflowfy.ai https://api.clerk.com https://*.clerk.com https://*.clerk.services",
+  "connect-src 'self' https://clerk.workflowfy.ai https://api.clerk.com https://*.clerk.com https://*.clerk.services https://challenges.cloudflare.com",
   "frame-src https://clerk.workflowfy.ai https://challenges.cloudflare.com",
 ].join('; ')
 
