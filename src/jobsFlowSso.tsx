@@ -38,7 +38,7 @@ const jobsFlowClerkAppearance = {
 
 function ClerkBridge({ children }: { children: ReactNode }) {
   const { getToken, isLoaded, isSignedIn } = useAuth()
-  const { openSignIn, signOut } = useClerk()
+  const { openSignIn, openSignUp, signOut } = useClerk()
   const { user } = useUser()
   const [loadTimedOut, setLoadTimedOut] = useState(false)
 
@@ -72,6 +72,13 @@ function ClerkBridge({ children }: { children: ReactNode }) {
             forceRedirectUrl: window.location.href,
             signUpFallbackRedirectUrl: window.location.href,
             withSignUp: true,
+          }),
+        openSignUp: () =>
+          openSignUp({
+            appearance: jobsFlowClerkAppearance,
+            fallbackRedirectUrl: window.location.href,
+            forceRedirectUrl: window.location.href,
+            signInFallbackRedirectUrl: window.location.href,
           }),
         signOut: () => signOut(),
       }}

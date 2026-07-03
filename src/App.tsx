@@ -1250,6 +1250,29 @@ function AuthPanel({
     }
   }, [accountType, displayName, email, onSessionChange, sso, tenantName])
 
+  const handleCreateSsoAccount = useCallback(() => {
+    if (!sso.configured) {
+      setMessage('SSO is selected for JobsFlow, but the provider keys are not connected yet.')
+      return
+    }
+
+    if (!sso.isLoaded) {
+      setMessage(
+        sso.loadTimedOut
+          ? 'SSO is connected, but this browser could not load Clerk yet. Hard refresh, disable blockers for JobsFlow and Clerk, or use the private beta fallback.'
+          : 'SSO is loading. The account creation button will unlock as soon as Clerk is ready.',
+      )
+      return
+    }
+
+    if (!sso.isSignedIn) {
+      sso.openSignUp()
+      return
+    }
+
+    void handleCreateSsoSession()
+  }, [handleCreateSsoSession, sso])
+
   async function handleSignOut() {
     setIsBusy(true)
     try {
@@ -1338,8 +1361,8 @@ function AuthPanel({
             {sso.isSignedIn ? 'You are signed in. Open your workspace.' : 'Sign in or create your JobsFlow account'}
           </strong>
           <p>
-            Use the secure Clerk window for Google or email. More providers can be enabled
-            later without changing this workspace flow.
+            Use the secure Clerk window for Google, Apple, or email. JobsFlow keeps identity
+            simple before it starts handling evidence.
           </p>
           <div className="sso-actions">
             <button
@@ -1349,15 +1372,30 @@ function AuthPanel({
               type="button"
             >
               <ShieldCheck size={18} aria-hidden="true" />
-              {sso.isSignedIn ? 'Open workspace from SSO' : 'Sign in or create account'}
+              {sso.isSignedIn ? 'Open workspace from SSO' : 'Sign in'}
             </button>
+            {!sso.isSignedIn ? (
+              <button
+                className="secondary-sso"
+                disabled={isBusy || !sso.configured || !sso.isLoaded}
+                onClick={handleCreateSsoAccount}
+                type="button"
+              >
+                Create account
+              </button>
+            ) : null}
+          </div>
+          <div className="sso-provider-row" aria-label="Supported sign-in methods">
+            <span>Google</span>
+            <span>Apple</span>
+            <span>Email</span>
           </div>
           <small>
             {sso.configured
               ? sso.isSignedIn
                 ? `SSO is signed in as ${sso.email ?? 'this user'}.`
                 : sso.isLoaded
-                  ? 'Google and email are available inside the secure sign-in window.'
+                  ? 'Google, Apple, and email are the JobsFlow sign-in targets. Apple appears after the Clerk Apple provider is enabled.'
                   : sso.loadTimedOut
                     ? 'SSO is connected, but the browser is blocking or still waiting on Clerk JS. Try a hard refresh or disable blockers for this site.'
                     : 'SSO is connected. Loading the secure sign-in provider...'

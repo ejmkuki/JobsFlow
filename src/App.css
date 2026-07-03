@@ -441,7 +441,7 @@
 
 .sso-actions {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.78fr);
   gap: 8px;
 }
 
@@ -469,9 +469,34 @@
   box-shadow: 0 14px 30px rgba(14, 116, 144, 0.22);
 }
 
+.sso-actions .secondary-sso {
+  min-height: 48px;
+  color: #075985;
+  background: #eff8ff;
+  border-color: #bae6fd;
+}
+
 .sso-actions button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.sso-provider-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sso-provider-row span {
+  min-width: 0;
+  padding: 7px 8px;
+  color: #075985;
+  font-size: 0.8rem;
+  font-weight: 850;
+  text-align: center;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
 }
 
 .auth-form label {
