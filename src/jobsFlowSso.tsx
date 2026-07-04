@@ -153,9 +153,9 @@ function ClerkBridge({ children }: { children: ReactNode }) {
           })
         },
         openSignUp: () => {
-          delete document.documentElement.dataset.jobsflowClerkMode
+          document.documentElement.dataset.jobsflowClerkMode = 'signup'
           openSignUp({
-            appearance: jobsFlowClerkAppearance,
+            appearance: emailOnlyClerkAppearance,
             fallbackRedirectUrl: window.location.href,
             forceRedirectUrl: window.location.href,
             signInFallbackRedirectUrl: window.location.href,

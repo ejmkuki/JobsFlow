@@ -518,7 +518,11 @@
 html[data-jobsflow-clerk-mode="email"] .cl-socialButtonsRoot,
 html[data-jobsflow-clerk-mode="email"] .cl-socialButtons,
 html[data-jobsflow-clerk-mode="email"] .cl-dividerRow,
-html[data-jobsflow-clerk-mode="email"] .cl-dividerText {
+html[data-jobsflow-clerk-mode="email"] .cl-dividerText,
+html[data-jobsflow-clerk-mode="signup"] .cl-socialButtonsRoot,
+html[data-jobsflow-clerk-mode="signup"] .cl-socialButtons,
+html[data-jobsflow-clerk-mode="signup"] .cl-dividerRow,
+html[data-jobsflow-clerk-mode="signup"] .cl-dividerText {
   display: none !important;
 }
 
@@ -597,6 +601,22 @@ html[data-jobsflow-clerk-mode="email"] .cl-dividerText {
 .cl-rootBox .cl-otpCodeFieldInput:focus,
 .cl-card .cl-otpCodeFieldInput:focus,
 .cl-modalContent .cl-otpCodeFieldInput:focus {
+  border-color: #0284c7 !important;
+  outline: 3px solid rgba(56, 189, 248, 0.22) !important;
+  outline-offset: 1px !important;
+}
+
+html[data-jobsflow-clerk-mode="signup"] .cl-otpCodeField input:not([type="hidden"]) {
+  color: #0f172a !important;
+  background: #ffffff !important;
+  border-color: #bae6fd !important;
+  border-radius: 8px !important;
+  caret-color: #0284c7 !important;
+  cursor: text !important;
+  pointer-events: auto !important;
+}
+
+html[data-jobsflow-clerk-mode="signup"] .cl-otpCodeField input:not([type="hidden"]):focus {
   border-color: #0284c7 !important;
   outline: 3px solid rgba(56, 189, 248, 0.22) !important;
   outline-offset: 1px !important;
