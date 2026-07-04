@@ -607,16 +607,71 @@ html[data-jobsflow-clerk-mode="signup"] .cl-dividerText {
 }
 
 html[data-jobsflow-clerk-mode="signup"] .cl-otpCodeField input:not([type="hidden"]) {
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
+  box-sizing: border-box !important;
   color: #0f172a !important;
+  text-align: center !important;
   background: #ffffff !important;
-  border-color: #bae6fd !important;
+  border: 2px solid #bae6fd !important;
   border-radius: 8px !important;
   caret-color: #0284c7 !important;
   cursor: text !important;
   pointer-events: auto !important;
 }
 
+html[data-jobsflow-clerk-mode="signup"] .cl-formFieldInputGroup:has(input[inputmode="numeric"]),
+html[data-jobsflow-clerk-mode="signup"] .cl-formFieldInputGroup:has(input[autocomplete="one-time-code"]) {
+  display: flex !important;
+  flex-flow: row nowrap !important;
+  gap: 6px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-right: auto !important;
+  margin-left: auto !important;
+  overflow: visible !important;
+}
+
+html[data-jobsflow-clerk-mode="signup"] .cl-formFieldInputGroup input[inputmode="numeric"]:not([type="hidden"]),
+html[data-jobsflow-clerk-mode="signup"] .cl-formFieldInputGroup input[autocomplete="one-time-code"]:not([type="hidden"]) {
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
+  box-sizing: border-box !important;
+  padding: 0 !important;
+  color: #0f172a !important;
+  font-size: 1.08rem !important;
+  font-weight: 850 !important;
+  line-height: 1 !important;
+  text-align: center !important;
+  background: #ffffff !important;
+  border: 2px solid #bae6fd !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  caret-color: #0284c7 !important;
+  cursor: text !important;
+  pointer-events: auto !important;
+}
+
 html[data-jobsflow-clerk-mode="signup"] .cl-otpCodeField input:not([type="hidden"]):focus {
+  border-color: #0284c7 !important;
+  outline: 3px solid rgba(56, 189, 248, 0.22) !important;
+  outline-offset: 1px !important;
+}
+
+html[data-jobsflow-clerk-mode="signup"] .cl-formFieldInputGroup input[inputmode="numeric"]:not([type="hidden"]):focus,
+html[data-jobsflow-clerk-mode="signup"] .cl-formFieldInputGroup input[autocomplete="one-time-code"]:not([type="hidden"]):focus {
   border-color: #0284c7 !important;
   outline: 3px solid rgba(56, 189, 248, 0.22) !important;
   outline-offset: 1px !important;
