@@ -12,6 +12,7 @@
     "cf:setup": "powershell -ExecutionPolicy Bypass -File ./scripts/setup-cloudflare.ps1",
     "cf:deploy": "node ./scripts/deploy-production.mjs",
     "cf:activate-clerk": "powershell -ExecutionPolicy Bypass -File ./scripts/activate-clerk-production.ps1",
+    "cf:auth:audit": "node ./scripts/audit-auth-methods.mjs",
     "cf:smoke": "node ./scripts/smoke-production.mjs",
     "cf:smoke:core": "node ./scripts/smoke-core-production.mjs",
     "cf:smoke:cleanup": "node ./scripts/cleanup-smoke-data.mjs",

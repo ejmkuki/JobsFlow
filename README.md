@@ -158,6 +158,15 @@ CLERK_AUTHORIZED_PARTIES=https://jobsflow.workflowfy.ai
 
 The frontend shows SSO as the recommended sign-in path when the publishable key is present. The backend only accepts Clerk sessions after verifying the JWT signature, issuer, expiration, optional authorized party, and Clerk user email through the Clerk Backend API. If SSO keys are not configured, JobsFlow keeps the private beta gate active and reports SSO as not connected.
 
+Audit live auth methods without creating users or sending email:
+
+```powershell
+$env:NODE_OPTIONS="--use-system-ca"
+npm run cf:auth:audit
+```
+
+Current production Clerk frontend API: `clerk.workflowfy.ai`. Email sign-up and email sign-in are enabled through Clerk email/password flows. Google is enabled. Apple requires a production Apple Developer setup before Clerk exposes `oauth_apple`: create the Apple App ID, Services ID, Key ID, and private key; add `clerk.workflowfy.ai` as the Apple Services ID domain; add Clerk's Apple return URL in Apple; then enable Apple under Clerk SSO connections with custom credentials. Re-run `npm run cf:auth:audit -- --require-apple` after Apple is configured.
+
 Production activation:
 
 ```powershell
