@@ -77,6 +77,9 @@ These modules remain consent-first. The prototype does not scrape external platf
 - `migrations/0006_interview_prep_sandbox.sql` adds interview prep sessions, generated question sets, practice answers, scoring rubric output, and tenant-scoped answer evaluation history.
 - `functions/api/interview-prep.ts` creates role- and stage-specific interview prep sessions, generates deterministic prompt sets, evaluates practice answers against evidence/structure/risk rubrics, and records audit events.
 - Candidate Workspace now includes a live Native AI Interview Prep Sandbox with question selection, answer scoring, strengths, risks, and rehearsal recommendations.
+- `migrations/0007_transparency_blueprint.sql` adds anonymized salary blueprints, culture-condition signals, and transparency reports.
+- `functions/api/transparency.ts` creates tenant-scoped salary/culture reports, enforces anonymity floors for culture evidence, and audit logs each transparency blueprint.
+- Candidate Workspace now includes a live Transparency Blueprint Portal with salary bands, confidence, culture evidence, and risk flags.
 
 ## Cloudflare Backend Slice
 
@@ -91,12 +94,14 @@ The app now includes a real Cloudflare-ready backend surface:
 - `functions/api/resume-intelligence.ts`: runs the first production candidate engine for resume facts, job target parsing, semantic gap scoring, vector-ready document creation, and tailored-resume recommendations.
 - `functions/api/pipeline.ts`: runs the anti-ghosting application tracker with stage state, employer response SLAs, candidate follow-up drafts, fallback reminders, and audit history.
 - `functions/api/interview-prep.ts`: runs the interview prep sandbox with target-role sessions, generated questions, structured rubric scoring, and practice answer history.
+- `functions/api/transparency.ts`: runs the transparency blueprint portal for verified salary bands, anonymized culture conditions, and risk flags.
 - `migrations/0001_initial.sql`: creates tenants, users, sessions, candidate profiles, resume artifacts, and audit events.
 - `migrations/0002_application_packet_review.sql`: creates application packets, review gates, and state transitions.
 - `migrations/0003_workflow_kernel.sql`: creates the workflow kernel tables that every production JobsFlow pillar should use.
 - `migrations/0004_resume_intelligence.sql`: creates resume fact sets, job targets, vector document queue records, and resume tailoring analyses.
 - `migrations/0005_anti_ghosting_pipeline.sql`: creates tracked applications, stage events, response policies, and follow-up tasks.
 - `migrations/0006_interview_prep_sandbox.sql`: creates interview prep sessions, question sets, and practice answer evaluations.
+- `migrations/0007_transparency_blueprint.sql`: creates salary blueprints, culture blueprints, and transparency reports.
 
 The backend fails closed when bindings or secrets are missing. It does not submit applications, send email, scrape jobs, charge cards, or expose resume files publicly.
 

@@ -13,6 +13,7 @@ export type BackendHealth = {
     packetReviewEngine: boolean
     resumeIntelligence?: boolean
     ssoProvider?: boolean
+    transparencyBlueprint?: boolean
     workflowKernel?: boolean
   }
   ok: boolean
@@ -522,6 +523,85 @@ export type EvaluateInterviewAnswerRequest = {
   sessionId: string
 }
 
+export type TransparencySalaryBlueprint = {
+  company: string
+  confidenceScore: number
+  createdAt: string
+  currency: string
+  employmentType: string
+  id: string
+  location: string
+  roleTitle: string
+  salaryMaxCents: number
+  salaryMinCents: number
+  sourceType: string
+  verificationStatus: string
+  workArrangement: string
+}
+
+export type TransparencyCultureSignal = {
+  anonymityFloorMet: boolean
+  company: string
+  createdAt: string
+  evidence: string[]
+  id: string
+  sentiment: 'mixed' | 'negative' | 'positive'
+  signalKey: string
+  signalLabel: string
+  verificationCount: number
+}
+
+export type TransparencyReport = {
+  createdAt: string
+  cultureSummary: Array<{
+    evidence: string[]
+    label: string
+    sentiment: 'mixed' | 'negative' | 'positive'
+    verificationCount: number
+  }>
+  id: string
+  location: string
+  riskFlags: string[]
+  salaryPercentiles: {
+    currency?: string
+    p25?: number
+    p50?: number
+    p75?: number
+  }
+  targetCompany: string
+  targetRole: string
+}
+
+export type TransparencyBlueprintState = {
+  cultureSignals: TransparencyCultureSignal[]
+  reports: TransparencyReport[]
+  salaries: TransparencySalaryBlueprint[]
+  summary: {
+    cultureSignals: number
+    latestConfidenceScore: number | null
+    reports: number
+    salaryBlueprints: number
+    verifiedSalaryBlueprints: number
+  }
+}
+
+export type CreateTransparencyReportRequest = {
+  cultureSignals?: Array<{
+    evidence?: string[]
+    label: string
+    sentiment?: 'mixed' | 'negative' | 'positive'
+    verificationCount?: number
+  }>
+  location?: string
+  salaryRange?: {
+    currency?: string
+    maxCents?: number
+    minCents?: number
+  }
+  targetCompany: string
+  targetRole: string
+}
+
 type JobsFlowErrorContext =
   | 'audit'
   | 'auth'
@@ -531,6 +611,7 @@ type JobsFlowErrorContext =
   | 'pipeline'
   | 'resume'
   | 'resume-intelligence'
+  | 'transparency'
   | 'workflow'
 
 export class JobsFlowApiError extends Error {
@@ -598,6 +679,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
         return 'Start a candidate workspace first, then JobsFlow can generate and evaluate interview practice.'
       }
 
+      if (context === 'transparency') {
+        return 'Start a workspace first, then JobsFlow can load verified salary and culture blueprints.'
+      }
+
       if (context === 'resume') {
         return 'Start a workspace first, then resume storage will unlock for this tenant.'
       }
@@ -635,6 +720,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
 
     if (error.code === 'interview_prep_unavailable') {
       return 'Apply the latest D1 migration before using the interview prep sandbox.'
+    }
+
+    if (error.code === 'transparency_unavailable') {
+      return 'Apply the latest D1 migration before using the transparency blueprint portal.'
     }
 
     return error.message
@@ -885,6 +974,29 @@ export async function evaluateInterviewPracticeAnswer(input: EvaluateInterviewAn
         answerText: input.answerText,
         questionKey: input.questionKey,
         sessionId: input.sessionId,
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function getTransparencyBlueprintState() {
+  return readJson<{ ok: boolean; state: TransparencyBlueprintState }>(await fetch('/api/transparency'))
+}
+
+export async function createTransparencyReport(input: CreateTransparencyReportRequest) {
+  return readJson<{ ok: boolean; reportId: string; state: TransparencyBlueprintState }>(
+    await fetch('/api/transparency', {
+      body: JSON.stringify({
+        action: 'create_report',
+        cultureSignals: input.cultureSignals,
+        location: input.location,
+        salaryRange: input.salaryRange,
+        targetCompany: input.targetCompany,
+        targetRole: input.targetRole,
       }),
       headers: {
         'content-type': 'application/json',

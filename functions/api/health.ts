@@ -8,6 +8,7 @@ export async function onRequestGet({ env }: RequestContext) {
   let interviewPrepReady = false
   let packetReviewEngineReady = false
   let resumeIntelligenceReady = false
+  let transparencyBlueprintReady = false
   let workflowKernelReady = false
 
   if (db) {
@@ -17,12 +18,14 @@ export async function onRequestGet({ env }: RequestContext) {
       const pipelineRow = await db.prepare('SELECT COUNT(*) AS count FROM application_pipeline_items').first<{ count: number }>()
       const packetRow = await db.prepare('SELECT COUNT(*) AS count FROM application_packets').first<{ count: number }>()
       const resumeIntelRow = await db.prepare('SELECT COUNT(*) AS count FROM resume_tailoring_analyses').first<{ count: number }>()
+      const transparencyRow = await db.prepare('SELECT COUNT(*) AS count FROM transparency_reports').first<{ count: number }>()
       const workflowRow = await db.prepare('SELECT COUNT(*) AS count FROM workflow_definitions').first<{ count: number }>()
       databaseReady = typeof row?.count === 'number' && typeof packetRow?.count === 'number'
       antiGhostingPipelineReady = typeof pipelineRow?.count === 'number'
       interviewPrepReady = typeof interviewPrepRow?.count === 'number'
       packetReviewEngineReady = typeof packetRow?.count === 'number'
       resumeIntelligenceReady = typeof resumeIntelRow?.count === 'number'
+      transparencyBlueprintReady = typeof transparencyRow?.count === 'number'
       workflowKernelReady = typeof workflowRow?.count === 'number'
     } catch {
       databaseReady = false
@@ -30,6 +33,7 @@ export async function onRequestGet({ env }: RequestContext) {
       interviewPrepReady = false
       packetReviewEngineReady = false
       resumeIntelligenceReady = false
+      transparencyBlueprintReady = false
       workflowKernelReady = false
     }
   }
@@ -51,6 +55,7 @@ export async function onRequestGet({ env }: RequestContext) {
       packetReviewEngine: packetReviewEngineReady,
       resumeIntelligence: resumeIntelligenceReady,
       ssoProvider: Boolean(env.CLERK_JWKS_URL && env.CLERK_ISSUER && env.CLERK_SECRET_KEY),
+      transparencyBlueprint: transparencyBlueprintReady,
       workflowKernel: workflowKernelReady,
     },
     externalSubmissionsEnabled: false,

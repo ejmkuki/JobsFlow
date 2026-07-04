@@ -2066,6 +2066,83 @@
   font-weight: 850;
 }
 
+.transparency-grid,
+.salary-band,
+.transparency-culture-list {
+  display: grid;
+  gap: 10px;
+}
+
+.transparency-grid {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.8fr) minmax(0, 1.3fr);
+  margin-top: 14px;
+}
+
+.transparency-salary-card,
+.transparency-risk-card,
+.transparency-culture-list,
+.transparency-culture-row {
+  min-width: 0;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.transparency-salary-card,
+.transparency-risk-card,
+.transparency-culture-list {
+  align-content: start;
+  padding: 12px;
+}
+
+.transparency-salary-card > strong,
+.transparency-risk-card > strong,
+.transparency-culture-list > strong {
+  display: block;
+  color: var(--teal);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.transparency-salary-card > span,
+.transparency-salary-card small,
+.transparency-culture-row span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.salary-band {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.salary-band b {
+  min-height: 70px;
+  padding: 12px;
+  color: var(--ink);
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.transparency-culture-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+}
+
+.transparency-culture-row strong,
+.transparency-culture-row span {
+  display: block;
+}
+
+.transparency-culture-row p {
+  margin-top: 5px;
+  color: var(--ink);
+}
+
 .consent-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -2401,7 +2478,8 @@
   }
 
   .interview-evaluation-grid,
-  .interview-prep-grid {
+  .interview-prep-grid,
+  .transparency-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2478,7 +2556,9 @@
   .interview-evaluation-grid,
   .interview-prep-controls,
   .interview-prep-grid,
+  .salary-band,
   .tailwind-form,
+  .transparency-grid,
   .pipeline-followup-row,
   .pipeline-kanban,
   .pipeline-summary-grid,
