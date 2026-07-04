@@ -1,6 +1,6 @@
-import { ClerkProvider, useAuth, useClerk, useUser } from '@clerk/clerk-react'
+import { AuthenticateWithRedirectCallback, ClerkProvider, useAuth, useClerk, useSignIn, useUser } from '@clerk/clerk-react'
 import { useEffect, useState, type ReactNode } from 'react'
-import { disabledSso, JobsFlowSsoContext } from './jobsFlowSsoContext'
+import { disabledSso, JobsFlowSsoContext, type JobsFlowSsoProviderKey } from './jobsFlowSsoContext'
 
 const jobsFlowClerkAppearance = {
   elements: {
@@ -19,6 +19,20 @@ const jobsFlowClerkAppearance = {
       color: '#0f172a',
       fontWeight: 700,
     },
+    otpCodeField: {
+      display: 'grid',
+      gap: '10px',
+      gridTemplateColumns: 'repeat(6, minmax(42px, 1fr))',
+      width: '100%',
+    },
+    otpCodeFieldInput: {
+      aspectRatio: '1 / 1',
+      borderColor: '#bae6fd',
+      borderRadius: '8px',
+      fontSize: '1.25rem',
+      fontWeight: 800,
+      textAlign: 'center',
+    },
   },
   variables: {
     borderRadius: '8px',
@@ -36,9 +50,28 @@ const jobsFlowClerkAppearance = {
   },
 }
 
+const emailOnlyClerkAppearance = {
+  ...jobsFlowClerkAppearance,
+  elements: {
+    ...jobsFlowClerkAppearance.elements,
+    dividerRow: {
+      display: 'none',
+    },
+    socialButtonsRoot: {
+      display: 'none',
+    },
+  },
+}
+
+const oauthStrategyByProvider = {
+  apple: 'oauth_apple',
+  google: 'oauth_google',
+} as const
+
 function ClerkBridge({ children }: { children: ReactNode }) {
   const { getToken, isLoaded, isSignedIn } = useAuth()
   const { openSignIn, openSignUp, signOut } = useClerk()
+  const { isLoaded: isSignInLoaded, signIn } = useSignIn()
   const { user } = useUser()
   const [loadTimedOut, setLoadTimedOut] = useState(false)
 
@@ -54,6 +87,42 @@ function ClerkBridge({ children }: { children: ReactNode }) {
 
   const email = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses[0]?.emailAddress ?? null
   const displayName = user?.fullName ?? user?.username ?? email
+  const redirectUrlComplete = window.location.href
+  const redirectUrl = `${window.location.origin}/sso-callback`
+
+  async function openProviderSignIn(provider: JobsFlowSsoProviderKey) {
+    if (provider === 'email') {
+      document.documentElement.dataset.jobsflowClerkMode = 'email'
+      openSignIn({
+        appearance: emailOnlyClerkAppearance,
+        fallbackRedirectUrl: redirectUrlComplete,
+        forceRedirectUrl: redirectUrlComplete,
+        signUpFallbackRedirectUrl: redirectUrlComplete,
+        withSignUp: true,
+      })
+      return
+    }
+
+    delete document.documentElement.dataset.jobsflowClerkMode
+    if (!isSignInLoaded || !signIn) {
+      openSignIn({
+        appearance: jobsFlowClerkAppearance,
+        fallbackRedirectUrl: redirectUrlComplete,
+        forceRedirectUrl: redirectUrlComplete,
+        signUpFallbackRedirectUrl: redirectUrlComplete,
+        withSignUp: true,
+      })
+      return
+    }
+
+    await signIn.authenticateWithRedirect({
+      continueSignIn: true,
+      continueSignUp: true,
+      redirectUrl,
+      redirectUrlComplete,
+      strategy: oauthStrategyByProvider[provider],
+    })
+  }
 
   return (
     <JobsFlowSsoContext.Provider
@@ -65,21 +134,26 @@ function ClerkBridge({ children }: { children: ReactNode }) {
         isLoaded,
         isSignedIn: Boolean(isSignedIn),
         loadTimedOut,
-        openSignIn: () =>
+        openProviderSignIn,
+        openSignIn: () => {
+          delete document.documentElement.dataset.jobsflowClerkMode
           openSignIn({
             appearance: jobsFlowClerkAppearance,
             fallbackRedirectUrl: window.location.href,
             forceRedirectUrl: window.location.href,
             signUpFallbackRedirectUrl: window.location.href,
             withSignUp: true,
-          }),
-        openSignUp: () =>
+          })
+        },
+        openSignUp: () => {
+          delete document.documentElement.dataset.jobsflowClerkMode
           openSignUp({
             appearance: jobsFlowClerkAppearance,
             fallbackRedirectUrl: window.location.href,
             forceRedirectUrl: window.location.href,
             signInFallbackRedirectUrl: window.location.href,
-          }),
+          })
+        },
         signOut: () => signOut(),
       }}
     >
@@ -97,7 +171,11 @@ export function JobsFlowSsoProvider({ children }: { children: ReactNode }) {
 
   return (
     <ClerkProvider afterSignOutUrl="/" appearance={jobsFlowClerkAppearance} publishableKey={publishableKey}>
-      <ClerkBridge>{children}</ClerkBridge>
+      {window.location.pathname === '/sso-callback' ? (
+        <AuthenticateWithRedirectCallback />
+      ) : (
+        <ClerkBridge>{children}</ClerkBridge>
+      )}
     </ClerkProvider>
   )
 }

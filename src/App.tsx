@@ -30,7 +30,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import './App.css'
-import { useJobsFlowSso } from './jobsFlowSsoContext'
+import { useJobsFlowSso, type JobsFlowSsoProviderKey } from './jobsFlowSsoContext'
 import {
   type AchievementProfileState,
   type AtsProvider,
@@ -104,6 +104,12 @@ import {
 
 type Workspace = 'candidate' | 'employer' | 'trust'
 type Tone = 'green' | 'amber' | 'red' | 'blue' | 'neutral'
+
+const ssoProviderActions: Array<{ key: JobsFlowSsoProviderKey; label: string }> = [
+  { key: 'google', label: 'Google' },
+  { key: 'apple', label: 'Apple' },
+  { key: 'email', label: 'Email' },
+]
 
 type Metric = {
   label: string
@@ -1317,6 +1323,38 @@ function AuthPanel({
     void handleCreateSsoSession()
   }, [handleCreateSsoSession, sso])
 
+  const handleProviderSignIn = useCallback(
+    (provider: JobsFlowSsoProviderKey) => {
+      if (!sso.configured) {
+        setMessage('SSO is selected for JobsFlow, but the provider keys are not connected yet.')
+        return
+      }
+
+      if (!sso.isLoaded) {
+        setMessage(
+          sso.loadTimedOut
+            ? 'SSO is connected, but this browser could not load Clerk yet. Hard refresh, disable blockers for JobsFlow and Clerk, or use the private beta fallback.'
+            : 'SSO is loading. The provider buttons will unlock as soon as Clerk is ready.',
+        )
+        return
+      }
+
+      if (sso.isSignedIn) {
+        void handleCreateSsoSession()
+        return
+      }
+
+      const providerLabel = provider === 'apple' ? 'Apple' : provider === 'google' ? 'Google' : 'Email'
+      setMessage(
+        provider === 'email'
+          ? 'Opening the email sign-in screen.'
+          : `Opening ${providerLabel} sign-in through Clerk.`,
+      )
+      void sso.openProviderSignIn(provider)
+    },
+    [handleCreateSsoSession, sso],
+  )
+
   async function handleSignOut() {
     setIsBusy(true)
     try {
@@ -1430,9 +1468,17 @@ function AuthPanel({
             ) : null}
           </div>
           <div className="sso-provider-row" aria-label="Supported sign-in methods">
-            <span>Google</span>
-            <span>Apple</span>
-            <span>Email</span>
+            {ssoProviderActions.map((provider) => (
+              <button
+                aria-label={`Sign in with ${provider.label}`}
+                disabled={isBusy || !sso.configured || !sso.isLoaded}
+                key={provider.key}
+                onClick={() => handleProviderSignIn(provider.key)}
+                type="button"
+              >
+                {provider.label}
+              </button>
+            ))}
           </div>
           <small>
             {sso.configured

@@ -1,5 +1,7 @@
 import { createContext, useContext } from 'react'
 
+export type JobsFlowSsoProviderKey = 'apple' | 'email' | 'google'
+
 export type JobsFlowSsoContextValue = {
   configured: boolean
   displayName: string | null
@@ -10,6 +12,7 @@ export type JobsFlowSsoContextValue = {
   loadTimedOut: boolean
   openSignIn: () => void
   openSignUp: () => void
+  openProviderSignIn: (provider: JobsFlowSsoProviderKey) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -23,6 +26,7 @@ export const disabledSso: JobsFlowSsoContextValue = {
   loadTimedOut: false,
   openSignIn: () => undefined,
   openSignUp: () => undefined,
+  openProviderSignIn: async () => undefined,
   signOut: async () => undefined,
 }
 
