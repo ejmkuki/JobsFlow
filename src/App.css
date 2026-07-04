@@ -527,16 +527,17 @@ html[data-jobsflow-clerk-mode="email"] .cl-dividerText {
 .cl-modalContent .cl-otpCodeField,
 .cl-formFieldInputGroup:has(input[inputmode="numeric"]),
 .cl-formFieldInputGroup:has(input[autocomplete="one-time-code"]) {
-  --jobsflow-otp-slot-size: clamp(44px, 10vw, 56px);
+  --jobsflow-otp-slot-size: clamp(38px, 8vw, 42px);
   display: flex !important;
   flex-flow: row nowrap !important;
-  gap: 10px !important;
+  gap: 6px !important;
   align-items: center !important;
   justify-content: center !important;
-  width: min(100%, 396px) !important;
-  max-width: 396px !important;
+  width: min(100%, 300px) !important;
+  max-width: 300px !important;
   margin-right: auto !important;
   margin-left: auto !important;
+  overflow: visible !important;
 }
 
 .cl-rootBox .cl-otpCodeField > *,
@@ -550,18 +551,18 @@ html[data-jobsflow-clerk-mode="email"] .cl-dividerText {
 .cl-modalContent .cl-otpCodeField input,
 .cl-formFieldInputGroup input[inputmode="numeric"],
 .cl-formFieldInputGroup input[autocomplete="one-time-code"] {
-  flex: 0 0 var(--jobsflow-otp-slot-size, 52px) !important;
-  width: var(--jobsflow-otp-slot-size, 52px) !important;
-  min-width: var(--jobsflow-otp-slot-size, 52px) !important;
-  max-width: 56px !important;
-  height: var(--jobsflow-otp-slot-size, 52px) !important;
-  min-height: var(--jobsflow-otp-slot-size, 52px) !important;
-  max-height: 56px !important;
+  flex: 0 0 var(--jobsflow-otp-slot-size, 42px) !important;
+  width: var(--jobsflow-otp-slot-size, 42px) !important;
+  min-width: var(--jobsflow-otp-slot-size, 42px) !important;
+  max-width: 42px !important;
+  height: var(--jobsflow-otp-slot-size, 42px) !important;
+  min-height: var(--jobsflow-otp-slot-size, 42px) !important;
+  max-height: 42px !important;
   aspect-ratio: 1 !important;
   box-sizing: border-box !important;
   padding: 0 !important;
   color: #0f172a !important;
-  font-size: 1.2rem !important;
+  font-size: 1.1rem !important;
   font-weight: 850 !important;
   line-height: 1 !important;
   text-align: center !important;
