@@ -1274,17 +1274,13 @@ function AuthPanel({
   const [accountType, setAccountType] = useState<'candidate' | 'employer'>('candidate')
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
-  const [tenantName, setTenantName] = useState('')
-  const [bootstrapToken, setBootstrapToken] = useState('')
+  const [tenantName] = useState('')
   const [message, setMessage] = useState('Looking for an active JobsFlow workspace...')
   const [isBusy, setIsBusy] = useState(false)
   const sso = useJobsFlowSso()
   const autoSsoSessionAttempted = useRef(false)
   const selectedChecklist =
     accountType === 'candidate' ? candidateActivationChecklist : employerActivationChecklist
-  const needsFreshCode =
-    !session &&
-    (message.includes('no longer active') || message.includes('expired') || message.includes('fresh'))
 
   const checkSession = useCallback(async () => {
     setIsBusy(true)
@@ -1299,41 +1295,6 @@ function AuthPanel({
       setIsBusy(false)
     }
   }, [onSessionChange])
-
-  async function handleCreateSession() {
-    const normalizedEmail = email.trim()
-    if (!normalizedEmail) {
-      setMessage('Add an email so JobsFlow knows who owns this workspace.')
-      return
-    }
-
-    const normalizedName = displayName.trim() || normalizedEmail.split('@')[0] || 'JobsFlow User'
-
-    setIsBusy(true)
-    setMessage('Checking the private beta gate...')
-    try {
-      const result = await createJobsFlowSession({
-        accountType,
-        bootstrapToken: bootstrapToken.trim() || undefined,
-        displayName: normalizedName,
-        email: normalizedEmail,
-        role: accountType === 'employer' ? 'recruiter' : 'candidate',
-        tenantName:
-          tenantName.trim() ||
-          (accountType === 'employer'
-            ? `${normalizedName} Hiring Team`
-            : `${normalizedName} Career Workspace`),
-      })
-      onSessionChange(result.session)
-      setBootstrapToken('')
-      setMessage(`Workspace opened for ${result.session.email}. JobsFlow is ready to keep actions behind review.`)
-    } catch (error) {
-      onSessionChange(null)
-      setMessage(humanizeJobsFlowError(error, 'auth'))
-    } finally {
-      setIsBusy(false)
-    }
-  }
 
   const handleCreateSsoSession = useCallback(async () => {
     if (!sso.configured) {
@@ -1396,29 +1357,6 @@ function AuthPanel({
     }
   }, [accountType, displayName, email, onSessionChange, sso, tenantName])
 
-  const handleCreateSsoAccount = useCallback(() => {
-    if (!sso.configured) {
-      setMessage('SSO is selected for JobsFlow, but the provider keys are not connected yet.')
-      return
-    }
-
-    if (!sso.isLoaded) {
-      setMessage(
-        sso.loadTimedOut
-          ? 'SSO is connected, but this browser could not load Clerk yet. Hard refresh, disable blockers for JobsFlow and Clerk, or use the private beta fallback.'
-          : 'SSO is loading. The account creation button will unlock as soon as Clerk is ready.',
-      )
-      return
-    }
-
-    if (!sso.isSignedIn) {
-      sso.openSignUp()
-      return
-    }
-
-    void handleCreateSsoSession()
-  }, [handleCreateSsoSession, sso])
-
   const handleProviderSignIn = useCallback(
     (provider: JobsFlowSsoProviderKey) => {
       if (!sso.configured) {
@@ -1450,6 +1388,18 @@ function AuthPanel({
     },
     [handleCreateSsoSession, sso],
   )
+
+  function handleEmailContinue(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const normalizedEmail = email.trim()
+    if (!normalizedEmail) {
+      setMessage('Enter your email address to continue.')
+      return
+    }
+
+    setEmail(normalizedEmail)
+    handleProviderSignIn('email')
+  }
 
   async function handleSignOut() {
     setIsBusy(true)
@@ -1510,8 +1460,88 @@ function AuthPanel({
     setAccountType(session.role === 'candidate' ? 'candidate' : 'employer')
   }, [session])
 
+  if (!session) {
+    const oauthProviders = ssoProviderActions.filter((provider) => provider.key !== 'email')
+    const gatewayStatus = !sso.configured
+      ? 'Secure sign-in is not connected yet.'
+      : !sso.isLoaded
+        ? sso.loadTimedOut
+          ? 'Secure sign-in is connected, but Clerk has not loaded in this browser yet.'
+          : 'Loading secure sign-in...'
+        : null
+
+    return (
+      <section className="auth-gateway" aria-label="JobsFlow account access">
+        <div className="auth-gateway-inner">
+          <div className="auth-gateway-wordmark" aria-label="JobsFlow AI">
+            <span className="brand-mark">J</span>
+            <strong>JobsFlow AI</strong>
+          </div>
+
+          <article className="auth-gateway-card">
+            <div className="auth-gateway-copy">
+              <h2>Ready to take the next step?</h2>
+              <p className="auth-gateway-subtitle">Create an account or sign in.</p>
+              <p className="auth-gateway-terms">
+                By clicking any of the Continue options below, you understand and agree
+                to JobsFlow's <a href="#workspace">Terms</a>. You also acknowledge our{' '}
+                <a href="#workspace">Cookie</a> and <a href="#workspace">Privacy</a> policies.
+              </p>
+            </div>
+
+            <div className="auth-gateway-oauth" aria-label="Continue with a provider">
+              {oauthProviders.map((provider) => (
+                <button
+                  className="auth-provider-button"
+                  disabled={isBusy || !sso.configured || !sso.isLoaded}
+                  key={provider.key}
+                  onClick={() => handleProviderSignIn(provider.key)}
+                  type="button"
+                >
+                  <span className={`auth-provider-icon auth-provider-icon-${provider.key}`}>
+                    {provider.key === 'google' ? 'G' : 'A'}
+                  </span>
+                  Continue with {provider.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="auth-gateway-divider">
+              <span />
+              <strong>or</strong>
+              <span />
+            </div>
+
+            <form className="auth-gateway-email-form" onSubmit={handleEmailContinue}>
+              <label>
+                <span>All fields marked with * are required.</span>
+                <strong>Email address *</strong>
+                <input
+                  autoComplete="email"
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  type="email"
+                  value={email}
+                />
+              </label>
+              <button
+                disabled={isBusy || !sso.configured || !sso.isLoaded || !email.trim()}
+                type="submit"
+              >
+                Continue
+                <ArrowRight size={24} aria-hidden="true" />
+              </button>
+            </form>
+
+            {gatewayStatus ? <p className="auth-gateway-status">{gatewayStatus}</p> : null}
+          </article>
+        </div>
+      </section>
+    )
+  }
+
   return (
-    <section className="auth-panel" aria-label="JobsFlow activation center">
+    <section className="auth-panel auth-panel-ready" aria-label="JobsFlow activation center">
       <div className="auth-copy">
         <span>Private workspace</span>
         <h2>Open JobsFlow, then decide what leaves the room</h2>
@@ -1532,169 +1562,33 @@ function AuthPanel({
         </div>
       </div>
 
-      <div className="auth-form">
-        <div className="sso-card">
-          <span>Secure access</span>
-          <strong>
-            {sso.isSignedIn ? 'You are signed in. Open your workspace.' : 'Sign in or create your JobsFlow account'}
-          </strong>
-          <p>
-            Use the secure Clerk window for Google, Apple, or email. JobsFlow keeps identity
-            simple before it starts handling evidence.
-          </p>
-          <div className="sso-actions">
-            <button
-              className="primary-sso"
-              disabled={isBusy || !sso.configured || !sso.isLoaded}
-              onClick={handleCreateSsoSession}
-              type="button"
-            >
-              <ShieldCheck size={18} aria-hidden="true" />
-              {sso.isSignedIn ? 'Open workspace from SSO' : 'Sign in'}
-            </button>
-            {!sso.isSignedIn ? (
-              <button
-                className="secondary-sso"
-                disabled={isBusy || !sso.configured || !sso.isLoaded}
-                onClick={handleCreateSsoAccount}
-                type="button"
-              >
-                Create account
-              </button>
-            ) : null}
-          </div>
-          <div className="sso-provider-row" aria-label="Supported sign-in methods">
-            {ssoProviderActions.map((provider) => (
-              <button
-                aria-label={`Sign in with ${provider.label}`}
-                disabled={isBusy || !sso.configured || !sso.isLoaded}
-                key={provider.key}
-                onClick={() => handleProviderSignIn(provider.key)}
-                type="button"
-              >
-                {provider.label}
-              </button>
-            ))}
-          </div>
-          <small>
-            {sso.configured
-              ? sso.isSignedIn
-                ? `SSO is signed in as ${sso.email ?? 'this user'}.`
-                : sso.isLoaded
-                  ? 'Google, Apple, and email are the JobsFlow sign-in targets. Apple appears after the Clerk Apple provider is enabled.'
-                  : sso.loadTimedOut
-                    ? 'SSO is connected, but the browser is blocking or still waiting on Clerk JS. Try a hard refresh or disable blockers for this site.'
-                    : 'SSO is connected. Loading the secure sign-in provider...'
-              : 'SSO provider keys are not connected yet. Private beta access is still available below.'}
-          </small>
-        </div>
-        {session ? (
-          <div className="session-ready-card">
-            <StatusPill tone="green">Workspace ready</StatusPill>
-            <strong>{session.displayName}</strong>
-            <span>{session.email}</span>
-            <p>
-              Resume upload, packet review, and the consent gate are unlocked for this
-              signed session.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="segmented-control" aria-label="Account type">
-              {(['candidate', 'employer'] as const).map((type) => (
-                <button
-                  aria-pressed={accountType === type}
-                  className={accountType === type ? 'active' : ''}
-                  key={type}
-                  onClick={() => setAccountType(type)}
-                  type="button"
-                >
-                  {type === 'candidate' ? 'Candidate' : 'Employer'}
-                </button>
-              ))}
-            </div>
-            <details className="beta-fallback" open={!sso.configured || needsFreshCode}>
-              <summary>Need the private beta fallback?</summary>
-              <div className="beta-fallback-grid">
-                <label>
-                  <span>Email</span>
-                  <input
-                    autoComplete="email"
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="you@company.com"
-                    type="email"
-                    value={email}
-                  />
-                </label>
-                <label>
-                  <span>Name</span>
-                  <input
-                    autoComplete="name"
-                    onChange={(event) => setDisplayName(event.target.value)}
-                    placeholder="Workspace owner"
-                    type="text"
-                    value={displayName}
-                  />
-                </label>
-                <label>
-                  <span>Workspace</span>
-                  <input
-                    onChange={(event) => setTenantName(event.target.value)}
-                    placeholder={accountType === 'employer' ? 'Hiring team name' : 'Career workspace name'}
-                    type="text"
-                    value={tenantName}
-                  />
-                </label>
-                <label>
-                  <span>Private beta code</span>
-                  <input
-                    autoComplete="one-time-code"
-                    onChange={(event) => setBootstrapToken(event.target.value)}
-                    placeholder="Fallback only"
-                    type="password"
-                    value={bootstrapToken}
-                  />
-                </label>
-                <p className="auth-helper">
-                  SSO is the main path. Use this only if the hosted sign-in provider is unavailable.
-                </p>
-              </div>
-            </details>
-          </>
-        )}
+      <div className="auth-workspace-card">
+        <StatusPill tone="green">Workspace ready</StatusPill>
+        <h3>Your JobsFlow workspace is open</h3>
+        <strong>{session.displayName}</strong>
+        <span>{session.email}</span>
+        <p>
+          Resume upload, packet review, and the consent gate are unlocked for this
+          signed session.
+        </p>
       </div>
 
       <div className="auth-state">
-        <StatusPill tone={session ? 'green' : needsFreshCode ? 'red' : 'amber'}>
-          {session ? 'Workspace open' : needsFreshCode ? 'Fresh code needed' : 'Private beta gate'}
-        </StatusPill>
-        {session ? (
-          <div className="session-summary">
-            <strong>{session.displayName}</strong>
-            <span>{session.email}</span>
-            <small>
-              {session.role} / tenant {session.tenantId.slice(0, 8)}
-            </small>
-          </div>
-        ) : (
-          <>
-            <strong className="auth-state-title">Ready when you are</strong>
-            <p>{message}</p>
-          </>
-        )}
-        {session ? <p className="runtime-message">{message}</p> : null}
+        <StatusPill tone="green">Workspace open</StatusPill>
+        <div className="session-summary">
+          <strong>{session.displayName}</strong>
+          <span>{session.email}</span>
+          <small>
+            {session.role} / tenant {session.tenantId.slice(0, 8)}
+          </small>
+        </div>
+        <p className="runtime-message">{message}</p>
         <div className="auth-actions">
           <button disabled={isBusy} onClick={checkSession} type="button">
             <RefreshCw size={16} aria-hidden="true" />
             Refresh status
           </button>
-          {!session ? (
-            <button disabled={isBusy} onClick={handleCreateSession} type="button">
-              <LockKeyhole size={16} aria-hidden="true" />
-              {isBusy ? 'Opening...' : 'Use beta fallback'}
-            </button>
-          ) : null}
-          <button disabled={isBusy || !session} onClick={handleSignOut} type="button">
+          <button disabled={isBusy} onClick={handleSignOut} type="button">
             <LogOut size={16} aria-hidden="true" />
             Sign out
           </button>
@@ -4919,7 +4813,6 @@ function App() {
   const [activeOnboardingStep, setActiveOnboardingStep] = useState(onboardingSteps[0].key)
   const [session, setSession] = useState<BackendSession | null>(null)
   const [searchIntent, setSearchIntent] = useState<LandingSearchIntent | null>(null)
-  const sso = useJobsFlowSso()
 
   const activeSummary = useMemo(
     () => workspaces.find((workspace) => workspace.id === activeWorkspace)?.summary,
@@ -4931,11 +4824,6 @@ function App() {
   }
 
   function handleHeaderSignIn() {
-    if (sso.configured && sso.isLoaded && !sso.isSignedIn) {
-      sso.openSignIn()
-      return
-    }
-
     scrollToSection('secure-access')
   }
 
@@ -4972,6 +4860,12 @@ function App() {
         .filter(Boolean)
         .join(' / ')
     : null
+
+  useEffect(() => {
+    if (session) {
+      document.getElementById('secure-access')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [session])
 
   return (
     <div className="app-root">
@@ -5013,6 +4907,10 @@ function App() {
           onWorkspaceChange={handleHeroWorkspaceChange}
         />
 
+        <div id="secure-access" className="landing-section-anchor">
+          <AuthPanel session={session} onSessionChange={setSession} />
+        </div>
+
         <section className="workspace-summary workspace-context" id="workspace" aria-label="Current workspace">
           <div>
             <span>Workspace context</span>
@@ -5029,10 +4927,6 @@ function App() {
             <StatusPill tone="amber">Review before automation</StatusPill>
           </div>
         </section>
-
-        <div id="secure-access" className="landing-section-anchor">
-          <AuthPanel session={session} onSessionChange={setSession} />
-        </div>
 
         <ProductOnboarding
           activeStep={activeOnboardingStep}

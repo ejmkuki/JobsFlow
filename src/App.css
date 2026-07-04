@@ -544,6 +544,203 @@
   line-height: 1.35;
 }
 
+.auth-gateway {
+  display: grid;
+  min-height: calc(100svh - 86px);
+  padding: 66px 0 84px;
+  place-items: center;
+  background: #ffffff;
+}
+
+.auth-gateway-inner {
+  display: grid;
+  justify-items: center;
+  width: min(100%, 720px);
+}
+
+.auth-gateway-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 34px;
+  color: #075985;
+  font-size: 2.25rem;
+  line-height: 1;
+}
+
+.auth-gateway-wordmark .brand-mark {
+  width: 42px;
+  height: 42px;
+  font-size: 1.2rem;
+}
+
+.auth-gateway-card {
+  display: grid;
+  gap: 24px;
+  width: 100%;
+  padding: 36px;
+  text-align: left;
+  background: #ffffff;
+  border: 1px solid #d8dee6;
+  border-radius: 8px;
+}
+
+.auth-gateway-copy h2 {
+  margin: 0 0 14px;
+  color: #111827;
+  font-size: 1.6rem;
+  line-height: 1.15;
+}
+
+.auth-gateway-subtitle {
+  margin: 0 0 22px;
+  color: #374151;
+  font-size: 1.28rem;
+}
+
+.auth-gateway-terms {
+  margin: 0;
+  color: #374151;
+  line-height: 1.55;
+}
+
+.auth-gateway-terms a {
+  color: #075fc6;
+}
+
+.auth-gateway-oauth,
+.auth-gateway-email-form,
+.auth-gateway-email-form label {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-provider-button {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  align-items: center;
+  min-height: 66px;
+  padding: 0 22px;
+  color: #111827;
+  font-size: 1.12rem;
+  font-weight: 800;
+  text-align: center;
+  background: #ffffff;
+  border: 1px solid #d8dee6;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.auth-provider-button:hover,
+.auth-provider-button:focus-visible {
+  border-color: #94a3b8;
+  outline: 3px solid rgba(3, 105, 217, 0.12);
+  outline-offset: 1px;
+}
+
+.auth-provider-button:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+  background: #f8fafc;
+}
+
+.auth-provider-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1;
+  border-radius: 999px;
+}
+
+.auth-provider-icon-google {
+  background: #2563eb;
+}
+
+.auth-provider-icon-apple {
+  background: #111827;
+}
+
+.auth-gateway-divider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  color: #374151;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.auth-gateway-divider span {
+  height: 1px;
+  background: #d8dee6;
+}
+
+.auth-gateway-email-form label span {
+  color: #4b5563;
+  font-size: 0.95rem;
+}
+
+.auth-gateway-email-form label strong {
+  color: #111827;
+  font-size: 1.08rem;
+}
+
+.auth-gateway-email-form input {
+  width: 100%;
+  min-height: 58px;
+  padding: 0 16px;
+  color: #111827;
+  font-size: 1rem;
+  background: #ffffff;
+  border: 1px solid #4b5563;
+  border-radius: 8px;
+}
+
+.auth-gateway-email-form input:focus {
+  border-color: #0369d9;
+  outline: 3px solid rgba(3, 105, 217, 0.16);
+  outline-offset: 1px;
+}
+
+.auth-gateway-email-form button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 62px;
+  margin-top: 10px;
+  color: #ffffff;
+  font-size: 1.15rem;
+  font-weight: 850;
+  background: #0369d9;
+  border: 1px solid #0369d9;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.auth-gateway-email-form button:hover,
+.auth-gateway-email-form button:focus-visible {
+  background: #0754b8;
+  border-color: #0754b8;
+  outline: none;
+}
+
+.auth-gateway-email-form button:disabled {
+  cursor: not-allowed;
+  background: #9bbcec;
+  border-color: #9bbcec;
+}
+
+.auth-gateway-status {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 750;
+}
+
 .auth-panel {
   display: grid;
   grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.28fr) minmax(260px, 0.74fr);
@@ -558,9 +755,14 @@
   box-shadow: 0 24px 70px rgba(14, 116, 144, 0.13);
 }
 
+.auth-panel-ready {
+  margin-top: 28px;
+}
+
 .auth-copy,
 .auth-form,
-.auth-state {
+.auth-state,
+.auth-workspace-card {
   min-width: 0;
 }
 
@@ -1056,6 +1258,38 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
 
 .auth-state .session-summary strong {
   color: var(--ink);
+}
+
+.auth-workspace-card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 18px;
+  background: #f0fdf9;
+  border: 1px solid #99f6e4;
+  border-radius: 8px;
+}
+
+.auth-workspace-card h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.28rem;
+  line-height: 1.2;
+}
+
+.auth-workspace-card strong {
+  color: var(--ink);
+  font-size: 1.1rem;
+}
+
+.auth-workspace-card span:not(.status-pill) {
+  color: #0f766e;
+  font-weight: 850;
+}
+
+.auth-workspace-card p {
+  margin: 0;
+  color: var(--muted);
 }
 
 .auth-state-title {
@@ -3513,6 +3747,10 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
 
   .app-shell-header {
     position: static;
+  }
+
+  .landing-section-anchor {
+    scroll-margin-top: 0;
   }
 
   .landing-hero {
