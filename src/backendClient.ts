@@ -9,6 +9,7 @@ export type BackendHealth = {
   externalSubmissionsEnabled: boolean
   features?: {
     achievementProfiles?: boolean
+    atsSync?: boolean
     antiGhostingPipeline?: boolean
     interviewPrep?: boolean
     jobSyndication?: boolean
@@ -906,8 +907,70 @@ export type CreateAchievementProfileRequest = {
   sourceLabel?: string
 }
 
+export type AtsProvider = 'greenhouse' | 'lever' | 'workday'
+
+export type AtsConnection = {
+  accountLabel: string
+  createdAt: string
+  id: string
+  lastSyncAt: string | null
+  oauthStatus: 'connected' | 'disconnected' | 'needs_reauth'
+  provider: AtsProvider
+  scopes: string[]
+  tokenReference: string | null
+  updatedAt: string
+}
+
+export type AtsSyncMapping = {
+  active: boolean
+  connectionId: string
+  createdAt: string
+  direction: 'bidirectional' | 'inbound' | 'outbound'
+  fieldMap: Record<string, unknown>
+  id: string
+  localEntity: string
+  remoteEntity: string
+}
+
+export type AtsSyncRun = {
+  completedAt: string | null
+  connectionId: string
+  createdAt: string
+  direction: 'bidirectional' | 'inbound' | 'outbound'
+  id: string
+  startedAt: string | null
+  status: 'blocked' | 'completed' | 'failed' | 'queued'
+  summary: Record<string, unknown>
+}
+
+export type AtsSyncEvent = {
+  createdAt: string
+  eventType: string
+  id: string
+  localRecordRef: string
+  payload: Record<string, unknown>
+  remoteRecordRef: string
+  status: 'blocked' | 'mapped' | 'skipped' | 'synced'
+  syncRunId: string
+}
+
+export type AtsSyncState = {
+  connections: AtsConnection[]
+  events: AtsSyncEvent[]
+  mappings: AtsSyncMapping[]
+  runs: AtsSyncRun[]
+  summary: {
+    blockedRuns: number
+    connectedProviders: number
+    mappings: number
+    providers: number
+    syncRuns: number
+  }
+}
+
 type JobsFlowErrorContext =
   | 'achievement-profiles'
+  | 'ats-sync'
   | 'audit'
   | 'auth'
   | 'backend'
@@ -974,6 +1037,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
     if (error.code === 'unauthorized') {
       if (context === 'achievement-profiles') {
         return 'Start a candidate workspace first, then JobsFlow can create dynamic achievement profile cards.'
+      }
+
+      if (context === 'ats-sync') {
+        return 'Start an employer workspace first, then JobsFlow can configure ATS synchronizers.'
       }
 
       if (context === 'workflow') {
@@ -1073,6 +1140,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
 
     if (error.code === 'achievement_profiles_unavailable') {
       return 'Apply the latest D1 migration before using dynamic achievement profiles.'
+    }
+
+    if (error.code === 'ats_sync_unavailable') {
+      return 'Apply the latest D1 migration before using ATS synchronizers.'
     }
 
     return error.message
@@ -1499,6 +1570,39 @@ export async function createAchievementProfile(input: CreateAchievementProfileRe
         candidateAlias: input.candidateAlias,
         resumeText: input.resumeText,
         sourceLabel: input.sourceLabel,
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function getAtsSyncState() {
+  return readJson<{ ok: boolean; state: AtsSyncState }>(await fetch('/api/ats-sync'))
+}
+
+export async function seedAtsSyncConnections() {
+  return readJson<{ ok: boolean; state: AtsSyncState }>(
+    await fetch('/api/ats-sync', {
+      body: JSON.stringify({
+        action: 'seed_connections',
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function runAtsDrySync(provider: AtsProvider = 'greenhouse') {
+  return readJson<{ ok: boolean; runId: string; state: AtsSyncState }>(
+    await fetch('/api/ats-sync', {
+      body: JSON.stringify({
+        action: 'run_dry_sync',
+        provider,
       }),
       headers: {
         'content-type': 'application/json',

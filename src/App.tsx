@@ -33,6 +33,8 @@ import './App.css'
 import { useJobsFlowSso } from './jobsFlowSsoContext'
 import {
   type AchievementProfileState,
+  type AtsProvider,
+  type AtsSyncState,
   type AuditEvent,
   type ApplicationPacketReview,
   type AntiGhostingPipelineState,
@@ -68,6 +70,7 @@ import {
   getBackendSession,
   getAntiGhostingPipelineState,
   getAchievementProfileState,
+  getAtsSyncState,
   getInterviewPrepState,
   getJobSyndicationState,
   getPassiveSourcingState,
@@ -80,9 +83,11 @@ import {
   listAuditEvents,
   listResumes,
   requestPassiveSourcingContactRelease,
+  runAtsDrySync,
   runSemanticSkillMatch,
   runPipelineStaleCheck,
   runPrescreeningSession,
+  seedAtsSyncConnections,
   startWorkflowRun,
   uploadResume,
 } from './backendClient'
@@ -3928,6 +3933,163 @@ function PrescreeningAgentsPanel({ session }: { session: BackendSession | null }
   )
 }
 
+function AtsSynchronizersPanel({ session }: { session: BackendSession | null }) {
+  const [atsState, setAtsState] = useState<AtsSyncState | null>(null)
+  const [provider, setProvider] = useState<AtsProvider>('greenhouse')
+  const [message, setMessage] = useState('Start an employer workspace, then JobsFlow can configure ATS synchronizers.')
+  const [isBusy, setIsBusy] = useState(false)
+  const latestRun = atsState?.runs[0] ?? null
+  const latestEvents = latestRun ? (atsState?.events ?? []).filter((event) => event.syncRunId === latestRun.id).slice(0, 5) : []
+
+  const refreshAtsSync = useCallback(async () => {
+    if (!session) {
+      setAtsState(null)
+      setMessage('Start an employer workspace first, then JobsFlow can load ATS sync state.')
+      return
+    }
+
+    setIsBusy(true)
+    try {
+      const result = await getAtsSyncState()
+      setAtsState(result.state)
+      setMessage(
+        result.state.summary.providers
+          ? `${result.state.summary.providers} ATS provider boundary${result.state.summary.providers === 1 ? '' : 'ies'} configured.`
+          : 'No ATS providers seeded yet. Add connection boundaries first.',
+      )
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'ats-sync'))
+    } finally {
+      setIsBusy(false)
+    }
+  }, [session])
+
+  async function seedProviders() {
+    if (!session) {
+      setMessage('Start an employer workspace before seeding ATS providers.')
+      return
+    }
+
+    setIsBusy(true)
+    setMessage('Seeding ATS OAuth boundaries and field mappings...')
+    try {
+      const result = await seedAtsSyncConnections()
+      setAtsState(result.state)
+      setMessage('ATS provider boundaries seeded. OAuth tokens remain disconnected and are not stored.')
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'ats-sync'))
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  async function runDrySyncPlan() {
+    if (!session) {
+      setMessage('Start an employer workspace before running an ATS dry sync.')
+      return
+    }
+
+    setIsBusy(true)
+    setMessage('Running ATS dry sync plan without external API calls...')
+    try {
+      const result = await runAtsDrySync(provider)
+      setAtsState(result.state)
+      setMessage('ATS dry sync recorded. Disconnected OAuth blocks external mutation by design.')
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'ats-sync'))
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  useEffect(() => {
+    void refreshAtsSync()
+  }, [refreshAtsSync])
+
+  return (
+    <article className="panel ats-sync-panel wide-panel">
+      <div className="panel-title">
+        <div>
+          <span>Two-Way Native ATS Synchronizers</span>
+          <h3>OAuth boundaries, field maps, and dry-run events</h3>
+        </div>
+        <StatusPill tone={atsState?.summary.connectedProviders ? 'green' : latestRun?.status === 'blocked' ? 'amber' : 'blue'}>
+          {atsState?.summary.connectedProviders ? `${atsState.summary.connectedProviders} connected` : 'OAuth disconnected'}
+        </StatusPill>
+      </div>
+      <div className="ats-sync-controls">
+        <label>
+          <span>Provider</span>
+          <select onChange={(event) => setProvider(event.target.value as AtsProvider)} value={provider}>
+            <option value="greenhouse">Greenhouse</option>
+            <option value="lever">Lever</option>
+            <option value="workday">Workday</option>
+          </select>
+        </label>
+        <div className="kernel-actions">
+          <button disabled={isBusy || !session} onClick={seedProviders} type="button">
+            <DatabaseZap size={16} aria-hidden="true" />
+            Seed providers
+          </button>
+          <button disabled={isBusy || !session} onClick={runDrySyncPlan} type="button">
+            <RefreshCw size={16} aria-hidden="true" />
+            Run dry sync
+          </button>
+          <button disabled={isBusy || !session} onClick={refreshAtsSync} type="button">
+            <Clock3 size={16} aria-hidden="true" />
+            Refresh ATS
+          </button>
+        </div>
+      </div>
+      <p className="runtime-message">{message}</p>
+      <div className="ats-sync-grid">
+        <div>
+          <strong>Connections</strong>
+          {(atsState?.connections ?? []).length ? (
+            atsState?.connections.map((connection) => (
+              <div className="ats-connection-row" key={connection.id}>
+                <StatusPill tone={connection.oauthStatus === 'connected' ? 'green' : 'amber'}>{connection.oauthStatus.replaceAll('_', ' ')}</StatusPill>
+                <div>
+                  <strong>{connection.accountLabel}</strong>
+                  <span>{connection.provider} / {connection.scopes.length} scopes</span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="kernel-empty">No ATS connection boundaries yet.</div>
+          )}
+        </div>
+        <div>
+          <strong>Field maps</strong>
+          <EvidenceList
+            items={
+              atsState?.mappings.length
+                ? atsState.mappings.slice(0, 5).map((mapping) => `${mapping.localEntity} -> ${mapping.remoteEntity} (${mapping.direction})`)
+                : ['Seed providers to create mapping records']
+            }
+          />
+        </div>
+        <div>
+          <strong>Latest sync events</strong>
+          {latestEvents.length ? (
+            latestEvents.map((event) => (
+              <div className="ats-event-row" key={event.id}>
+                <StatusPill tone={event.status === 'blocked' ? 'amber' : 'green'}>{event.status}</StatusPill>
+                <div>
+                  <strong>{event.eventType.replaceAll('_', ' ')}</strong>
+                  <span>{event.remoteRecordRef}</span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="kernel-empty">No sync events yet.</div>
+          )}
+        </div>
+      </div>
+    </article>
+  )
+}
+
 function EmployerWorkspace({ session }: { session: BackendSession | null }) {
   return (
     <section className="workspace-grid employer-workspace">
@@ -4028,6 +4190,8 @@ function EmployerWorkspace({ session }: { session: BackendSession | null }) {
       <JobSyndicationPanel session={session} />
 
       <PrescreeningAgentsPanel session={session} />
+
+      <AtsSynchronizersPanel session={session} />
 
       <article className="panel evidence-review-panel wide-panel">
         <div className="panel-title">

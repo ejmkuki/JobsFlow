@@ -95,6 +95,9 @@ These modules remain consent-first. The prototype does not scrape external platf
 - `migrations/0012_dynamic_achievement_profiles.sql` adds dynamic achievement profiles, structured profile cards, and credential verification records.
 - `functions/api/achievement-profiles.ts` transforms resume evidence into metric, leadership, project, and credential cards with verification status.
 - Candidate Workspace now includes live Dynamic Achievement Profiles that turn resume walls into structured, review-ready cards.
+- `migrations/0013_ats_synchronizers.sql` adds ATS OAuth connection boundaries, field mappings, sync runs, and sync events.
+- `functions/api/ats-sync.ts` seeds Greenhouse/Lever/Workday connection records, stores no raw tokens, creates field maps, and records blocked dry-run sync events until OAuth is connected.
+- Employer Workspace now includes live Two-Way Native ATS Synchronizers with provider boundaries, field maps, and dry-run event visibility.
 
 ## Cloudflare Backend Slice
 
@@ -115,6 +118,7 @@ The app now includes a real Cloudflare-ready backend surface:
 - `functions/api/job-syndication.ts`: runs one-click job syndication validation, Google JobPosting payload generation, partner payload generation, and queued delivery records.
 - `functions/api/prescreening.ts`: runs conversational pre-screening agents for minimum criteria, transcript capture, risk flags, and scheduling recommendations.
 - `functions/api/achievement-profiles.ts`: runs dynamic achievement profile generation from resume evidence into structured cards and credential verification records.
+- `functions/api/ats-sync.ts`: runs ATS synchronizer setup for OAuth boundaries, Greenhouse/Lever/Workday mappings, dry-run sync runs, and event logs.
 - `migrations/0001_initial.sql`: creates tenants, users, sessions, candidate profiles, resume artifacts, and audit events.
 - `migrations/0002_application_packet_review.sql`: creates application packets, review gates, and state transitions.
 - `migrations/0003_workflow_kernel.sql`: creates the workflow kernel tables that every production JobsFlow pillar should use.
@@ -127,6 +131,7 @@ The app now includes a real Cloudflare-ready backend surface:
 - `migrations/0010_job_syndication.sql`: creates job syndication posts and delivery records.
 - `migrations/0011_prescreening_agents.sql`: creates pre-screening agents, sessions, messages, and decisions.
 - `migrations/0012_dynamic_achievement_profiles.sql`: creates achievement profiles, profile cards, and credential verifications.
+- `migrations/0013_ats_synchronizers.sql`: creates ATS connections, sync mappings, sync runs, and sync events.
 
 The backend fails closed when bindings or secrets are missing. It does not submit applications, send email, scrape jobs, charge cards, or expose resume files publicly.
 
