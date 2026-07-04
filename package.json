@@ -10,7 +10,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "cf:setup": "powershell -ExecutionPolicy Bypass -File ./scripts/setup-cloudflare.ps1",
-    "cf:deploy": "npm run build && npx wrangler pages deploy dist --project-name=workflowfy-jobsflow --branch=main --commit-dirty=true",
+    "cf:deploy": "node ./scripts/deploy-production.mjs",
     "cf:activate-clerk": "powershell -ExecutionPolicy Bypass -File ./scripts/activate-clerk-production.ps1",
     "cf:smoke": "node ./scripts/smoke-production.mjs",
     "cf:smoke:core": "node ./scripts/smoke-core-production.mjs",

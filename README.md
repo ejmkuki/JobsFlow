@@ -279,16 +279,14 @@ Target domain: `https://jobsflow.workflowfy.ai`
 
 Cloudflare Pages Direct Upload:
 
-```bash
-npm run build
-npx wrangler pages deploy dist --project-name=workflowfy-jobsflow --branch=main --commit-dirty=true
-```
-
-Or use the npm script:
-
-```bash
+```powershell
+. .\.cloudflare.local.ps1
+$env:NODE_OPTIONS="--use-system-ca"
+$env:VITE_CLERK_PUBLISHABLE_KEY="pk_live_..."
 npm run cf:deploy
 ```
+
+`npm run cf:deploy` runs a production guard before deployment. If the live backend reports Clerk SSO as configured, the deploy refuses to continue unless `VITE_CLERK_PUBLISHABLE_KEY` is present in the local build environment. This prevents direct-upload deploys from accidentally shipping a locked Secure Access panel. For an intentional private-beta-only deploy, set `JOBSFLOW_ALLOW_SSO_DISABLED_DEPLOY=1`.
 
 After the Pages project exists, add `jobsflow.workflowfy.ai` as a custom domain in Cloudflare Pages. If Cloudflare does not create DNS automatically, add this DNS record in the `workflowfy.ai` zone:
 
