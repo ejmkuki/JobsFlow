@@ -13,6 +13,7 @@ export type BackendHealth = {
     passiveSourcing?: boolean
     packetReviewEngine: boolean
     resumeIntelligence?: boolean
+    skillMatching?: boolean
     ssoProvider?: boolean
     transparencyBlueprint?: boolean
     workflowKernel?: boolean
@@ -659,6 +660,77 @@ export type CreatePassiveSourcingCardRequest = {
   targetRoles?: string[]
 }
 
+export type SkillTaxonomyNode = {
+  createdAt: string
+  id: string
+  label: string
+  parentKey: string | null
+  relatedSkills: string[]
+  skillKey: string
+  vectorKey: string
+}
+
+export type EmployerRoleRequirement = {
+  adjacentSkills: string[]
+  company: string
+  createdAt: string
+  id: string
+  minimumSignals: string[]
+  requiredSkills: string[]
+  roleTitle: string
+}
+
+export type CandidateSkillProfile = {
+  achievements: string[]
+  candidateAlias: string
+  createdAt: string
+  id: string
+  skills: string[]
+  vectorDocuments: Array<Record<string, unknown>>
+  visibility: 'archived' | 'internal_review' | 'shortlist_ready'
+}
+
+export type SemanticMatchRun = {
+  adjacentMatches: Array<{
+    candidateSkill: string
+    relationship: string
+    requiredSkill: string
+  }>
+  candidateProfileId: string
+  createdAt: string
+  explanation: string[]
+  gaps: string[]
+  id: string
+  matchScore: number
+  matchedSkills: string[]
+  roleRequirementId: string
+}
+
+export type SkillMatchingState = {
+  candidateProfiles: CandidateSkillProfile[]
+  matchRuns: SemanticMatchRun[]
+  roleRequirements: EmployerRoleRequirement[]
+  summary: {
+    candidateProfiles: number
+    latestMatchScore: number | null
+    matchRuns: number
+    roleRequirements: number
+    taxonomyNodes: number
+  }
+  taxonomyNodes: SkillTaxonomyNode[]
+}
+
+export type RunSemanticSkillMatchRequest = {
+  adjacentSkills?: string[]
+  achievements?: string[]
+  candidateAlias?: string
+  candidateSkills?: string[]
+  company?: string
+  minimumSignals?: string[]
+  requiredSkills?: string[]
+  roleTitle?: string
+}
+
 type JobsFlowErrorContext =
   | 'audit'
   | 'auth'
@@ -669,6 +741,7 @@ type JobsFlowErrorContext =
   | 'pipeline'
   | 'resume'
   | 'resume-intelligence'
+  | 'skill-matching'
   | 'transparency'
   | 'workflow'
 
@@ -745,6 +818,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
         return 'Start a candidate workspace first, then JobsFlow can create anonymous sourcing cards.'
       }
 
+      if (context === 'skill-matching') {
+        return 'Start an employer workspace first, then JobsFlow can run semantic skill matching.'
+      }
+
       if (context === 'resume') {
         return 'Start a workspace first, then resume storage will unlock for this tenant.'
       }
@@ -790,6 +867,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
 
     if (error.code === 'passive_sourcing_unavailable') {
       return 'Apply the latest D1 migration before using passive sourcing cards.'
+    }
+
+    if (error.code === 'skill_matching_unavailable') {
+      return 'Apply the latest D1 migration before using semantic skill matching.'
     }
 
     return error.message
@@ -1119,6 +1200,32 @@ export async function requestPassiveSourcingContactRelease(cardId?: string) {
         requesterCompany: 'Kora Health',
         requesterEmail: 'talent@kora.example',
         requesterName: 'Kora recruiting team',
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function getSkillMatchingState() {
+  return readJson<{ ok: boolean; state: SkillMatchingState }>(await fetch('/api/skill-matching'))
+}
+
+export async function runSemanticSkillMatch(input: RunSemanticSkillMatchRequest) {
+  return readJson<{ ok: boolean; runId: string; state: SkillMatchingState }>(
+    await fetch('/api/skill-matching', {
+      body: JSON.stringify({
+        action: 'run_match',
+        adjacentSkills: input.adjacentSkills,
+        achievements: input.achievements,
+        candidateAlias: input.candidateAlias,
+        candidateSkills: input.candidateSkills,
+        company: input.company,
+        minimumSignals: input.minimumSignals,
+        requiredSkills: input.requiredSkills,
+        roleTitle: input.roleTitle,
       }),
       headers: {
         'content-type': 'application/json',

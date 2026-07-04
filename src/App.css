@@ -2183,6 +2183,43 @@
   font-weight: 900;
 }
 
+.semantic-match-grid {
+  display: grid;
+  grid-template-columns: 0.8fr repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.semantic-match-grid > div {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+  padding: 12px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.semantic-match-grid > div > strong {
+  color: var(--teal);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.semantic-score-card strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.semantic-score-card span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
 .consent-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -2520,6 +2557,7 @@
   .interview-evaluation-grid,
   .interview-prep-grid,
   .passive-grid,
+  .semantic-match-grid,
   .transparency-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2599,6 +2637,7 @@
   .interview-prep-grid,
   .passive-grid,
   .salary-band,
+  .semantic-match-grid,
   .tailwind-form,
   .transparency-grid,
   .pipeline-followup-row,

@@ -83,6 +83,9 @@ These modules remain consent-first. The prototype does not scrape external platf
 - `migrations/0008_passive_sourcing_cards.sql` adds anonymous passive sourcing cards, recruiter broadcast records, and contact-release request gates.
 - `functions/api/passive-sourcing.ts` creates masked candidate cards, queues redacted recruiter broadcasts, hashes requester emails, and keeps contact release candidate-approved.
 - Candidate Workspace now includes live Passive Sourcing Cards with anonymous handles, redaction payloads, and contact-release request status.
+- `migrations/0009_semantic_skill_matching.sql` adds tenant-scoped skill taxonomy nodes, employer role requirements, candidate skill profiles, and semantic match runs.
+- `functions/api/skill-matching.ts` creates taxonomy-adjacent match runs that separate direct skill proof, adjacent bridges, and review gaps.
+- Employer Workspace now includes live Semantic Vector Skill-Matching for role requirements, vector-ready candidate profiles, and evidence-first fit scoring.
 
 ## Cloudflare Backend Slice
 
@@ -99,6 +102,7 @@ The app now includes a real Cloudflare-ready backend surface:
 - `functions/api/interview-prep.ts`: runs the interview prep sandbox with target-role sessions, generated questions, structured rubric scoring, and practice answer history.
 - `functions/api/transparency.ts`: runs the transparency blueprint portal for verified salary bands, anonymized culture conditions, and risk flags.
 - `functions/api/passive-sourcing.ts`: runs anonymous passive sourcing cards with redacted broadcasts and contact-release gates.
+- `functions/api/skill-matching.ts`: runs employer-side semantic skill matching with taxonomy nodes, vector-ready profile documents, direct evidence, adjacent matches, and gaps.
 - `migrations/0001_initial.sql`: creates tenants, users, sessions, candidate profiles, resume artifacts, and audit events.
 - `migrations/0002_application_packet_review.sql`: creates application packets, review gates, and state transitions.
 - `migrations/0003_workflow_kernel.sql`: creates the workflow kernel tables that every production JobsFlow pillar should use.
@@ -107,6 +111,7 @@ The app now includes a real Cloudflare-ready backend surface:
 - `migrations/0006_interview_prep_sandbox.sql`: creates interview prep sessions, question sets, and practice answer evaluations.
 - `migrations/0007_transparency_blueprint.sql`: creates salary blueprints, culture blueprints, and transparency reports.
 - `migrations/0008_passive_sourcing_cards.sql`: creates passive sourcing cards, recruiter card broadcasts, and contact release requests.
+- `migrations/0009_semantic_skill_matching.sql`: creates skill taxonomy nodes, employer role requirements, candidate skill profiles, and semantic match runs.
 
 The backend fails closed when bindings or secrets are missing. It does not submit applications, send email, scrape jobs, charge cards, or expose resume files publicly.
 

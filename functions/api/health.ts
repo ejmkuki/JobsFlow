@@ -9,6 +9,7 @@ export async function onRequestGet({ env }: RequestContext) {
   let passiveSourcingReady = false
   let packetReviewEngineReady = false
   let resumeIntelligenceReady = false
+  let skillMatchingReady = false
   let transparencyBlueprintReady = false
   let workflowKernelReady = false
 
@@ -20,6 +21,7 @@ export async function onRequestGet({ env }: RequestContext) {
       const pipelineRow = await db.prepare('SELECT COUNT(*) AS count FROM application_pipeline_items').first<{ count: number }>()
       const packetRow = await db.prepare('SELECT COUNT(*) AS count FROM application_packets').first<{ count: number }>()
       const resumeIntelRow = await db.prepare('SELECT COUNT(*) AS count FROM resume_tailoring_analyses').first<{ count: number }>()
+      const skillMatchingRow = await db.prepare('SELECT COUNT(*) AS count FROM semantic_match_runs').first<{ count: number }>()
       const transparencyRow = await db.prepare('SELECT COUNT(*) AS count FROM transparency_reports').first<{ count: number }>()
       const workflowRow = await db.prepare('SELECT COUNT(*) AS count FROM workflow_definitions').first<{ count: number }>()
       databaseReady = typeof row?.count === 'number' && typeof packetRow?.count === 'number'
@@ -28,6 +30,7 @@ export async function onRequestGet({ env }: RequestContext) {
       passiveSourcingReady = typeof passiveSourcingRow?.count === 'number'
       packetReviewEngineReady = typeof packetRow?.count === 'number'
       resumeIntelligenceReady = typeof resumeIntelRow?.count === 'number'
+      skillMatchingReady = typeof skillMatchingRow?.count === 'number'
       transparencyBlueprintReady = typeof transparencyRow?.count === 'number'
       workflowKernelReady = typeof workflowRow?.count === 'number'
     } catch {
@@ -37,6 +40,7 @@ export async function onRequestGet({ env }: RequestContext) {
       passiveSourcingReady = false
       packetReviewEngineReady = false
       resumeIntelligenceReady = false
+      skillMatchingReady = false
       transparencyBlueprintReady = false
       workflowKernelReady = false
     }
@@ -59,6 +63,7 @@ export async function onRequestGet({ env }: RequestContext) {
       passiveSourcing: passiveSourcingReady,
       packetReviewEngine: packetReviewEngineReady,
       resumeIntelligence: resumeIntelligenceReady,
+      skillMatching: skillMatchingReady,
       ssoProvider: Boolean(env.CLERK_JWKS_URL && env.CLERK_ISSUER && env.CLERK_SECRET_KEY),
       transparencyBlueprint: transparencyBlueprintReady,
       workflowKernel: workflowKernelReady,
