@@ -522,30 +522,67 @@ html[data-jobsflow-clerk-mode="email"] .cl-dividerText {
   display: none !important;
 }
 
-.cl-otpCodeField,
+.cl-rootBox .cl-otpCodeField,
+.cl-card .cl-otpCodeField,
+.cl-modalContent .cl-otpCodeField,
 .cl-formFieldInputGroup:has(input[inputmode="numeric"]),
 .cl-formFieldInputGroup:has(input[autocomplete="one-time-code"]) {
-  display: grid !important;
-  grid-template-columns: repeat(6, minmax(42px, 1fr)) !important;
+  --jobsflow-otp-slot-size: clamp(44px, 10vw, 56px);
+  display: flex !important;
+  flex-flow: row nowrap !important;
   gap: 10px !important;
-  width: 100% !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: min(100%, 396px) !important;
+  max-width: 396px !important;
+  margin-right: auto !important;
+  margin-left: auto !important;
 }
 
-.cl-otpCodeFieldInput,
+.cl-rootBox .cl-otpCodeField > *,
+.cl-card .cl-otpCodeField > *,
+.cl-modalContent .cl-otpCodeField > *,
+.cl-rootBox .cl-otpCodeFieldInput,
+.cl-card .cl-otpCodeFieldInput,
+.cl-modalContent .cl-otpCodeFieldInput,
+.cl-rootBox .cl-otpCodeField input,
+.cl-card .cl-otpCodeField input,
+.cl-modalContent .cl-otpCodeField input,
 .cl-formFieldInputGroup input[inputmode="numeric"],
 .cl-formFieldInputGroup input[autocomplete="one-time-code"] {
-  width: 100% !important;
-  min-width: 0 !important;
-  aspect-ratio: 1 / 1 !important;
+  flex: 0 0 var(--jobsflow-otp-slot-size, 52px) !important;
+  width: var(--jobsflow-otp-slot-size, 52px) !important;
+  min-width: var(--jobsflow-otp-slot-size, 52px) !important;
+  max-width: 56px !important;
+  height: var(--jobsflow-otp-slot-size, 52px) !important;
+  min-height: var(--jobsflow-otp-slot-size, 52px) !important;
+  max-height: 56px !important;
+  aspect-ratio: 1 !important;
+  box-sizing: border-box !important;
   padding: 0 !important;
   color: #0f172a !important;
   font-size: 1.2rem !important;
   font-weight: 850 !important;
+  line-height: 1 !important;
   text-align: center !important;
   background: #ffffff !important;
   border: 2px solid #bae6fd !important;
   border-radius: 8px !important;
   box-shadow: none !important;
+  caret-color: #0284c7 !important;
+}
+
+.cl-rootBox .cl-otpCodeFieldInput:focus,
+.cl-card .cl-otpCodeFieldInput:focus,
+.cl-modalContent .cl-otpCodeFieldInput:focus,
+.cl-rootBox .cl-otpCodeField input:focus,
+.cl-card .cl-otpCodeField input:focus,
+.cl-modalContent .cl-otpCodeField input:focus,
+.cl-formFieldInputGroup input[inputmode="numeric"]:focus,
+.cl-formFieldInputGroup input[autocomplete="one-time-code"]:focus {
+  border-color: #0284c7 !important;
+  outline: 3px solid rgba(56, 189, 248, 0.22) !important;
+  outline-offset: 1px !important;
 }
 
 .auth-form label {
