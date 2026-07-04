@@ -1841,6 +1841,93 @@
   text-transform: uppercase;
 }
 
+.pipeline-summary-grid,
+.pipeline-kanban,
+.pipeline-followup-list {
+  display: grid;
+  gap: 10px;
+}
+
+.pipeline-summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 14px 0;
+}
+
+.pipeline-summary-grid div,
+.pipeline-stage-card,
+.pipeline-followup-row {
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.pipeline-summary-grid div {
+  min-height: 82px;
+  padding: 12px;
+}
+
+.pipeline-summary-grid strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1.4rem;
+}
+
+.pipeline-summary-grid span,
+.pipeline-stage-card > span,
+.pipeline-item-card small,
+.pipeline-followup-row small {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.pipeline-kanban {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.pipeline-stage-card {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-height: 178px;
+  padding: 10px;
+}
+
+.pipeline-stage-card > strong,
+.pipeline-followup-list > strong {
+  color: var(--teal);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.pipeline-item-card {
+  display: grid;
+  gap: 5px;
+  padding: 9px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.pipeline-item-card p,
+.pipeline-followup-row p {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.pipeline-followup-list {
+  margin-top: 14px;
+}
+
+.pipeline-followup-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+}
+
 .consent-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -2175,6 +2262,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .pipeline-kanban {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .profile-panel,
   .role-panel,
   .resume-panel,
@@ -2242,6 +2333,9 @@
   .kernel-grid,
   .kernel-metrics,
   .tailwind-form,
+  .pipeline-followup-row,
+  .pipeline-kanban,
+  .pipeline-summary-grid,
   .tailwind-results-grid,
   .tailwind-score-grid,
   .integration-grid,

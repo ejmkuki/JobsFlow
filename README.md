@@ -71,6 +71,9 @@ These modules remain consent-first. The prototype does not scrape external platf
 - `migrations/0004_resume_intelligence.sql` adds Resume Tailwind Optimization tables for parsed resume facts, target job facts, vector-ready documents, and tailoring analyses.
 - `functions/api/resume-intelligence.ts` parses candidate-provided resume evidence, extracts skills/achievements/metrics, parses target job requirements, computes semantic gap scores, writes Vectorize-ready document records, and records the analysis in the audit trail.
 - Candidate Workspace now includes a live Resume Tailwind Optimization panel that persists readiness, skill coverage, semantic overlap, proof strength, missing skills, recommendations, and pending embedding records.
+- `migrations/0005_anti_ghosting_pipeline.sql` adds the anti-ghosting pipeline data model for tracked applications, stage events, response policies, and follow-up tasks.
+- `functions/api/pipeline.ts` creates candidate application pipeline items, advances stages, calculates employer response SLAs, drafts follow-up tasks, and records audit events without sending anything externally.
+- Candidate Workspace now includes a live Anti-Ghosting Pipeline Tracker with stage cards, stale checks, response status, and consent-gated follow-up drafts.
 
 ## Cloudflare Backend Slice
 
@@ -83,10 +86,12 @@ The app now includes a real Cloudflare-ready backend surface:
 - `functions/api/audit.ts`: returns tenant-scoped audit events for the active session.
 - `functions/api/workflows.ts`: manages the Cloudflare-native workflow kernel for definitions, runs, events, consent receipts, automation policies, integration boundaries, and delivery records.
 - `functions/api/resume-intelligence.ts`: runs the first production candidate engine for resume facts, job target parsing, semantic gap scoring, vector-ready document creation, and tailored-resume recommendations.
+- `functions/api/pipeline.ts`: runs the anti-ghosting application tracker with stage state, employer response SLAs, candidate follow-up drafts, fallback reminders, and audit history.
 - `migrations/0001_initial.sql`: creates tenants, users, sessions, candidate profiles, resume artifacts, and audit events.
 - `migrations/0002_application_packet_review.sql`: creates application packets, review gates, and state transitions.
 - `migrations/0003_workflow_kernel.sql`: creates the workflow kernel tables that every production JobsFlow pillar should use.
 - `migrations/0004_resume_intelligence.sql`: creates resume fact sets, job targets, vector document queue records, and resume tailoring analyses.
+- `migrations/0005_anti_ghosting_pipeline.sql`: creates tracked applications, stage events, response policies, and follow-up tasks.
 
 The backend fails closed when bindings or secrets are missing. It does not submit applications, send email, scrape jobs, charge cards, or expose resume files publicly.
 

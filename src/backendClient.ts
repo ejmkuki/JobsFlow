@@ -8,6 +8,7 @@ export type BackendHealth = {
   databaseReady: boolean
   externalSubmissionsEnabled: boolean
   features?: {
+    antiGhostingPipeline?: boolean
     packetReviewEngine: boolean
     resumeIntelligence?: boolean
     ssoProvider?: boolean
@@ -345,7 +346,106 @@ export type ResumeTailwindRequest = {
   targetRole: string
 }
 
-type JobsFlowErrorContext = 'audit' | 'auth' | 'backend' | 'packet' | 'resume' | 'resume-intelligence' | 'workflow'
+export type PipelineState =
+  | 'applied'
+  | 'archived'
+  | 'closed'
+  | 'discovered'
+  | 'employer_review'
+  | 'interview'
+  | 'offer'
+  | 'packet_review'
+  | 'recruiter_screen'
+
+export type PipelineItem = {
+  company: string
+  createdAt: string
+  daysUntilEmployerResponse: number | null
+  employerResponseDueAt: string | null
+  employerUpdateStatus: 'current' | 'due_soon' | 'not_required' | 'overdue'
+  id: string
+  lastCandidateActionAt: string | null
+  lastEmployerActionAt: string | null
+  notes: Record<string, unknown>
+  riskLevel: 'high' | 'low' | 'medium'
+  roleTitle: string
+  salaryMaxCents: number | null
+  salaryMinCents: number | null
+  source: string
+  state: PipelineState
+  updatedAt: string
+}
+
+export type PipelineEvent = {
+  actorType: 'candidate' | 'employer' | 'policy' | 'system'
+  createdAt: string
+  eventType: string
+  fromState: string | null
+  id: string
+  metadata: Record<string, unknown>
+  pipelineItemId: string
+  toState: string | null
+}
+
+export type PipelineFollowUpTask = {
+  channel: 'calendar' | 'email_draft' | 'in_app' | 'none'
+  consentRequired: boolean
+  createdAt: string
+  draftText: string
+  dueAt: string
+  id: string
+  pipelineItemId: string
+  riskLevel: 'high' | 'low' | 'medium'
+  status: 'approved' | 'blocked' | 'dismissed' | 'open' | 'sent'
+  taskType: 'candidate_reminder' | 'employer_status_request' | 'fallback_search' | 'interview_prep' | 'salary_review'
+  updatedAt: string
+}
+
+export type PipelineResponsePolicy = {
+  active: boolean
+  candidateFollowUpDays: number
+  employerSlaDays: number
+  fallbackSearchDays: number
+  id: string
+  policyKey: string
+  stage: PipelineState
+}
+
+export type AntiGhostingPipelineState = {
+  events: PipelineEvent[]
+  items: PipelineItem[]
+  policies: PipelineResponsePolicy[]
+  summary: {
+    activeApplications: number
+    dueSoonApplications: number
+    openFollowUps: number
+    overdueApplications: number
+    protectedFinalStates: number
+  }
+  tasks: PipelineFollowUpTask[]
+}
+
+export type CreatePipelineItemRequest = {
+  company: string
+  notes?: string
+  roleTitle: string
+  salaryRange?: {
+    maxCents?: number
+    minCents?: number
+  }
+  source?: string
+  state?: PipelineState
+}
+
+type JobsFlowErrorContext =
+  | 'audit'
+  | 'auth'
+  | 'backend'
+  | 'packet'
+  | 'pipeline'
+  | 'resume'
+  | 'resume-intelligence'
+  | 'workflow'
 
 export class JobsFlowApiError extends Error {
   code?: string
@@ -404,6 +504,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
         return 'Start a workspace first, then JobsFlow can review the packet and record the decision.'
       }
 
+      if (context === 'pipeline') {
+        return 'Start a candidate workspace first, then JobsFlow can track applications and draft follow-ups.'
+      }
+
       if (context === 'resume') {
         return 'Start a workspace first, then resume storage will unlock for this tenant.'
       }
@@ -433,6 +537,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
 
     if (error.code === 'resume_intelligence_unavailable') {
       return 'Apply the latest D1 migration before running Resume Tailwind Optimization.'
+    }
+
+    if (error.code === 'pipeline_unavailable') {
+      return 'Apply the latest D1 migration before using the anti-ghosting pipeline.'
     }
 
     return error.message
@@ -590,6 +698,60 @@ export async function createResumeTailwindAnalysis(input: ResumeTailwindRequest)
   return readJson<{ analysis: ResumeTailwindAnalysis; ok: boolean; state: ResumeIntelligenceState }>(
     await fetch('/api/resume-intelligence', {
       body: JSON.stringify(input),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function getAntiGhostingPipelineState() {
+  return readJson<{ ok: boolean; state: AntiGhostingPipelineState }>(await fetch('/api/pipeline'))
+}
+
+export async function createPipelineItem(input: CreatePipelineItemRequest) {
+  return readJson<{ itemId: string; ok: boolean; state: AntiGhostingPipelineState }>(
+    await fetch('/api/pipeline', {
+      body: JSON.stringify({
+        action: 'create_item',
+        company: input.company,
+        notes: input.notes,
+        roleTitle: input.roleTitle,
+        salaryRange: input.salaryRange,
+        source: input.source,
+        state: input.state,
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function advancePipelineItem(itemId: string, toState: PipelineState) {
+  return readJson<{ ok: boolean; state: AntiGhostingPipelineState }>(
+    await fetch('/api/pipeline', {
+      body: JSON.stringify({
+        action: 'advance_stage',
+        itemId,
+        toState,
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function runPipelineStaleCheck() {
+  return readJson<{ ok: boolean; state: AntiGhostingPipelineState }>(
+    await fetch('/api/pipeline', {
+      body: JSON.stringify({
+        action: 'run_stale_check',
+      }),
       headers: {
         'content-type': 'application/json',
       },
