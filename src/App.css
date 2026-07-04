@@ -2143,6 +2143,46 @@
   color: var(--ink);
 }
 
+.passive-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 0.8fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.passive-card-preview,
+.passive-safeguard-list,
+.passive-release-card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+  padding: 12px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.passive-card-preview > span,
+.passive-card-preview small,
+.passive-release-card span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.passive-card-preview > strong,
+.passive-safeguard-list > strong,
+.passive-release-card > strong {
+  color: var(--ink);
+}
+
+.passive-release-card p {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 900;
+}
+
 .consent-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -2479,6 +2519,7 @@
 
   .interview-evaluation-grid,
   .interview-prep-grid,
+  .passive-grid,
   .transparency-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2556,6 +2597,7 @@
   .interview-evaluation-grid,
   .interview-prep-controls,
   .interview-prep-grid,
+  .passive-grid,
   .salary-band,
   .tailwind-form,
   .transparency-grid,

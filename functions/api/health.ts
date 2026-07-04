@@ -6,6 +6,7 @@ export async function onRequestGet({ env }: RequestContext) {
   let databaseReady = false
   let antiGhostingPipelineReady = false
   let interviewPrepReady = false
+  let passiveSourcingReady = false
   let packetReviewEngineReady = false
   let resumeIntelligenceReady = false
   let transparencyBlueprintReady = false
@@ -15,6 +16,7 @@ export async function onRequestGet({ env }: RequestContext) {
     try {
       const row = await db.prepare('SELECT COUNT(*) AS count FROM tenants').first<{ count: number }>()
       const interviewPrepRow = await db.prepare('SELECT COUNT(*) AS count FROM interview_prep_sessions').first<{ count: number }>()
+      const passiveSourcingRow = await db.prepare('SELECT COUNT(*) AS count FROM passive_sourcing_cards').first<{ count: number }>()
       const pipelineRow = await db.prepare('SELECT COUNT(*) AS count FROM application_pipeline_items').first<{ count: number }>()
       const packetRow = await db.prepare('SELECT COUNT(*) AS count FROM application_packets').first<{ count: number }>()
       const resumeIntelRow = await db.prepare('SELECT COUNT(*) AS count FROM resume_tailoring_analyses').first<{ count: number }>()
@@ -23,6 +25,7 @@ export async function onRequestGet({ env }: RequestContext) {
       databaseReady = typeof row?.count === 'number' && typeof packetRow?.count === 'number'
       antiGhostingPipelineReady = typeof pipelineRow?.count === 'number'
       interviewPrepReady = typeof interviewPrepRow?.count === 'number'
+      passiveSourcingReady = typeof passiveSourcingRow?.count === 'number'
       packetReviewEngineReady = typeof packetRow?.count === 'number'
       resumeIntelligenceReady = typeof resumeIntelRow?.count === 'number'
       transparencyBlueprintReady = typeof transparencyRow?.count === 'number'
@@ -31,6 +34,7 @@ export async function onRequestGet({ env }: RequestContext) {
       databaseReady = false
       antiGhostingPipelineReady = false
       interviewPrepReady = false
+      passiveSourcingReady = false
       packetReviewEngineReady = false
       resumeIntelligenceReady = false
       transparencyBlueprintReady = false
@@ -52,6 +56,7 @@ export async function onRequestGet({ env }: RequestContext) {
     features: {
       antiGhostingPipeline: antiGhostingPipelineReady,
       interviewPrep: interviewPrepReady,
+      passiveSourcing: passiveSourcingReady,
       packetReviewEngine: packetReviewEngineReady,
       resumeIntelligence: resumeIntelligenceReady,
       ssoProvider: Boolean(env.CLERK_JWKS_URL && env.CLERK_ISSUER && env.CLERK_SECRET_KEY),

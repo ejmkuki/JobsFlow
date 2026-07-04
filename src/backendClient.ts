@@ -10,6 +10,7 @@ export type BackendHealth = {
   features?: {
     antiGhostingPipeline?: boolean
     interviewPrep?: boolean
+    passiveSourcing?: boolean
     packetReviewEngine: boolean
     resumeIntelligence?: boolean
     ssoProvider?: boolean
@@ -602,12 +603,69 @@ export type CreateTransparencyReportRequest = {
   targetRole: string
 }
 
+export type PassiveSourcingCard = {
+  anonymousHandle: string
+  contactReleaseStatus: 'approved' | 'locked' | 'pending'
+  createdAt: string
+  currentEmployerMasked: boolean
+  expiresAt: string
+  headline: string
+  id: string
+  maskedAchievements: string[]
+  maskedSkills: string[]
+  targetRoles: string[]
+  updatedAt: string
+  visibility: 'paused' | 'private' | 'recruiter_marketplace'
+}
+
+export type PassiveSourcingBroadcast = {
+  cardId: string
+  channel: string
+  contactRedactions: string[]
+  createdAt: string
+  id: string
+  payload: Record<string, unknown>
+  status: 'blocked' | 'queued' | 'reviewed' | 'sent'
+}
+
+export type ContactReleaseRequest = {
+  cardId: string
+  createdAt: string
+  id: string
+  reason: string
+  requesterCompany: string
+  requesterName: string
+  status: 'approved' | 'denied' | 'pending'
+  updatedAt: string
+}
+
+export type PassiveSourcingState = {
+  broadcasts: PassiveSourcingBroadcast[]
+  cards: PassiveSourcingCard[]
+  releaseRequests: ContactReleaseRequest[]
+  summary: {
+    activeCards: number
+    broadcasts: number
+    lockedCards: number
+    pendingReleaseRequests: number
+    privateCards: number
+  }
+}
+
+export type CreatePassiveSourcingCardRequest = {
+  achievements?: string[]
+  headline?: string
+  skills?: string[]
+  targetRoles?: string[]
+}
+
 type JobsFlowErrorContext =
   | 'audit'
   | 'auth'
   | 'backend'
   | 'interview-prep'
   | 'packet'
+  | 'passive-sourcing'
   | 'pipeline'
   | 'resume'
   | 'resume-intelligence'
@@ -683,6 +741,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
         return 'Start a workspace first, then JobsFlow can load verified salary and culture blueprints.'
       }
 
+      if (context === 'passive-sourcing') {
+        return 'Start a candidate workspace first, then JobsFlow can create anonymous sourcing cards.'
+      }
+
       if (context === 'resume') {
         return 'Start a workspace first, then resume storage will unlock for this tenant.'
       }
@@ -724,6 +786,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
 
     if (error.code === 'transparency_unavailable') {
       return 'Apply the latest D1 migration before using the transparency blueprint portal.'
+    }
+
+    if (error.code === 'passive_sourcing_unavailable') {
+      return 'Apply the latest D1 migration before using passive sourcing cards.'
     }
 
     return error.message
@@ -997,6 +1063,62 @@ export async function createTransparencyReport(input: CreateTransparencyReportRe
         salaryRange: input.salaryRange,
         targetCompany: input.targetCompany,
         targetRole: input.targetRole,
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function getPassiveSourcingState() {
+  return readJson<{ ok: boolean; state: PassiveSourcingState }>(await fetch('/api/passive-sourcing'))
+}
+
+export async function createPassiveSourcingCard(input: CreatePassiveSourcingCardRequest) {
+  return readJson<{ cardId: string; ok: boolean; state: PassiveSourcingState }>(
+    await fetch('/api/passive-sourcing', {
+      body: JSON.stringify({
+        achievements: input.achievements,
+        action: 'create_card',
+        headline: input.headline,
+        skills: input.skills,
+        targetRoles: input.targetRoles,
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function broadcastPassiveSourcingCard(cardId?: string) {
+  return readJson<{ broadcastId: string; ok: boolean; state: PassiveSourcingState }>(
+    await fetch('/api/passive-sourcing', {
+      body: JSON.stringify({
+        action: 'broadcast_card',
+        cardId,
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function requestPassiveSourcingContactRelease(cardId?: string) {
+  return readJson<{ ok: boolean; requestId: string; state: PassiveSourcingState }>(
+    await fetch('/api/passive-sourcing', {
+      body: JSON.stringify({
+        action: 'request_contact_release',
+        cardId,
+        reason: 'The recruiter request matches the card target roles and keeps contact release candidate-approved.',
+        requesterCompany: 'Kora Health',
+        requesterEmail: 'talent@kora.example',
+        requesterName: 'Kora recruiting team',
       }),
       headers: {
         'content-type': 'application/json',
