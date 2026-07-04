@@ -9,6 +9,7 @@ export type BackendHealth = {
   externalSubmissionsEnabled: boolean
   features?: {
     antiGhostingPipeline?: boolean
+    interviewPrep?: boolean
     packetReviewEngine: boolean
     resumeIntelligence?: boolean
     ssoProvider?: boolean
@@ -437,10 +438,95 @@ export type CreatePipelineItemRequest = {
   state?: PipelineState
 }
 
+export type InterviewStage = 'case_study' | 'final_round' | 'hiring_manager' | 'panel' | 'recruiter_screen'
+
+export type InterviewQuestion = {
+  category: string
+  key: string
+  prompt: string
+  signal: string
+}
+
+export type InterviewRubricItem = {
+  key: string
+  label: string
+  weight: number
+}
+
+export type InterviewRubricScore = {
+  key: string
+  label: string
+  score: number
+}
+
+export type InterviewPrepSession = {
+  company: string
+  context: {
+    evidence?: string[]
+    requiredSkills?: string[]
+  }
+  createdAt: string
+  id: string
+  scorecard: InterviewRubricItem[]
+  stage: InterviewStage
+  status: 'active' | 'archived' | 'completed'
+  targetRole: string
+  updatedAt: string
+}
+
+export type InterviewQuestionSet = {
+  createdAt: string
+  generatorVersion: string
+  id: string
+  questions: InterviewQuestion[]
+  rubric: InterviewRubricItem[]
+  sessionId: string
+}
+
+export type InterviewPracticeAnswer = {
+  answerText: string
+  createdAt: string
+  id: string
+  overallScore: number
+  questionKey: string
+  recommendations: string[]
+  risks: string[]
+  rubricScores: InterviewRubricScore[]
+  sessionId: string
+  strengths: string[]
+}
+
+export type InterviewPrepState = {
+  answers: InterviewPracticeAnswer[]
+  questionSets: InterviewQuestionSet[]
+  sessions: InterviewPrepSession[]
+  summary: {
+    activeSessions: number
+    latestScore: number | null
+    questionSets: number
+    recordedAnswers: number
+  }
+}
+
+export type CreateInterviewPrepSessionRequest = {
+  company: string
+  evidence?: string[]
+  requiredSkills?: string[]
+  stage?: InterviewStage
+  targetRole: string
+}
+
+export type EvaluateInterviewAnswerRequest = {
+  answerText: string
+  questionKey: string
+  sessionId: string
+}
+
 type JobsFlowErrorContext =
   | 'audit'
   | 'auth'
   | 'backend'
+  | 'interview-prep'
   | 'packet'
   | 'pipeline'
   | 'resume'
@@ -508,6 +594,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
         return 'Start a candidate workspace first, then JobsFlow can track applications and draft follow-ups.'
       }
 
+      if (context === 'interview-prep') {
+        return 'Start a candidate workspace first, then JobsFlow can generate and evaluate interview practice.'
+      }
+
       if (context === 'resume') {
         return 'Start a workspace first, then resume storage will unlock for this tenant.'
       }
@@ -541,6 +631,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
 
     if (error.code === 'pipeline_unavailable') {
       return 'Apply the latest D1 migration before using the anti-ghosting pipeline.'
+    }
+
+    if (error.code === 'interview_prep_unavailable') {
+      return 'Apply the latest D1 migration before using the interview prep sandbox.'
     }
 
     return error.message
@@ -751,6 +845,46 @@ export async function runPipelineStaleCheck() {
     await fetch('/api/pipeline', {
       body: JSON.stringify({
         action: 'run_stale_check',
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function getInterviewPrepState() {
+  return readJson<{ ok: boolean; state: InterviewPrepState }>(await fetch('/api/interview-prep'))
+}
+
+export async function createInterviewPrepSession(input: CreateInterviewPrepSessionRequest) {
+  return readJson<{ ok: boolean; sessionId: string; state: InterviewPrepState }>(
+    await fetch('/api/interview-prep', {
+      body: JSON.stringify({
+        action: 'create_session',
+        company: input.company,
+        evidence: input.evidence,
+        requiredSkills: input.requiredSkills,
+        stage: input.stage,
+        targetRole: input.targetRole,
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function evaluateInterviewPracticeAnswer(input: EvaluateInterviewAnswerRequest) {
+  return readJson<{ answerId: string; ok: boolean; state: InterviewPrepState }>(
+    await fetch('/api/interview-prep', {
+      body: JSON.stringify({
+        action: 'evaluate_answer',
+        answerText: input.answerText,
+        questionKey: input.questionKey,
+        sessionId: input.sessionId,
       }),
       headers: {
         'content-type': 'application/json',
