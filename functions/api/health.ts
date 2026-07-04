@@ -9,6 +9,7 @@ export async function onRequestGet({ env }: RequestContext) {
   let jobSyndicationReady = false
   let passiveSourcingReady = false
   let packetReviewEngineReady = false
+  let prescreeningReady = false
   let resumeIntelligenceReady = false
   let skillMatchingReady = false
   let transparencyBlueprintReady = false
@@ -22,6 +23,7 @@ export async function onRequestGet({ env }: RequestContext) {
       const passiveSourcingRow = await db.prepare('SELECT COUNT(*) AS count FROM passive_sourcing_cards').first<{ count: number }>()
       const pipelineRow = await db.prepare('SELECT COUNT(*) AS count FROM application_pipeline_items').first<{ count: number }>()
       const packetRow = await db.prepare('SELECT COUNT(*) AS count FROM application_packets').first<{ count: number }>()
+      const prescreeningRow = await db.prepare('SELECT COUNT(*) AS count FROM prescreening_agents').first<{ count: number }>()
       const resumeIntelRow = await db.prepare('SELECT COUNT(*) AS count FROM resume_tailoring_analyses').first<{ count: number }>()
       const skillMatchingRow = await db.prepare('SELECT COUNT(*) AS count FROM semantic_match_runs').first<{ count: number }>()
       const transparencyRow = await db.prepare('SELECT COUNT(*) AS count FROM transparency_reports').first<{ count: number }>()
@@ -32,6 +34,7 @@ export async function onRequestGet({ env }: RequestContext) {
       jobSyndicationReady = typeof jobSyndicationRow?.count === 'number'
       passiveSourcingReady = typeof passiveSourcingRow?.count === 'number'
       packetReviewEngineReady = typeof packetRow?.count === 'number'
+      prescreeningReady = typeof prescreeningRow?.count === 'number'
       resumeIntelligenceReady = typeof resumeIntelRow?.count === 'number'
       skillMatchingReady = typeof skillMatchingRow?.count === 'number'
       transparencyBlueprintReady = typeof transparencyRow?.count === 'number'
@@ -43,6 +46,7 @@ export async function onRequestGet({ env }: RequestContext) {
       jobSyndicationReady = false
       passiveSourcingReady = false
       packetReviewEngineReady = false
+      prescreeningReady = false
       resumeIntelligenceReady = false
       skillMatchingReady = false
       transparencyBlueprintReady = false
@@ -67,6 +71,7 @@ export async function onRequestGet({ env }: RequestContext) {
       jobSyndication: jobSyndicationReady,
       passiveSourcing: passiveSourcingReady,
       packetReviewEngine: packetReviewEngineReady,
+      prescreening: prescreeningReady,
       resumeIntelligence: resumeIntelligenceReady,
       skillMatching: skillMatchingReady,
       ssoProvider: Boolean(env.CLERK_JWKS_URL && env.CLERK_ISSUER && env.CLERK_SECRET_KEY),

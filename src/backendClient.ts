@@ -13,6 +13,7 @@ export type BackendHealth = {
     jobSyndication?: boolean
     passiveSourcing?: boolean
     packetReviewEngine: boolean
+    prescreening?: boolean
     resumeIntelligence?: boolean
     skillMatching?: boolean
     ssoProvider?: boolean
@@ -787,6 +788,70 @@ export type CreateJobSyndicationPostRequest = {
   }
 }
 
+export type PrescreeningAgent = {
+  company: string
+  createdAt: string
+  criteria: Record<string, unknown>
+  id: string
+  knockoutCriteria: string[]
+  roleTitle: string
+  status: 'active' | 'archived' | 'paused'
+  updatedAt: string
+}
+
+export type PrescreeningSession = {
+  agentId: string
+  candidateAlias: string
+  createdAt: string
+  decision: Record<string, unknown>
+  id: string
+  score: number
+  status: 'disqualified' | 'needs_review' | 'qualified'
+  updatedAt: string
+}
+
+export type PrescreeningMessage = {
+  createdAt: string
+  id: string
+  messageText: string
+  sender: 'agent' | 'candidate' | 'system'
+  sessionId: string
+}
+
+export type PrescreeningDecision = {
+  createdAt: string
+  id: string
+  minimumCriteria: string[]
+  recommendation: string
+  risks: string[]
+  sessionId: string
+}
+
+export type PrescreeningState = {
+  agents: PrescreeningAgent[]
+  decisions: PrescreeningDecision[]
+  messages: PrescreeningMessage[]
+  sessions: PrescreeningSession[]
+  summary: {
+    activeAgents: number
+    latestScore: number | null
+    needsReview: number
+    qualified: number
+    sessions: number
+  }
+}
+
+export type RunPrescreeningRequest = {
+  baselineSkills?: string[]
+  candidateAlias?: string
+  candidateSkills?: string[]
+  company?: string
+  knockoutCriteria?: string[]
+  roleTitle?: string
+  timelineDays?: number
+  visaStatus?: string
+}
+
 type JobsFlowErrorContext =
   | 'audit'
   | 'auth'
@@ -796,6 +861,7 @@ type JobsFlowErrorContext =
   | 'packet'
   | 'passive-sourcing'
   | 'pipeline'
+  | 'prescreening'
   | 'resume'
   | 'resume-intelligence'
   | 'skill-matching'
@@ -883,6 +949,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
         return 'Start an employer workspace first, then JobsFlow can validate and queue job syndication payloads.'
       }
 
+      if (context === 'prescreening') {
+        return 'Start an employer workspace first, then JobsFlow can run conversational pre-screening.'
+      }
+
       if (context === 'resume') {
         return 'Start a workspace first, then resume storage will unlock for this tenant.'
       }
@@ -936,6 +1006,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
 
     if (error.code === 'job_syndication_unavailable') {
       return 'Apply the latest D1 migration before using job syndication.'
+    }
+
+    if (error.code === 'prescreening_unavailable') {
+      return 'Apply the latest D1 migration before using conversational pre-screening.'
     }
 
     return error.message
@@ -1315,6 +1389,32 @@ export async function createJobSyndicationPost(input: CreateJobSyndicationPostRe
         location: input.location,
         roleTitle: input.roleTitle,
         salaryRange: input.salaryRange,
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function getPrescreeningState() {
+  return readJson<{ ok: boolean; state: PrescreeningState }>(await fetch('/api/prescreening'))
+}
+
+export async function runPrescreeningSession(input: RunPrescreeningRequest) {
+  return readJson<{ ok: boolean; sessionId: string; state: PrescreeningState }>(
+    await fetch('/api/prescreening', {
+      body: JSON.stringify({
+        action: 'run_prescreen',
+        baselineSkills: input.baselineSkills,
+        candidateAlias: input.candidateAlias,
+        candidateSkills: input.candidateSkills,
+        company: input.company,
+        knockoutCriteria: input.knockoutCriteria,
+        roleTitle: input.roleTitle,
+        timelineDays: input.timelineDays,
+        visaStatus: input.visaStatus,
       }),
       headers: {
         'content-type': 'application/json',

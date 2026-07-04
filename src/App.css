@@ -2270,6 +2270,63 @@
   border-radius: 8px;
 }
 
+.prescreening-grid {
+  display: grid;
+  grid-template-columns: 0.8fr 0.9fr 1fr 1.3fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.prescreening-grid > div {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+  padding: 12px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.prescreening-grid > div > strong {
+  color: var(--teal);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.prescreening-score-card strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.prescreening-score-card span,
+.prescreening-message-row span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.prescreening-transcript {
+  display: grid;
+  gap: 8px;
+}
+
+.prescreening-message-row {
+  display: grid;
+  gap: 4px;
+  padding: 9px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.prescreening-message-row p {
+  margin: 0;
+  color: var(--ink);
+}
+
 .consent-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -2607,6 +2664,7 @@
   .interview-evaluation-grid,
   .interview-prep-grid,
   .passive-grid,
+  .prescreening-grid,
   .semantic-match-grid,
   .syndication-grid,
   .transparency-grid {
@@ -2687,6 +2745,7 @@
   .interview-prep-controls,
   .interview-prep-grid,
   .passive-grid,
+  .prescreening-grid,
   .salary-band,
   .semantic-match-grid,
   .syndication-grid,
