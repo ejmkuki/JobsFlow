@@ -522,22 +522,38 @@ html[data-jobsflow-clerk-mode="email"] .cl-dividerText {
   display: none !important;
 }
 
+.cl-rootBox .cl-formField:has(.cl-otpCodeField),
+.cl-card .cl-formField:has(.cl-otpCodeField),
+.cl-modalContent .cl-formField:has(.cl-otpCodeField),
+.cl-rootBox .cl-formFieldRow:has(.cl-otpCodeField),
+.cl-card .cl-formFieldRow:has(.cl-otpCodeField),
+.cl-modalContent .cl-formFieldRow:has(.cl-otpCodeField) {
+  display: grid !important;
+  justify-items: center !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
 .cl-rootBox .cl-otpCodeField,
 .cl-card .cl-otpCodeField,
 .cl-modalContent .cl-otpCodeField,
 .cl-formFieldInputGroup:has(input[inputmode="numeric"]),
 .cl-formFieldInputGroup:has(input[autocomplete="one-time-code"]) {
-  --jobsflow-otp-slot-size: clamp(38px, 8vw, 42px);
-  display: flex !important;
-  flex-flow: row nowrap !important;
-  gap: 6px !important;
+  --jobsflow-otp-row-width: min(252px, calc(100vw - 128px));
+  display: grid !important;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  gap: 5px !important;
   align-items: center !important;
   justify-content: center !important;
-  width: min(100%, 300px) !important;
-  max-width: 300px !important;
+  justify-items: stretch !important;
+  width: var(--jobsflow-otp-row-width) !important;
+  max-width: var(--jobsflow-otp-row-width) !important;
   margin-right: auto !important;
   margin-left: auto !important;
+  padding-right: 0 !important;
+  padding-left: 0 !important;
   overflow: visible !important;
+  transform: none !important;
 }
 
 .cl-rootBox .cl-otpCodeField > *,
@@ -551,14 +567,15 @@ html[data-jobsflow-clerk-mode="email"] .cl-dividerText {
 .cl-modalContent .cl-otpCodeField input,
 .cl-formFieldInputGroup input[inputmode="numeric"],
 .cl-formFieldInputGroup input[autocomplete="one-time-code"] {
-  flex: 0 0 var(--jobsflow-otp-slot-size, 42px) !important;
-  width: var(--jobsflow-otp-slot-size, 42px) !important;
-  min-width: var(--jobsflow-otp-slot-size, 42px) !important;
-  max-width: 42px !important;
-  height: var(--jobsflow-otp-slot-size, 42px) !important;
-  min-height: var(--jobsflow-otp-slot-size, 42px) !important;
+  display: grid !important;
+  place-items: center !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 38px !important;
+  height: 42px !important;
+  min-height: 42px !important;
   max-height: 42px !important;
-  aspect-ratio: 1 !important;
+  aspect-ratio: auto !important;
   box-sizing: border-box !important;
   padding: 0 !important;
   color: #0f172a !important;
