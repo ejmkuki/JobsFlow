@@ -9,7 +9,9 @@ export type BackendHealth = {
   externalSubmissionsEnabled: boolean
   features?: {
     packetReviewEngine: boolean
+    resumeIntelligence?: boolean
     ssoProvider?: boolean
+    workflowKernel?: boolean
   }
   ok: boolean
   runtime: string
@@ -110,7 +112,240 @@ export type ApplicationPacketReviewRequest = {
   targetRole: string
 }
 
-type JobsFlowErrorContext = 'audit' | 'auth' | 'backend' | 'packet' | 'resume'
+export type WorkflowRunState =
+  | 'blocked'
+  | 'canceled'
+  | 'completed'
+  | 'failed'
+  | 'pending'
+  | 'running'
+  | 'waiting_for_approval'
+
+export type WorkflowDefinition = {
+  active: boolean
+  createdAt: string
+  description: string
+  id: string
+  key: string
+  name: string
+  requiredBindings: string[]
+  steps: string[]
+  triggerEvent: string
+  updatedAt: string
+  version: number
+  workspace: 'candidate' | 'employer' | 'platform'
+}
+
+export type WorkflowRun = {
+  completedAt: string | null
+  createdAt: string
+  currentStep: string
+  definitionId: string
+  error: Record<string, unknown>
+  failedAt: string | null
+  id: string
+  input: Record<string, unknown>
+  lastEventAt: string
+  priority: number
+  result: Record<string, unknown>
+  startedAt: string | null
+  state: WorkflowRunState
+  subjectId: string
+  subjectType: string
+  updatedAt: string
+  workflowKey: string
+}
+
+export type WorkflowEvent = {
+  actorType: 'integration' | 'policy' | 'system' | 'user'
+  createdAt: string
+  eventType: string
+  id: string
+  payload: Record<string, unknown>
+  riskLevel: 'high' | 'low' | 'medium'
+  runId: string | null
+  userId: string | null
+}
+
+export type ConsentReceipt = {
+  action: string
+  approvedAt: string | null
+  createdAt: string
+  expiresAt: string | null
+  id: string
+  preview: Record<string, unknown>
+  revokedAt: string | null
+  scope: Record<string, unknown>
+  status: 'approved' | 'expired' | 'pending' | 'revoked'
+  updatedAt: string
+  userId: string | null
+  workflowRunId: string | null
+}
+
+export type AutomationPolicy = {
+  createdAt: string
+  dailyLimit: number
+  enabled: boolean
+  id: string
+  mode: 'copilot' | 'guarded_autopilot' | 'review_only'
+  policyKey: string
+  requiresConsent: boolean
+  riskLevel: 'high' | 'low' | 'medium'
+  rules: Record<string, unknown>
+  updatedAt: string
+}
+
+export type IntegrationAccount = {
+  accountLabel: string
+  createdAt: string
+  expiresAt: string | null
+  id: string
+  lastSyncAt: string | null
+  provider: string
+  scopes: string[]
+  status: 'connected' | 'disabled' | 'needs_reauth' | 'not_connected'
+  tokenReference: string | null
+  updatedAt: string
+}
+
+export type WebhookDelivery = {
+  attemptCount: number
+  createdAt: string
+  destination: string
+  eventType: string
+  id: string
+  lastError: string | null
+  nextAttemptAt: string | null
+  request: Record<string, unknown>
+  response: Record<string, unknown>
+  status: 'blocked' | 'delivered' | 'failed' | 'queued'
+  updatedAt: string
+  workflowRunId: string | null
+}
+
+export type WorkflowKernelState = {
+  definitions: WorkflowDefinition[]
+  deliveries: WebhookDelivery[]
+  events: WorkflowEvent[]
+  integrations: IntegrationAccount[]
+  policies: AutomationPolicy[]
+  receipts: ConsentReceipt[]
+  runs: WorkflowRun[]
+  summary: {
+    activeDefinitions: number
+    activeRuns: number
+    connectedIntegrations: number
+    enabledPolicies: number
+    externalActionsEnabled: boolean
+    pendingReceipts: number
+  }
+}
+
+export type StartWorkflowRunRequest = {
+  input?: Record<string, unknown>
+  priority?: number
+  subjectId?: string
+  subjectType?: string
+  workflowKey: string
+}
+
+export type ResumeTailwindGap = {
+  evidenceHint: string
+  requiredAction: string
+  severity: 'high' | 'medium'
+  skill: string
+}
+
+export type ResumeTailwindRecommendation = {
+  detail: string
+  priority: 'high' | 'low' | 'medium'
+  title: string
+}
+
+export type ResumeTailwindAnalysis = {
+  coachableGaps: ResumeTailwindGap[]
+  createdAt: string
+  evidence: string[]
+  id: string
+  jobTargetId: string
+  matchedSkills: string[]
+  missingSkills: string[]
+  proofStrength: 'light' | 'moderate' | 'strong'
+  readinessScore: number
+  recommendations: ResumeTailwindRecommendation[]
+  resumeFactSetId: string
+  semanticOverlapScore: number
+  skillCoverageScore: number
+  vectorDocuments: Array<{
+    id: string
+    namespace: string
+    sourceId: string
+    sourceType: string
+    status: string
+    textHash: string
+    vectorKey: string
+  }>
+  workflowRunId: string | null
+}
+
+export type ResumeIntelligenceState = {
+  analyses: ResumeTailwindAnalysis[]
+  factSets: Array<{
+    achievements: string[]
+    createdAt: string
+    id: string
+    metrics: string[]
+    parserVersion: string
+    resumeArtifactId: string | null
+    skills: string[]
+    sourceKind: string
+    sourceLabel: string
+    warnings: string[]
+  }>
+  jobTargets: Array<{
+    company: string
+    createdAt: string
+    descriptionExcerpt: string
+    id: string
+    requiredSkills: string[]
+    responsibilities: string[]
+    senioritySignals: string[]
+    title: string
+  }>
+  summary: {
+    analyses: number
+    latestReadinessScore: number | null
+    parsedFactSets: number
+    pendingVectorDocuments: number
+    targetJobs: number
+  }
+  vectorDocuments: Array<{
+    createdAt: string
+    id: string
+    namespace: string
+    sourceId: string
+    sourceType: string
+    status: string
+    textExcerpt: string
+    vectorKey: string
+  }>
+}
+
+export type ResumeTailwindRequest = {
+  company: string
+  jobDescription: string
+  requiredSkills?: string[]
+  resumeArtifactId?: string
+  resumeText?: string
+  salaryRange?: {
+    currency?: string
+    maxCents?: number
+    minCents?: number
+  }
+  targetRole: string
+}
+
+type JobsFlowErrorContext = 'audit' | 'auth' | 'backend' | 'packet' | 'resume' | 'resume-intelligence' | 'workflow'
 
 export class JobsFlowApiError extends Error {
   code?: string
@@ -161,12 +396,20 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
     }
 
     if (error.code === 'unauthorized') {
+      if (context === 'workflow') {
+        return 'Start a workspace first, then JobsFlow can activate the workflow kernel for this tenant.'
+      }
+
       if (context === 'packet') {
         return 'Start a workspace first, then JobsFlow can review the packet and record the decision.'
       }
 
       if (context === 'resume') {
         return 'Start a workspace first, then resume storage will unlock for this tenant.'
+      }
+
+      if (context === 'resume-intelligence') {
+        return 'Start a candidate workspace first, then JobsFlow can run Resume Tailwind Optimization.'
       }
 
       if (context === 'audit') {
@@ -182,6 +425,14 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
 
     if (error.code === 'missing_configuration') {
       return 'JobsFlow is holding this action because a production setting is missing.'
+    }
+
+    if (error.code === 'workflow_kernel_unavailable') {
+      return 'Apply the latest D1 migration before activating the workflow kernel.'
+    }
+
+    if (error.code === 'resume_intelligence_unavailable') {
+      return 'Apply the latest D1 migration before running Resume Tailwind Optimization.'
     }
 
     return error.message
@@ -271,6 +522,73 @@ export async function listApplicationPacketReviews() {
 export async function createApplicationPacketReview(input: ApplicationPacketReviewRequest) {
   return readJson<{ ok: boolean; packet: ApplicationPacketReview }>(
     await fetch('/api/packet-review', {
+      body: JSON.stringify(input),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function getWorkflowKernelState() {
+  return readJson<{ ok: boolean; state: WorkflowKernelState }>(await fetch('/api/workflows'))
+}
+
+export async function bootstrapWorkflowKernel() {
+  return readJson<{ createdRun: boolean; ok: boolean; runId: string; state: WorkflowKernelState }>(
+    await fetch('/api/workflows', {
+      body: JSON.stringify({ action: 'bootstrap_core' }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function startWorkflowRun(input: StartWorkflowRunRequest) {
+  return readJson<{ ok: boolean; runId: string; state: WorkflowKernelState }>(
+    await fetch('/api/workflows', {
+      body: JSON.stringify({
+        action: 'start_run',
+        input: input.input,
+        priority: input.priority,
+        subjectId: input.subjectId,
+        subjectType: input.subjectType,
+        workflowKey: input.workflowKey,
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function recordConsentReceipt(receiptId: string, consentStatus: 'approved' | 'revoked') {
+  return readJson<{ ok: boolean; state: WorkflowKernelState }>(
+    await fetch('/api/workflows', {
+      body: JSON.stringify({
+        action: 'record_consent',
+        consentStatus,
+        receiptId,
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function getResumeIntelligenceState() {
+  return readJson<{ ok: boolean; state: ResumeIntelligenceState }>(await fetch('/api/resume-intelligence'))
+}
+
+export async function createResumeTailwindAnalysis(input: ResumeTailwindRequest) {
+  return readJson<{ analysis: ResumeTailwindAnalysis; ok: boolean; state: ResumeIntelligenceState }>(
+    await fetch('/api/resume-intelligence', {
       body: JSON.stringify(input),
       headers: {
         'content-type': 'application/json',

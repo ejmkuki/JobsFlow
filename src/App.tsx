@@ -37,14 +37,21 @@ import {
   type BackendHealth,
   type BackendSession,
   type ResumeArtifact,
+  type ResumeIntelligenceState,
+  type WorkflowKernelState,
+  bootstrapWorkflowKernel,
   createApplicationPacketReview,
+  createResumeTailwindAnalysis,
   createJobsFlowSession,
   deleteBackendSession,
   getBackendHealth,
   getBackendSession,
+  getResumeIntelligenceState,
+  getWorkflowKernelState,
   humanizeJobsFlowError,
   listAuditEvents,
   listResumes,
+  startWorkflowRun,
   uploadResume,
 } from './backendClient'
 import {
@@ -1819,6 +1826,400 @@ function BackendStatusPanel({
   )
 }
 
+function workflowTone(state: string): Tone {
+  if (state === 'completed' || state === 'running') {
+    return 'green'
+  }
+
+  if (state === 'blocked' || state === 'failed') {
+    return 'red'
+  }
+
+  return state === 'waiting_for_approval' ? 'amber' : 'blue'
+}
+
+function textFromRecord(record: Record<string, unknown>, key: string, fallback: string) {
+  const value = record[key]
+  return typeof value === 'string' && value.trim() ? value : fallback
+}
+
+function WorkflowKernelPanel({ session }: { session: BackendSession | null }) {
+  const [kernelState, setKernelState] = useState<WorkflowKernelState | null>(null)
+  const [message, setMessage] = useState(
+    'Start a workspace, then activate the Cloudflare workflow kernel for this tenant.',
+  )
+  const [isBusy, setIsBusy] = useState(false)
+  const latestRun = kernelState?.runs[0] ?? null
+  const pendingReceipts = kernelState?.receipts.filter((receipt) => receipt.status === 'pending') ?? []
+  const pillarDefinitions =
+    kernelState?.definitions.filter((definition) => definition.key !== 'platform.workflow_kernel') ?? []
+  const activeDefinitions = kernelState?.summary.activeDefinitions ?? 0
+
+  const refreshKernel = useCallback(async () => {
+    if (!session) {
+      setKernelState(null)
+      setMessage('Start a workspace first, then JobsFlow can read tenant-scoped workflow state.')
+      return
+    }
+
+    setIsBusy(true)
+    try {
+      const result = await getWorkflowKernelState()
+      setKernelState(result.state)
+      setMessage(
+        result.state.summary.activeDefinitions
+          ? `${result.state.summary.activeDefinitions} workflow definitions are active for this Cloudflare production kernel.`
+          : 'Workflow tables are ready. Activate the kernel to seed the production definitions.',
+      )
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'workflow'))
+    } finally {
+      setIsBusy(false)
+    }
+  }, [session])
+
+  async function activateKernel() {
+    if (!session) {
+      setMessage('Start a workspace first, then JobsFlow can activate the kernel for this tenant.')
+      return
+    }
+
+    setIsBusy(true)
+    setMessage('Seeding workflow definitions, policies, integration boundaries, and consent receipts...')
+    try {
+      const result = await bootstrapWorkflowKernel()
+      setKernelState(result.state)
+      setMessage(
+        result.createdRun
+          ? 'Cloudflare workflow kernel activated. External actions are still blocked behind consent and certification.'
+          : 'Cloudflare workflow kernel verified. Existing consent and automation boundaries remain intact.',
+      )
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'workflow'))
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  async function startResumeWorkflow() {
+    if (!session) {
+      setMessage('Start a workspace before creating a workflow run.')
+      return
+    }
+
+    setIsBusy(true)
+    setMessage('Creating a guarded resume optimization workflow run...')
+    try {
+      if (!kernelState?.definitions.some((definition) => definition.key === 'resume.tailwind_optimization')) {
+        await bootstrapWorkflowKernel()
+      }
+
+      const result = await startWorkflowRun({
+        input: {
+          targetCompany: 'Kora Health',
+          targetRole: 'Product Operations Manager',
+          source: 'trust_workspace_activation',
+        },
+        priority: 4,
+        subjectId: 'first-resume-artifact',
+        subjectType: 'resume_artifact',
+        workflowKey: 'resume.tailwind_optimization',
+      })
+      setKernelState(result.state)
+      setMessage('Resume optimization workflow run created behind a review gate.')
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'workflow'))
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  useEffect(() => {
+    void refreshKernel()
+  }, [refreshKernel])
+
+  return (
+    <article className="panel workflow-kernel-panel wide-panel">
+      <div className="panel-title">
+        <div>
+          <span>Cloudflare workflow kernel</span>
+          <h3>Durable state before automation</h3>
+        </div>
+        <StatusPill tone={activeDefinitions ? 'green' : 'amber'}>
+          {activeDefinitions ? 'Kernel ready' : 'Needs activation'}
+        </StatusPill>
+      </div>
+      <p className="muted-line">
+        D1 stores the workflow state, consent receipts, automation policies, integration boundaries, and delivery records that every JobsFlow pillar now builds on.
+      </p>
+      <div className="kernel-actions">
+        <button disabled={isBusy} onClick={refreshKernel} type="button">
+          <RefreshCw size={16} aria-hidden="true" />
+          Refresh kernel
+        </button>
+        <button disabled={isBusy || !session} onClick={activateKernel} type="button">
+          <DatabaseZap size={16} aria-hidden="true" />
+          Activate kernel
+        </button>
+        <button disabled={isBusy || !session} onClick={startResumeWorkflow} type="button">
+          <FileCheck2 size={16} aria-hidden="true" />
+          Start resume workflow
+        </button>
+      </div>
+      <p className="runtime-message">{message}</p>
+      <div className="kernel-metrics">
+        <div>
+          <strong>{kernelState?.summary.activeDefinitions ?? 0}</strong>
+          <span>active definitions</span>
+        </div>
+        <div>
+          <strong>{kernelState?.summary.activeRuns ?? 0}</strong>
+          <span>active runs</span>
+        </div>
+        <div>
+          <strong>{kernelState?.summary.pendingReceipts ?? 0}</strong>
+          <span>pending receipts</span>
+        </div>
+        <div>
+          <strong>{kernelState?.summary.enabledPolicies ?? 0}</strong>
+          <span>enabled policies</span>
+        </div>
+      </div>
+      <div className="kernel-grid">
+        <div className="kernel-column">
+          <strong>Core pillar workflows</strong>
+          <div className="kernel-list">
+            {pillarDefinitions.slice(0, 10).map((definition) => (
+              <div className="kernel-row" key={definition.id}>
+                <span>{definition.workspace}</span>
+                <p>{definition.name}</p>
+                <small>{definition.triggerEvent}</small>
+              </div>
+            ))}
+            {!pillarDefinitions.length ? (
+              <div className="kernel-empty">Activate the kernel to seed the ten JobsFlow pillar workflows.</div>
+            ) : null}
+          </div>
+        </div>
+        <div className="kernel-column">
+          <strong>Latest runs and receipts</strong>
+          <div className="kernel-list">
+            {latestRun ? (
+              <div className="kernel-row">
+                <StatusPill tone={workflowTone(latestRun.state)}>{latestRun.state}</StatusPill>
+                <p>{latestRun.workflowKey}</p>
+                <small>{latestRun.currentStep}</small>
+              </div>
+            ) : (
+              <div className="kernel-empty">No workflow runs yet.</div>
+            )}
+            {pendingReceipts.slice(0, 3).map((receipt) => (
+              <div className="kernel-row" key={receipt.id}>
+                <StatusPill tone="amber">{receipt.status}</StatusPill>
+                <p>{receipt.action}</p>
+                <small>{textFromRecord(receipt.preview, 'title', 'Consent preview recorded')}</small>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="kernel-column">
+          <strong>Integration boundaries</strong>
+          <div className="kernel-list">
+            {(kernelState?.integrations ?? []).slice(0, 6).map((integration) => (
+              <div className="kernel-row" key={integration.id}>
+                <span>{integration.status.replace(/_/g, ' ')}</span>
+                <p>{integration.accountLabel}</p>
+                <small>{integration.provider}</small>
+              </div>
+            ))}
+            {!kernelState?.integrations.length ? (
+              <div className="kernel-empty">No provider boundaries seeded yet.</div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+const defaultResumeTailwindText = [
+  'Scaled intake workflow across 4 healthcare SaaS implementation teams and reduced launch handoff time by 28%.',
+  'Owned vendor governance process for product operations handoffs, executive stakeholder updates, and launch quality reviews.',
+  'Built repeatable operating rhythm for cross-functional product, implementation, and customer success teams.',
+  'Managed executive customer communication during complex workflow rollouts for healthcare accounts.',
+  'Created reporting dashboards for launch readiness, risk flags, and delivery quality across 18 active projects.',
+].join('\n')
+
+const defaultResumeTailwindJob = [
+  'Product Operations Manager role focused on healthcare SaaS delivery, vendor governance, claims operations, and cross-functional launch quality.',
+  'Own product operations workflows, coordinate claims workflow improvements, translate customer and implementation signals into product-facing priorities, and communicate clearly with executive stakeholders.',
+  'The role requires product operations, healthcare SaaS, vendor governance, claims operations, product analytics, and executive communication.',
+].join(' ')
+
+function ResumeTailwindPanel({ session }: { session: BackendSession | null }) {
+  const [targetRole, setTargetRole] = useState(applicationPacket.role)
+  const [company, setCompany] = useState(applicationPacket.company)
+  const [resumeText, setResumeText] = useState(defaultResumeTailwindText)
+  const [jobDescription, setJobDescription] = useState(defaultResumeTailwindJob)
+  const [resumeIntelState, setResumeIntelState] = useState<ResumeIntelligenceState | null>(null)
+  const [message, setMessage] = useState('Start a workspace, then JobsFlow can run Resume Tailwind Optimization.')
+  const [isBusy, setIsBusy] = useState(false)
+  const latestAnalysis = resumeIntelState?.analyses[0] ?? null
+
+  const refreshResumeIntelligence = useCallback(async () => {
+    if (!session) {
+      setResumeIntelState(null)
+      setMessage('Start a candidate workspace first, then JobsFlow can load resume intelligence.')
+      return
+    }
+
+    setIsBusy(true)
+    try {
+      const result = await getResumeIntelligenceState()
+      setResumeIntelState(result.state)
+      setMessage(
+        result.state.summary.analyses
+          ? `${result.state.summary.analyses} resume analysis record${result.state.summary.analyses === 1 ? '' : 's'} ready.`
+          : 'No resume analyses yet. Run the optimizer to create one.',
+      )
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'resume-intelligence'))
+    } finally {
+      setIsBusy(false)
+    }
+  }, [session])
+
+  async function runResumeTailwind() {
+    if (!session) {
+      setMessage('Start a candidate workspace before running Resume Tailwind Optimization.')
+      return
+    }
+
+    setIsBusy(true)
+    setMessage('Parsing resume facts, job requirements, semantic gaps, and vector-ready records...')
+    try {
+      const result = await createResumeTailwindAnalysis({
+        company,
+        jobDescription,
+        requiredSkills: ['Product operations', 'Healthcare SaaS', 'Vendor governance', 'Claims operations', 'Product analytics'],
+        resumeText,
+        salaryRange: {
+          currency: 'USD',
+          maxCents: 13800000,
+          minCents: 11800000,
+        },
+        targetRole,
+      })
+      setResumeIntelState(result.state)
+      setMessage(
+        `Resume Tailwind Optimization complete: ${result.analysis.readinessScore}% ready with ${result.analysis.missingSkills.length} gap${result.analysis.missingSkills.length === 1 ? '' : 's'}.`,
+      )
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'resume-intelligence'))
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  useEffect(() => {
+    void refreshResumeIntelligence()
+  }, [refreshResumeIntelligence])
+
+  return (
+    <article className="panel resume-tailwind-panel wide-panel">
+      <div className="panel-title">
+        <div>
+          <span>Resume Tailwind Optimization</span>
+          <h3>Semantic gaps before tailored variants</h3>
+        </div>
+        <StatusPill tone={latestAnalysis ? 'green' : 'amber'}>
+          {latestAnalysis ? `${latestAnalysis.readinessScore}% ready` : 'No analysis yet'}
+        </StatusPill>
+      </div>
+      <div className="tailwind-form">
+        <label>
+          <span>Target role</span>
+          <input onChange={(event) => setTargetRole(event.target.value)} type="text" value={targetRole} />
+        </label>
+        <label>
+          <span>Company</span>
+          <input onChange={(event) => setCompany(event.target.value)} type="text" value={company} />
+        </label>
+        <label className="tailwind-textarea">
+          <span>Master resume evidence</span>
+          <textarea onChange={(event) => setResumeText(event.target.value)} rows={7} value={resumeText} />
+        </label>
+        <label className="tailwind-textarea">
+          <span>Target job description</span>
+          <textarea onChange={(event) => setJobDescription(event.target.value)} rows={7} value={jobDescription} />
+        </label>
+      </div>
+      <div className="kernel-actions">
+        <button disabled={isBusy || !session} onClick={runResumeTailwind} type="button">
+          <SearchCheck size={16} aria-hidden="true" />
+          {isBusy ? 'Analyzing...' : 'Run optimizer'}
+        </button>
+        <button disabled={isBusy || !session} onClick={refreshResumeIntelligence} type="button">
+          <RefreshCw size={16} aria-hidden="true" />
+          Refresh analyses
+        </button>
+      </div>
+      <p className="runtime-message">{message}</p>
+      {latestAnalysis ? (
+        <>
+          <div className="tailwind-score-grid">
+            <div>
+              <strong>{latestAnalysis.readinessScore}%</strong>
+              <span>readiness</span>
+            </div>
+            <div>
+              <strong>{latestAnalysis.skillCoverageScore}%</strong>
+              <span>skill coverage</span>
+            </div>
+            <div>
+              <strong>{latestAnalysis.semanticOverlapScore}%</strong>
+              <span>semantic overlap</span>
+            </div>
+            <div>
+              <strong>{latestAnalysis.proofStrength}</strong>
+              <span>proof strength</span>
+            </div>
+          </div>
+          <div className="tailwind-results-grid">
+            <div className="tailwind-result-box">
+              <strong>Matched skills</strong>
+              <EvidenceList items={latestAnalysis.matchedSkills.length ? latestAnalysis.matchedSkills : ['No matched skills detected yet']} />
+            </div>
+            <div className="tailwind-result-box">
+              <strong>Missing skills</strong>
+              <EvidenceList items={latestAnalysis.missingSkills.length ? latestAnalysis.missingSkills : ['No required skill gaps detected']} />
+            </div>
+            <div className="tailwind-result-box">
+              <strong>Recommendations</strong>
+              <EvidenceList
+                items={
+                  latestAnalysis.recommendations.length
+                    ? latestAnalysis.recommendations.map((recommendation) => recommendation.title)
+                    : ['Resume evidence is ready for candidate review']
+                }
+              />
+            </div>
+            <div className="tailwind-result-box">
+              <strong>Vector queue</strong>
+              <EvidenceList
+                items={[
+                  `${latestAnalysis.vectorDocuments.length} vector-ready document${latestAnalysis.vectorDocuments.length === 1 ? '' : 's'}`,
+                  `${resumeIntelState?.summary.pendingVectorDocuments ?? 0} pending embedding${resumeIntelState?.summary.pendingVectorDocuments === 1 ? '' : 's'}`,
+                ]}
+              />
+            </div>
+          </div>
+        </>
+      ) : null}
+    </article>
+  )
+}
+
 function CandidateWorkspace({
   automationMode,
   onModeChange,
@@ -1972,6 +2373,8 @@ function CandidateWorkspace({
           ))}
         </div>
       </article>
+
+      <ResumeTailwindPanel session={session} />
 
       <article className="panel packet-panel wide-panel">
         <div className="panel-title">
@@ -2549,6 +2952,8 @@ function TrustWorkspace({
       <CommandCenter items={trustCommandCenter} />
 
       <BackendStatusPanel session={session} onSessionChange={onSessionChange} />
+
+      <WorkflowKernelPanel session={session} />
 
       <article className="panel wide-panel">
         <div className="panel-title">

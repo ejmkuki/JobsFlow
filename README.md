@@ -64,6 +64,13 @@ These modules remain consent-first. The prototype does not scrape external platf
 - Trust & Platform now shows onboarding, a consent gate matrix with local toggles, provider readiness, a Stripe launch checklist, plan entitlements, and phased implementation roadmap.
 - Billing remains frontend-only, but the scaffold is shaped for Stripe Checkout, Stripe Billing, customer portal, coupons, hardship pricing, and entitlement limits.
 - Cloudflare Pages Functions, D1 schema, R2 resume storage hooks, signed sessions, and audit logs are now present; AI calls, payments, email, scraping, and external application submission are still intentionally absent.
+- JobsFlow is now formalized as a Cloudflare-native production stack. D1 stores workflow state, R2 stores private artifacts, and future Vectorize, Queues, Workflows, Durable Objects, and AI Gateway bindings should plug into the workflow kernel rather than separate feature silos.
+- `migrations/0003_workflow_kernel.sql` adds the production workflow kernel: workflow definitions, workflow runs, workflow events, consent receipts, automation policies, integration accounts, and webhook delivery records.
+- `functions/api/workflows.ts` seeds the ten JobsFlow pillar workflows plus the platform kernel, creates tenant-scoped guarded runs, persists consent receipts, keeps integrations disconnected by default, and records audit events for every kernel action.
+- Trust & Platform now includes a live Cloudflare workflow kernel panel for activating the kernel, starting a guarded resume optimization workflow run, viewing pillar definitions, reading pending receipts, and inspecting integration boundaries.
+- `migrations/0004_resume_intelligence.sql` adds Resume Tailwind Optimization tables for parsed resume facts, target job facts, vector-ready documents, and tailoring analyses.
+- `functions/api/resume-intelligence.ts` parses candidate-provided resume evidence, extracts skills/achievements/metrics, parses target job requirements, computes semantic gap scores, writes Vectorize-ready document records, and records the analysis in the audit trail.
+- Candidate Workspace now includes a live Resume Tailwind Optimization panel that persists readiness, skill coverage, semantic overlap, proof strength, missing skills, recommendations, and pending embedding records.
 
 ## Cloudflare Backend Slice
 
@@ -74,8 +81,12 @@ The app now includes a real Cloudflare-ready backend surface:
 - `functions/api/resumes.ts`: stores PDF/DOCX resumes in R2, writes metadata to D1, and records an audit event.
 - `functions/api/packet-review.ts`: reviews candidate application packet evidence, computes readiness, creates review gates, records state transitions, and keeps external action blocked.
 - `functions/api/audit.ts`: returns tenant-scoped audit events for the active session.
+- `functions/api/workflows.ts`: manages the Cloudflare-native workflow kernel for definitions, runs, events, consent receipts, automation policies, integration boundaries, and delivery records.
+- `functions/api/resume-intelligence.ts`: runs the first production candidate engine for resume facts, job target parsing, semantic gap scoring, vector-ready document creation, and tailored-resume recommendations.
 - `migrations/0001_initial.sql`: creates tenants, users, sessions, candidate profiles, resume artifacts, and audit events.
 - `migrations/0002_application_packet_review.sql`: creates application packets, review gates, and state transitions.
+- `migrations/0003_workflow_kernel.sql`: creates the workflow kernel tables that every production JobsFlow pillar should use.
+- `migrations/0004_resume_intelligence.sql`: creates resume fact sets, job targets, vector document queue records, and resume tailoring analyses.
 
 The backend fails closed when bindings or secrets are missing. It does not submit applications, send email, scrape jobs, charge cards, or expose resume files publicly.
 

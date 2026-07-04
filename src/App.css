@@ -1631,6 +1631,216 @@
   gap: 10px;
 }
 
+.kernel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.kernel-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 13px;
+  color: var(--ink);
+  font-weight: 900;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.kernel-actions button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.kernel-metrics,
+.kernel-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.kernel-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 14px 0;
+}
+
+.kernel-metrics div,
+.kernel-column,
+.kernel-row,
+.kernel-empty {
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.kernel-metrics div {
+  min-height: 86px;
+  padding: 12px;
+}
+
+.kernel-metrics strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.kernel-metrics span {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.kernel-grid {
+  grid-template-columns: 1.3fr 1fr 1fr;
+}
+
+.kernel-column {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 12px;
+}
+
+.kernel-column > strong {
+  color: var(--teal);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.kernel-list {
+  display: grid;
+  gap: 8px;
+}
+
+.kernel-row,
+.kernel-empty {
+  min-height: 74px;
+  padding: 10px;
+}
+
+.kernel-row span,
+.kernel-row small,
+.kernel-empty {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+.kernel-row p {
+  margin: 5px 0;
+  color: var(--ink);
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.tailwind-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.tailwind-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.tailwind-form span {
+  color: var(--teal);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.tailwind-form input,
+.tailwind-form textarea {
+  width: 100%;
+  min-width: 0;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.92rem;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tailwind-form input {
+  min-height: 40px;
+  padding: 0 11px;
+}
+
+.tailwind-form textarea {
+  min-height: 156px;
+  padding: 11px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.tailwind-textarea {
+  grid-column: span 1;
+}
+
+.tailwind-score-grid,
+.tailwind-results-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.tailwind-score-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.tailwind-results-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.tailwind-score-grid div,
+.tailwind-result-box {
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tailwind-score-grid div {
+  min-height: 84px;
+  padding: 12px;
+}
+
+.tailwind-score-grid strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1.35rem;
+}
+
+.tailwind-score-grid span {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.tailwind-result-box {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 12px;
+}
+
+.tailwind-result-box > strong {
+  color: var(--teal);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
 .consent-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1956,7 +2166,12 @@
   .states-grid,
   .evidence-review-grid,
   .employer-review-grid,
+  .kernel-grid,
   .ledger-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tailwind-results-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2024,6 +2239,11 @@
   .analytics-grid,
   .trust-grid,
   .consent-grid,
+  .kernel-grid,
+  .kernel-metrics,
+  .tailwind-form,
+  .tailwind-results-grid,
+  .tailwind-score-grid,
   .integration-grid,
   .market-grid,
   .pricing-grid,
@@ -2077,6 +2297,14 @@
 
   .consent-row p,
   .consent-row code {
+    grid-column: auto;
+  }
+
+  .kernel-actions button {
+    width: 100%;
+  }
+
+  .tailwind-textarea {
     grid-column: auto;
   }
 }
