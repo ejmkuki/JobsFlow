@@ -92,6 +92,27 @@ function ClerkBridge({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timer)
   }, [isLoaded])
 
+  useEffect(() => {
+    function syncClerkStep() {
+      const mode = document.documentElement.dataset.jobsflowClerkMode
+      const modalText = document.querySelector('.cl-modalContent, .cl-card')?.textContent ?? ''
+      const isSignupVerification =
+        mode === 'signup' &&
+        (modalText.includes('Verify your email') || modalText.includes('verification code sent to your email'))
+
+      if (isSignupVerification) {
+        document.documentElement.dataset.jobsflowClerkStep = 'signup-verification'
+      } else if (document.documentElement.dataset.jobsflowClerkStep === 'signup-verification') {
+        delete document.documentElement.dataset.jobsflowClerkStep
+      }
+    }
+
+    syncClerkStep()
+    const observer = new MutationObserver(syncClerkStep)
+    observer.observe(document.body, { childList: true, characterData: true, subtree: true })
+    return () => observer.disconnect()
+  }, [])
+
   const email = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses[0]?.emailAddress ?? null
   const displayName = user?.fullName ?? user?.username ?? email
   const redirectUrlComplete = window.location.href
