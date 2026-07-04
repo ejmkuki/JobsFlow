@@ -539,15 +539,13 @@ html[data-jobsflow-clerk-mode="email"] .cl-dividerText {
 .cl-modalContent .cl-otpCodeField,
 .cl-formFieldInputGroup:has(input[inputmode="numeric"]),
 .cl-formFieldInputGroup:has(input[autocomplete="one-time-code"]) {
-  --jobsflow-otp-row-width: min(252px, calc(100vw - 128px));
-  display: grid !important;
-  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
-  gap: 5px !important;
+  display: flex !important;
+  flex-flow: row nowrap !important;
+  gap: 6px !important;
   align-items: center !important;
   justify-content: center !important;
-  justify-items: stretch !important;
-  width: var(--jobsflow-otp-row-width) !important;
-  max-width: var(--jobsflow-otp-row-width) !important;
+  width: 100% !important;
+  max-width: 100% !important;
   margin-right: auto !important;
   margin-left: auto !important;
   padding-right: 0 !important;
@@ -556,9 +554,6 @@ html[data-jobsflow-clerk-mode="email"] .cl-dividerText {
   transform: none !important;
 }
 
-.cl-rootBox .cl-otpCodeField > *,
-.cl-card .cl-otpCodeField > *,
-.cl-modalContent .cl-otpCodeField > *,
 .cl-rootBox .cl-otpCodeFieldInput,
 .cl-card .cl-otpCodeFieldInput,
 .cl-modalContent .cl-otpCodeFieldInput,
@@ -567,19 +562,18 @@ html[data-jobsflow-clerk-mode="email"] .cl-dividerText {
 .cl-modalContent .cl-otpCodeField input,
 .cl-formFieldInputGroup input[inputmode="numeric"],
 .cl-formFieldInputGroup input[autocomplete="one-time-code"] {
-  display: grid !important;
-  place-items: center !important;
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 38px !important;
-  height: 42px !important;
-  min-height: 42px !important;
-  max-height: 42px !important;
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
   aspect-ratio: auto !important;
   box-sizing: border-box !important;
   padding: 0 !important;
   color: #0f172a !important;
-  font-size: 1.1rem !important;
+  font-size: 1.08rem !important;
   font-weight: 850 !important;
   line-height: 1 !important;
   text-align: center !important;
