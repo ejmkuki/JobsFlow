@@ -1,4 +1,4 @@
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowRight,
   Bell,
@@ -20,10 +20,12 @@ import {
   ListChecks,
   LockKeyhole,
   MailCheck,
+  MapPin,
   MessageSquareText,
   NotebookTabs,
   RefreshCw,
   Scale,
+  Search,
   SearchCheck,
   ShieldCheck,
   UsersRound,
@@ -104,6 +106,10 @@ import {
 
 type Workspace = 'candidate' | 'employer' | 'trust'
 type Tone = 'green' | 'amber' | 'red' | 'blue' | 'neutral'
+type LandingSearchIntent = {
+  role: string
+  location: string
+}
 
 const ssoProviderActions: Array<{ key: JobsFlowSsoProviderKey; label: string }> = [
   { key: 'google', label: 'Google' },
@@ -1033,17 +1039,107 @@ function WorkspaceButton({
   active: boolean
   onClick: () => void
 }) {
-  const Icon = workspace.icon
-
   return (
     <button
-      className={active ? 'workspace-tab active' : 'workspace-tab'}
+      className={active ? 'header-nav-link active' : 'header-nav-link'}
       onClick={onClick}
       type="button"
     >
-      <Icon size={18} aria-hidden="true" />
       <span>{workspace.label}</span>
     </button>
+  )
+}
+
+function LandingHero({
+  activeWorkspace,
+  onGetStarted,
+  onSearch,
+  onWorkspaceChange,
+}: {
+  activeWorkspace: Workspace
+  onGetStarted: () => void
+  onSearch: (intent: LandingSearchIntent) => void
+  onWorkspaceChange: (workspace: Workspace) => void
+}) {
+  const [role, setRole] = useState('')
+  const [location, setLocation] = useState('')
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    onSearch({
+      location: location.trim(),
+      role: role.trim(),
+    })
+  }
+
+  return (
+    <section className="landing-hero" aria-labelledby="landing-title">
+      <div className="landing-hero-inner">
+        <div className="hero-wordmark" aria-label="JobsFlow AI">
+          <span className="brand-mark hero-brand-mark">J</span>
+          <span>JobsFlow AI</span>
+        </div>
+
+        <h1 id="landing-title">
+          JobsFlow AI turns resumes, job descriptions, interviews, and hiring signals
+          into automated match pipelines.
+        </h1>
+        <p>
+          Optimize your profile, track applications, prep for interviews, and help
+          employers find verified-fit candidates faster.
+        </p>
+
+        <form className="landing-search" aria-label="Start a JobsFlow match" onSubmit={handleSubmit}>
+          <label className="landing-search-field">
+            <span className="visually-hidden">Role or keyword</span>
+            <Search size={22} aria-hidden="true" />
+            <input
+              autoComplete="off"
+              onChange={(event) => setRole(event.target.value)}
+              placeholder="Job title, skill, or company"
+              type="search"
+              value={role}
+            />
+          </label>
+          <label className="landing-search-field">
+            <span className="visually-hidden">Location</span>
+            <MapPin size={22} aria-hidden="true" />
+            <input
+              autoComplete="address-level2"
+              onChange={(event) => setLocation(event.target.value)}
+              placeholder="Location or remote"
+              type="search"
+              value={location}
+            />
+          </label>
+          <button type="submit">
+            Start match
+            <ArrowRight size={18} aria-hidden="true" />
+          </button>
+        </form>
+
+        <div className="hero-secondary-actions" aria-label="JobsFlow entry points">
+          <button type="button" onClick={onGetStarted}>
+            Get started
+            <ArrowRight size={18} aria-hidden="true" />
+          </button>
+          <button
+            className={activeWorkspace === 'candidate' ? 'active' : ''}
+            type="button"
+            onClick={() => onWorkspaceChange('candidate')}
+          >
+            Candidate
+          </button>
+          <button
+            className={activeWorkspace === 'employer' ? 'active' : ''}
+            type="button"
+            onClick={() => onWorkspaceChange('employer')}
+          >
+            Employer
+          </button>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -4822,58 +4918,121 @@ function App() {
   const [automationMode, setAutomationMode] = useState(automationModes[1].name)
   const [activeOnboardingStep, setActiveOnboardingStep] = useState(onboardingSteps[0].key)
   const [session, setSession] = useState<BackendSession | null>(null)
+  const [searchIntent, setSearchIntent] = useState<LandingSearchIntent | null>(null)
+  const sso = useJobsFlowSso()
 
   const activeSummary = useMemo(
     () => workspaces.find((workspace) => workspace.id === activeWorkspace)?.summary,
     [activeWorkspace],
   )
 
+  function scrollToSection(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  function handleHeaderSignIn() {
+    if (sso.configured && sso.isLoaded && !sso.isSignedIn) {
+      sso.openSignIn()
+      return
+    }
+
+    scrollToSection('secure-access')
+  }
+
+  function handleGetStarted() {
+    scrollToSection('secure-access')
+  }
+
+  function handlePostJob() {
+    setActiveWorkspace('employer')
+    scrollToSection('workspace')
+  }
+
+  function handleHeaderWorkspaceChange(workspace: Workspace) {
+    setActiveWorkspace(workspace)
+    scrollToSection('workspace')
+  }
+
+  function handleHeroWorkspaceChange(workspace: Workspace) {
+    setActiveWorkspace(workspace)
+    scrollToSection('secure-access')
+  }
+
+  function handleLandingSearch(intent: LandingSearchIntent) {
+    setSearchIntent(intent)
+    setActiveWorkspace('candidate')
+    scrollToSection('secure-access')
+  }
+
+  const searchIntentCopy = searchIntent
+    ? [
+        searchIntent.role ? `role: ${searchIntent.role}` : null,
+        searchIntent.location ? `location: ${searchIntent.location}` : null,
+      ]
+        .filter(Boolean)
+        .join(' / ')
+    : null
+
   return (
     <div className="app-root">
       <header className="app-shell-header">
-        <a className="brand" href="/" aria-label="JobsFlow by Workflowfy AI home">
+        <a className="brand" href="/" aria-label="JobsFlow AI home">
           <span className="brand-mark">J</span>
           <span>
-            <strong>Workflowfy AI</strong>
-            <small>JobsFlow</small>
+            <strong>JobsFlow AI</strong>
+            <small>by Workflowfy AI</small>
           </span>
         </a>
 
-        <div className="workspace-switcher" aria-label="Workspace switcher">
+        <nav className="header-nav" aria-label="JobsFlow sections">
           {workspaces.map((workspace) => (
             <WorkspaceButton
               active={workspace.id === activeWorkspace}
               key={workspace.id}
-              onClick={() => setActiveWorkspace(workspace.id)}
+              onClick={() => handleHeaderWorkspaceChange(workspace.id)}
               workspace={workspace}
             />
           ))}
-        </div>
+        </nav>
 
-        <div className="header-status">
-          <StatusPill tone="green">Prototype safe mode</StatusPill>
-          <a href="https://jobsflow.workflowfy.ai">
-            jobsflow.workflowfy.ai
-            <ArrowRight size={16} aria-hidden="true" />
-          </a>
+        <div className="header-actions">
+          <button className="header-auth-link" onClick={handleHeaderSignIn} type="button">
+            Sign in
+          </button>
+          <button className="header-post-link" onClick={handlePostJob} type="button">
+            Employers / Post Job
+          </button>
         </div>
       </header>
 
       <main className="app-main">
-        <section className="workspace-summary" aria-label="Current workspace">
+        <LandingHero
+          activeWorkspace={activeWorkspace}
+          onGetStarted={handleGetStarted}
+          onSearch={handleLandingSearch}
+          onWorkspaceChange={handleHeroWorkspaceChange}
+        />
+
+        <section className="workspace-summary workspace-context" id="workspace" aria-label="Current workspace">
           <div>
-            <span>Evidence-first hiring platform</span>
-            <h1>JobsFlow by Workflowfy AI</h1>
-            <p>{activeSummary}</p>
+            <span>Workspace context</span>
+            <h2>{workspaces.find((workspace) => workspace.id === activeWorkspace)?.label}</h2>
+            <p>
+              {searchIntentCopy
+                ? `Starting point saved from the hero search: ${searchIntentCopy}.`
+                : activeSummary}
+            </p>
           </div>
           <div className="summary-controls">
             <StatusPill tone="blue">Signal over volume</StatusPill>
             <StatusPill tone="green">Consent before action</StatusPill>
-            <StatusPill tone="amber">Stripe-ready pricing</StatusPill>
+            <StatusPill tone="amber">Review before automation</StatusPill>
           </div>
         </section>
 
-        <AuthPanel session={session} onSessionChange={setSession} />
+        <div id="secure-access" className="landing-section-anchor">
+          <AuthPanel session={session} onSessionChange={setSession} />
+        </div>
 
         <ProductOnboarding
           activeStep={activeOnboardingStep}
