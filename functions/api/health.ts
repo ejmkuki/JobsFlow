@@ -3,6 +3,7 @@ import { json, requireDb } from '../_shared'
 
 export async function onRequestGet({ env }: RequestContext) {
   const db = requireDb(env)
+  let achievementProfilesReady = false
   let databaseReady = false
   let antiGhostingPipelineReady = false
   let interviewPrepReady = false
@@ -17,6 +18,7 @@ export async function onRequestGet({ env }: RequestContext) {
 
   if (db) {
     try {
+      const achievementProfileRow = await db.prepare('SELECT COUNT(*) AS count FROM achievement_profiles').first<{ count: number }>()
       const row = await db.prepare('SELECT COUNT(*) AS count FROM tenants').first<{ count: number }>()
       const interviewPrepRow = await db.prepare('SELECT COUNT(*) AS count FROM interview_prep_sessions').first<{ count: number }>()
       const jobSyndicationRow = await db.prepare('SELECT COUNT(*) AS count FROM job_syndication_posts').first<{ count: number }>()
@@ -28,6 +30,7 @@ export async function onRequestGet({ env }: RequestContext) {
       const skillMatchingRow = await db.prepare('SELECT COUNT(*) AS count FROM semantic_match_runs').first<{ count: number }>()
       const transparencyRow = await db.prepare('SELECT COUNT(*) AS count FROM transparency_reports').first<{ count: number }>()
       const workflowRow = await db.prepare('SELECT COUNT(*) AS count FROM workflow_definitions').first<{ count: number }>()
+      achievementProfilesReady = typeof achievementProfileRow?.count === 'number'
       databaseReady = typeof row?.count === 'number' && typeof packetRow?.count === 'number'
       antiGhostingPipelineReady = typeof pipelineRow?.count === 'number'
       interviewPrepReady = typeof interviewPrepRow?.count === 'number'
@@ -40,6 +43,7 @@ export async function onRequestGet({ env }: RequestContext) {
       transparencyBlueprintReady = typeof transparencyRow?.count === 'number'
       workflowKernelReady = typeof workflowRow?.count === 'number'
     } catch {
+      achievementProfilesReady = false
       databaseReady = false
       antiGhostingPipelineReady = false
       interviewPrepReady = false
@@ -66,6 +70,7 @@ export async function onRequestGet({ env }: RequestContext) {
     },
     databaseReady,
     features: {
+      achievementProfiles: achievementProfilesReady,
       antiGhostingPipeline: antiGhostingPipelineReady,
       interviewPrep: interviewPrepReady,
       jobSyndication: jobSyndicationReady,

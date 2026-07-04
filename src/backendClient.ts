@@ -8,6 +8,7 @@ export type BackendHealth = {
   databaseReady: boolean
   externalSubmissionsEnabled: boolean
   features?: {
+    achievementProfiles?: boolean
     antiGhostingPipeline?: boolean
     interviewPrep?: boolean
     jobSyndication?: boolean
@@ -852,7 +853,61 @@ export type RunPrescreeningRequest = {
   visaStatus?: string
 }
 
+export type AchievementProfile = {
+  candidateAlias: string
+  createdAt: string
+  id: string
+  profileScore: number
+  sourceLabel: string
+  status: 'draft' | 'review_ready' | 'verified'
+  summary: string
+  updatedAt: string
+}
+
+export type AchievementProfileCard = {
+  cardType: 'credential' | 'leadership' | 'metric' | 'project'
+  createdAt: string
+  evidence: string[]
+  id: string
+  metrics: string[]
+  profileId: string
+  title: string
+  verificationStatus: 'pending' | 'rejected' | 'verified'
+}
+
+export type CredentialVerification = {
+  cardId: string | null
+  createdAt: string
+  credentialLabel: string
+  evidenceHash: string
+  id: string
+  issuer: string
+  profileId: string
+  status: 'pending' | 'rejected' | 'verified'
+  updatedAt: string
+}
+
+export type AchievementProfileState = {
+  cards: AchievementProfileCard[]
+  profiles: AchievementProfile[]
+  summary: {
+    latestProfileScore: number | null
+    metricCards: number
+    pendingVerifications: number
+    profiles: number
+    verifiedCards: number
+  }
+  verifications: CredentialVerification[]
+}
+
+export type CreateAchievementProfileRequest = {
+  candidateAlias?: string
+  resumeText?: string
+  sourceLabel?: string
+}
+
 type JobsFlowErrorContext =
+  | 'achievement-profiles'
   | 'audit'
   | 'auth'
   | 'backend'
@@ -917,6 +972,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
     }
 
     if (error.code === 'unauthorized') {
+      if (context === 'achievement-profiles') {
+        return 'Start a candidate workspace first, then JobsFlow can create dynamic achievement profile cards.'
+      }
+
       if (context === 'workflow') {
         return 'Start a workspace first, then JobsFlow can activate the workflow kernel for this tenant.'
       }
@@ -1010,6 +1069,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
 
     if (error.code === 'prescreening_unavailable') {
       return 'Apply the latest D1 migration before using conversational pre-screening.'
+    }
+
+    if (error.code === 'achievement_profiles_unavailable') {
+      return 'Apply the latest D1 migration before using dynamic achievement profiles.'
     }
 
     return error.message
@@ -1415,6 +1478,27 @@ export async function runPrescreeningSession(input: RunPrescreeningRequest) {
         roleTitle: input.roleTitle,
         timelineDays: input.timelineDays,
         visaStatus: input.visaStatus,
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function getAchievementProfileState() {
+  return readJson<{ ok: boolean; state: AchievementProfileState }>(await fetch('/api/achievement-profiles'))
+}
+
+export async function createAchievementProfile(input: CreateAchievementProfileRequest) {
+  return readJson<{ ok: boolean; profileId: string; state: AchievementProfileState }>(
+    await fetch('/api/achievement-profiles', {
+      body: JSON.stringify({
+        action: 'create_profile',
+        candidateAlias: input.candidateAlias,
+        resumeText: input.resumeText,
+        sourceLabel: input.sourceLabel,
       }),
       headers: {
         'content-type': 'application/json',

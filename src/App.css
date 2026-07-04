@@ -2183,6 +2183,56 @@
   font-weight: 900;
 }
 
+.achievement-profile-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.6fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.achievement-summary-card,
+.achievement-card-list,
+.achievement-card-row {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.achievement-summary-card,
+.achievement-card-list {
+  padding: 12px;
+}
+
+.achievement-summary-card > strong,
+.achievement-card-row > strong {
+  color: var(--ink);
+}
+
+.achievement-summary-card span,
+.achievement-summary-card small,
+.achievement-card-row span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.achievement-card-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.achievement-card-row {
+  padding: 10px;
+}
+
+.achievement-card-row p {
+  margin: 0;
+  color: var(--ink);
+}
+
 .semantic-match-grid {
   display: grid;
   grid-template-columns: 0.8fr repeat(3, minmax(0, 1fr));
@@ -2661,6 +2711,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .achievement-profile-grid,
   .interview-evaluation-grid,
   .interview-prep-grid,
   .passive-grid,
@@ -2741,6 +2792,8 @@
   .consent-grid,
   .kernel-grid,
   .kernel-metrics,
+  .achievement-card-list,
+  .achievement-profile-grid,
   .interview-evaluation-grid,
   .interview-prep-controls,
   .interview-prep-grid,
