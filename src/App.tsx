@@ -40,6 +40,7 @@ import {
   type InterviewPrepState,
   type InterviewQuestion,
   type InterviewStage,
+  type JobSyndicationState,
   type PassiveSourcingState,
   type PipelineState,
   type ResumeArtifact,
@@ -52,6 +53,7 @@ import {
   broadcastPassiveSourcingCard,
   createApplicationPacketReview,
   createInterviewPrepSession,
+  createJobSyndicationPost,
   createPassiveSourcingCard,
   createPipelineItem,
   createResumeTailwindAnalysis,
@@ -63,6 +65,7 @@ import {
   getBackendSession,
   getAntiGhostingPipelineState,
   getInterviewPrepState,
+  getJobSyndicationState,
   getPassiveSourcingState,
   getResumeIntelligenceState,
   getSkillMatchingState,
@@ -3558,6 +3561,129 @@ function SemanticSkillMatchingPanel({ session }: { session: BackendSession | nul
   )
 }
 
+function JobSyndicationPanel({ session }: { session: BackendSession | null }) {
+  const [syndicationState, setSyndicationState] = useState<JobSyndicationState | null>(null)
+  const [message, setMessage] = useState('Start an employer workspace, then JobsFlow can validate and queue job syndication.')
+  const [isBusy, setIsBusy] = useState(false)
+  const latestPost = syndicationState?.posts[0] ?? null
+  const latestDeliveries = latestPost
+    ? syndicationState?.deliveries.filter((delivery) => delivery.postId === latestPost.id) ?? []
+    : []
+
+  const refreshSyndication = useCallback(async () => {
+    if (!session) {
+      setSyndicationState(null)
+      setMessage('Start an employer workspace first, then JobsFlow can load syndication payloads.')
+      return
+    }
+
+    setIsBusy(true)
+    try {
+      const result = await getJobSyndicationState()
+      setSyndicationState(result.state)
+      setMessage(
+        result.state.summary.syndicationPosts
+          ? `${result.state.summary.syndicationPosts} job syndication post${result.state.summary.syndicationPosts === 1 ? '' : 's'} recorded.`
+          : 'No syndication posts yet. Validate and queue the first role.',
+      )
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'job-syndication'))
+    } finally {
+      setIsBusy(false)
+    }
+  }, [session])
+
+  async function queueKoraJob() {
+    if (!session) {
+      setMessage('Start an employer workspace before queueing job syndication.')
+      return
+    }
+
+    setIsBusy(true)
+    setMessage('Validating job content, salary band, Google markup, and partner payloads...')
+    try {
+      const result = await createJobSyndicationPost({
+        company: applicationPacket.company,
+        description:
+          'Own product operations workflows for healthcare SaaS delivery, vendor governance, launch readiness, claims operations collaboration, executive communication, and cross-functional operating rhythm improvements. This role requires evidence-first communication, product analytics, measurable implementation quality ownership, and clear partnership with product, implementation, and customer success teams.',
+        employmentType: 'full_time',
+        location: 'United States remote/hybrid',
+        roleTitle: applicationPacket.role,
+        salaryRange: {
+          currency: 'USD',
+          maxCents: 14200000,
+          minCents: 11800000,
+        },
+      })
+      setSyndicationState(result.state)
+      setMessage('Syndication payloads are queued inside JobsFlow. External publishing remains review-gated.')
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'job-syndication'))
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  useEffect(() => {
+    void refreshSyndication()
+  }, [refreshSyndication])
+
+  return (
+    <article className="panel job-syndication-panel wide-panel">
+      <div className="panel-title">
+        <div>
+          <span>One-Click Job Syndication Engine</span>
+          <h3>Validated payloads before external publishing</h3>
+        </div>
+        <StatusPill tone={latestPost?.status === 'queued' ? 'green' : latestPost?.status === 'blocked' ? 'red' : 'amber'}>
+          {latestPost?.status ?? 'No post yet'}
+        </StatusPill>
+      </div>
+      <div className="kernel-actions">
+        <button disabled={isBusy || !session} onClick={queueKoraJob} type="button">
+          <Globe2 size={16} aria-hidden="true" />
+          Validate and queue
+        </button>
+        <button disabled={isBusy || !session} onClick={refreshSyndication} type="button">
+          <RefreshCw size={16} aria-hidden="true" />
+          Refresh payloads
+        </button>
+      </div>
+      <p className="runtime-message">{message}</p>
+      <div className="syndication-grid">
+        <div className="syndication-post-card">
+          <strong>{latestPost?.roleTitle ?? applicationPacket.role}</strong>
+          <span>{latestPost?.company ?? applicationPacket.company}</span>
+          <p>
+            {formatCents(latestPost?.salary.minCents, latestPost?.salary.currency)} -{' '}
+            {formatCents(latestPost?.salary.maxCents, latestPost?.salary.currency)}
+          </p>
+          <small>{latestPost ? String(latestPost.googleJobsPayload['@type'] ?? 'JobPosting') : 'Google JobPosting payload pending'}</small>
+        </div>
+        <div>
+          <strong>Validation</strong>
+          <EvidenceList items={latestPost?.validationErrors.length ? latestPost.validationErrors : ['Payload passes local syndication checks']} />
+        </div>
+        <div>
+          <strong>Delivery records</strong>
+          {latestDeliveries.length ? (
+            latestDeliveries.map((delivery) => (
+              <div className="syndication-delivery-row" key={delivery.id}>
+                <StatusPill tone={delivery.status === 'queued' ? 'blue' : delivery.status === 'blocked' ? 'red' : 'green'}>
+                  {delivery.status}
+                </StatusPill>
+                <span>{delivery.destination.replaceAll('_', ' ')}</span>
+              </div>
+            ))
+          ) : (
+            <div className="kernel-empty">No delivery records yet.</div>
+          )}
+        </div>
+      </div>
+    </article>
+  )
+}
+
 function EmployerWorkspace({ session }: { session: BackendSession | null }) {
   return (
     <section className="workspace-grid employer-workspace">
@@ -3654,6 +3780,8 @@ function EmployerWorkspace({ session }: { session: BackendSession | null }) {
       </article>
 
       <SemanticSkillMatchingPanel session={session} />
+
+      <JobSyndicationPanel session={session} />
 
       <article className="panel evidence-review-panel wide-panel">
         <div className="panel-title">

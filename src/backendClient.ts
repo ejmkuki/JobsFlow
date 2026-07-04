@@ -10,6 +10,7 @@ export type BackendHealth = {
   features?: {
     antiGhostingPipeline?: boolean
     interviewPrep?: boolean
+    jobSyndication?: boolean
     passiveSourcing?: boolean
     packetReviewEngine: boolean
     resumeIntelligence?: boolean
@@ -731,11 +732,67 @@ export type RunSemanticSkillMatchRequest = {
   roleTitle?: string
 }
 
+export type JobSyndicationPost = {
+  company: string
+  createdAt: string
+  description: string
+  employmentType: 'contract' | 'full_time' | 'part_time' | 'temporary'
+  googleJobsPayload: Record<string, unknown>
+  id: string
+  location: string
+  partnerPayload: Record<string, unknown>
+  roleTitle: string
+  salary: {
+    currency?: string
+    maxCents?: number
+    minCents?: number
+  }
+  status: 'blocked' | 'draft' | 'published' | 'queued'
+  updatedAt: string
+  validationErrors: string[]
+}
+
+export type JobSyndicationDelivery = {
+  createdAt: string
+  destination: 'google_jobs_markup' | 'partner_network' | 'workflowfy_digest'
+  id: string
+  postId: string
+  request: Record<string, unknown>
+  response: Record<string, unknown>
+  status: 'blocked' | 'delivered' | 'failed' | 'queued'
+  updatedAt: string
+}
+
+export type JobSyndicationState = {
+  deliveries: JobSyndicationDelivery[]
+  posts: JobSyndicationPost[]
+  summary: {
+    blockedPosts: number
+    queuedDeliveries: number
+    queuedPosts: number
+    syndicationPosts: number
+  }
+}
+
+export type CreateJobSyndicationPostRequest = {
+  company?: string
+  description?: string
+  employmentType?: 'contract' | 'full_time' | 'part_time' | 'temporary'
+  location?: string
+  roleTitle?: string
+  salaryRange?: {
+    currency?: string
+    maxCents?: number
+    minCents?: number
+  }
+}
+
 type JobsFlowErrorContext =
   | 'audit'
   | 'auth'
   | 'backend'
   | 'interview-prep'
+  | 'job-syndication'
   | 'packet'
   | 'passive-sourcing'
   | 'pipeline'
@@ -822,6 +879,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
         return 'Start an employer workspace first, then JobsFlow can run semantic skill matching.'
       }
 
+      if (context === 'job-syndication') {
+        return 'Start an employer workspace first, then JobsFlow can validate and queue job syndication payloads.'
+      }
+
       if (context === 'resume') {
         return 'Start a workspace first, then resume storage will unlock for this tenant.'
       }
@@ -871,6 +932,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
 
     if (error.code === 'skill_matching_unavailable') {
       return 'Apply the latest D1 migration before using semantic skill matching.'
+    }
+
+    if (error.code === 'job_syndication_unavailable') {
+      return 'Apply the latest D1 migration before using job syndication.'
     }
 
     return error.message
@@ -1226,6 +1291,30 @@ export async function runSemanticSkillMatch(input: RunSemanticSkillMatchRequest)
         minimumSignals: input.minimumSignals,
         requiredSkills: input.requiredSkills,
         roleTitle: input.roleTitle,
+      }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
+}
+
+export async function getJobSyndicationState() {
+  return readJson<{ ok: boolean; state: JobSyndicationState }>(await fetch('/api/job-syndication'))
+}
+
+export async function createJobSyndicationPost(input: CreateJobSyndicationPostRequest) {
+  return readJson<{ ok: boolean; postId: string; state: JobSyndicationState }>(
+    await fetch('/api/job-syndication', {
+      body: JSON.stringify({
+        action: 'validate_and_queue',
+        company: input.company,
+        description: input.description,
+        employmentType: input.employmentType,
+        location: input.location,
+        roleTitle: input.roleTitle,
+        salaryRange: input.salaryRange,
       }),
       headers: {
         'content-type': 'application/json',
