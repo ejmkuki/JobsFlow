@@ -234,14 +234,44 @@ Recommended auth path for the first protected beta is Cloudflare Access in front
 
 ## Production Smoke Test
 
-Use the smoke test after setting a private bootstrap token in the current terminal. The script creates a real signed session, uploads a tiny test PDF to R2, reads resume metadata from D1, and reads tenant-scoped audit events. It does not print the token.
+Use the smoke tests after setting a private bootstrap token in the current terminal. The scripts create real signed smoke tenants in production and do not print the token.
 
 ```powershell
 $env:JOBSFLOW_BOOTSTRAP_TOKEN="your-private-token"
 npm run cf:smoke
 ```
 
+`npm run cf:smoke` checks the original production path: session creation, R2 resume upload, D1 resume metadata, packet review, and tenant-scoped audit events.
+
+The full core production QA harness exercises every JobsFlow pillar endpoint:
+
+```powershell
+$env:JOBSFLOW_BOOTSTRAP_TOKEN="your-private-token"
+$env:NODE_OPTIONS="--use-system-ca"
+npm run cf:smoke:core
+```
+
+On Windows networks where Node cannot verify the Cloudflare certificate chain, keep `NODE_OPTIONS=--use-system-ca` set for smoke commands.
+
 If the original generated bootstrap token was not stored, rotate `AUTH_BOOTSTRAP_TOKEN` in Cloudflare Pages first, then use the same value only in the terminal running the smoke test.
+
+Smoke cleanup is guarded and only targets tenants with synthetic JobsFlow smoke email prefixes by default. It deletes matching R2 resume objects first, then deletes matching tenants from D1 with foreign-key cascade enabled. Tenants that only have smoke-like names but non-synthetic email addresses are reported and left untouched unless `--include-smoke-named-tenants` is explicitly provided.
+
+Dry run:
+
+```powershell
+. .\.cloudflare.local.ps1
+$env:NODE_OPTIONS="--use-system-ca"
+npm run cf:smoke:cleanup
+```
+
+Confirmed cleanup:
+
+```powershell
+. .\.cloudflare.local.ps1
+$env:NODE_OPTIONS="--use-system-ca"
+npm run cf:smoke:cleanup -- --confirm
+```
 
 ## Deploy
 
