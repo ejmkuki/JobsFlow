@@ -536,9 +536,7 @@ html[data-jobsflow-clerk-mode="email"] .cl-dividerText {
 
 .cl-rootBox .cl-otpCodeField,
 .cl-card .cl-otpCodeField,
-.cl-modalContent .cl-otpCodeField,
-.cl-formFieldInputGroup:has(input[inputmode="numeric"]),
-.cl-formFieldInputGroup:has(input[autocomplete="one-time-code"]) {
+.cl-modalContent .cl-otpCodeField {
   display: flex !important;
   flex-flow: row nowrap !important;
   gap: 6px !important;
@@ -552,16 +550,12 @@ html[data-jobsflow-clerk-mode="email"] .cl-dividerText {
   padding-left: 0 !important;
   overflow: visible !important;
   transform: none !important;
+  cursor: text !important;
 }
 
 .cl-rootBox .cl-otpCodeFieldInput,
 .cl-card .cl-otpCodeFieldInput,
-.cl-modalContent .cl-otpCodeFieldInput,
-.cl-rootBox .cl-otpCodeField input,
-.cl-card .cl-otpCodeField input,
-.cl-modalContent .cl-otpCodeField input,
-.cl-formFieldInputGroup input[inputmode="numeric"],
-.cl-formFieldInputGroup input[autocomplete="one-time-code"] {
+.cl-modalContent .cl-otpCodeFieldInput {
   flex: 0 0 36px !important;
   width: 36px !important;
   min-width: 36px !important;
@@ -582,16 +576,27 @@ html[data-jobsflow-clerk-mode="email"] .cl-dividerText {
   border-radius: 8px !important;
   box-shadow: none !important;
   caret-color: #0284c7 !important;
+  cursor: text !important;
+}
+
+.cl-rootBox .cl-otpCodeFieldInput:not(input),
+.cl-card .cl-otpCodeFieldInput:not(input),
+.cl-modalContent .cl-otpCodeFieldInput:not(input) {
+  pointer-events: none !important;
+}
+
+.cl-rootBox .cl-otpCodeField input,
+.cl-card .cl-otpCodeField input,
+.cl-modalContent .cl-otpCodeField input,
+.cl-formFieldInputGroup input[inputmode="numeric"],
+.cl-formFieldInputGroup input[autocomplete="one-time-code"] {
+  pointer-events: auto !important;
+  cursor: text !important;
 }
 
 .cl-rootBox .cl-otpCodeFieldInput:focus,
 .cl-card .cl-otpCodeFieldInput:focus,
-.cl-modalContent .cl-otpCodeFieldInput:focus,
-.cl-rootBox .cl-otpCodeField input:focus,
-.cl-card .cl-otpCodeField input:focus,
-.cl-modalContent .cl-otpCodeField input:focus,
-.cl-formFieldInputGroup input[inputmode="numeric"]:focus,
-.cl-formFieldInputGroup input[autocomplete="one-time-code"]:focus {
+.cl-modalContent .cl-otpCodeFieldInput:focus {
   border-color: #0284c7 !important;
   outline: 3px solid rgba(56, 189, 248, 0.22) !important;
   outline-offset: 1px !important;
