@@ -112,6 +112,28 @@ type LandingSearchIntent = {
   location: string
 }
 
+function JobsFlowLogoMark({ className = 'brand-mark' }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      focusable="false"
+      viewBox="0 0 48 48"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect className="brand-mark-bg" height="48" rx="10" width="48" />
+      <path
+        className="brand-mark-j"
+        d="M16 13v17.5c0 5.2 3.6 8.5 8.8 8.5 4.1 0 7.1-1.8 8.8-4.8"
+      />
+      <path className="brand-mark-flow" d="M23 16h10.4" />
+      <path className="brand-mark-flow" d="M30.5 11.8 35 16l-4.5 4.2" />
+      <circle className="brand-mark-node-primary" cx="16" cy="13" r="3.4" />
+      <circle className="brand-mark-node-accent" cx="35" cy="16" r="3.2" />
+    </svg>
+  )
+}
+
 const ssoProviderActions: Array<{ key: JobsFlowSsoProviderKey; label: string }> = [
   { key: 'google', label: 'Google' },
   { key: 'apple', label: 'Apple' },
@@ -1093,7 +1115,7 @@ function LandingHero({
     <section className="landing-hero" aria-labelledby="landing-title">
       <div className="landing-hero-inner">
         <div className="hero-wordmark" aria-label="JobsFlow AI">
-          <span className="brand-mark hero-brand-mark">J</span>
+          <JobsFlowLogoMark className="brand-mark hero-brand-mark" />
           <span>JobsFlow AI</span>
         </div>
 
@@ -1488,7 +1510,7 @@ function AuthPanel({
       <section className="auth-gateway" aria-label="JobsFlow account access">
         <div className="auth-gateway-inner">
           <div className="auth-gateway-wordmark" aria-label="JobsFlow AI">
-            <span className="brand-mark">J</span>
+            <JobsFlowLogoMark />
             <strong>JobsFlow AI</strong>
           </div>
 
@@ -4911,7 +4933,7 @@ function App() {
     <div className="app-root">
       <header className="app-shell-header">
         <a className="brand" href="/" aria-label="JobsFlow AI home">
-          <span className="brand-mark">J</span>
+          <JobsFlowLogoMark />
           <span>
             <strong>JobsFlow AI</strong>
             <small>by Momentum AI Technologies</small>

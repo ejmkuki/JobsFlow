@@ -38,14 +38,40 @@
 }
 
 .brand-mark {
-  display: grid;
+  display: block;
   width: 34px;
   height: 34px;
-  place-items: center;
-  color: #ffffff;
-  font-weight: 900;
-  background: var(--teal);
-  border-radius: 8px;
+  flex: 0 0 auto;
+  overflow: visible;
+  filter: drop-shadow(0 8px 14px rgba(6, 78, 59, 0.16));
+}
+
+.brand-mark-bg {
+  fill: #087f7a;
+}
+
+.brand-mark-j {
+  fill: none;
+  stroke: #ffffff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 5.1;
+}
+
+.brand-mark-flow {
+  fill: none;
+  stroke: #a7f3d0;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3.2;
+}
+
+.brand-mark-node-primary {
+  fill: #ffffff;
+}
+
+.brand-mark-node-accent {
+  fill: #a7f3d0;
 }
 
 .brand strong,
