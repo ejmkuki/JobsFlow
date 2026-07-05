@@ -112,15 +112,15 @@ type LandingSearchIntent = {
   location: string
 }
 
-const ssoProviderActions: Array<{ key: JobsFlowSsoProviderKey; label: string }> = [
-  { key: 'google', label: 'Google' },
-  { key: 'apple', label: 'Apple' },
+const ssoProviderActions: Array<{ key: JobsFlowSsoProviderKey; label: string; visibleInGateway?: boolean }> = [
+  { key: 'google', label: 'Google', visibleInGateway: true },
+  { key: 'apple', label: 'Apple', visibleInGateway: true },
   { key: 'linkedin_oidc', label: 'LinkedIn' },
   { key: 'microsoft', label: 'Microsoft' },
   { key: 'facebook', label: 'Facebook' },
   { key: 'github', label: 'GitHub' },
   { key: 'x', label: 'X' },
-  { key: 'email', label: 'Email' },
+  { key: 'email', label: 'Email', visibleInGateway: true },
 ]
 
 const ssoProviderIconText: Record<JobsFlowSsoProviderKey, string> = {
@@ -1478,7 +1478,9 @@ function AuthPanel({
   }, [session])
 
   if (!session) {
-    const oauthProviders = ssoProviderActions.filter((provider) => provider.key !== 'email')
+    const oauthProviders = ssoProviderActions.filter(
+      (provider) => provider.key !== 'email' && provider.visibleInGateway,
+    )
     const gatewayStatus = !sso.configured
       ? 'Secure sign-in is not connected yet.'
       : !sso.isLoaded
