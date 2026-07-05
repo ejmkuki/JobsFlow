@@ -118,18 +118,23 @@ function JobsFlowLogoMark({ className = 'brand-mark' }: { className?: string }) 
       aria-hidden="true"
       className={className}
       focusable="false"
-      viewBox="0 0 48 48"
+      viewBox="0 0 64 48"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect className="brand-mark-bg" height="48" rx="10" width="48" />
       <path
-        className="brand-mark-j"
-        d="M16 13v17.5c0 5.2 3.6 8.5 8.8 8.5 4.1 0 7.1-1.8 8.8-4.8"
+        className="brand-mark-jf-shadow"
+        d="M7.8 40.3h13.8c6.9 0 12.1-5.3 12.1-12.2V8.2l-8.4 7.9v11.4c0 2.8-1.8 4.6-4.6 4.6h-5.5l-7.4 8.2Z"
       />
-      <path className="brand-mark-flow" d="M23 16h10.4" />
-      <path className="brand-mark-flow" d="M30.5 11.8 35 16l-4.5 4.2" />
-      <circle className="brand-mark-node-primary" cx="16" cy="13" r="3.4" />
-      <circle className="brand-mark-node-accent" cx="35" cy="16" r="3.2" />
+      <path
+        className="brand-mark-jf-primary"
+        d="M12.8 36.5h8.7c4.7 0 8.1-3.4 8.1-8.3V6.7l-8.3 7.7v13.2c0 2.9-1.8 4.8-4.7 4.8h-0.3l-3.5 4.1Z"
+      />
+      <path
+        className="brand-mark-jf-primary"
+        d="M29.7 6.7h26.8l-5.4 7.7H39.5c-2.8 0-4.7 1.9-4.7 4.7v21.2h-9.5V18.5c0-5 1.6-8.7 4.4-11.8Z"
+      />
+      <path className="brand-mark-jf-accent" d="M34.8 22.5h18.7l-5.2 7.5H34.8v-7.5Z" />
+      <path className="brand-mark-jf-highlight" d="M21.3 14.4 29.6 6.7v21.5c0 4.9-3.4 8.3-8.1 8.3h-4.7c3.3-1.5 4.5-4.4 4.5-8.4V14.4Z" />
     </svg>
   )
 }
