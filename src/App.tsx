@@ -187,6 +187,8 @@ const ssoProviderActions: Array<{ key: JobsFlowSsoProviderKey; label: string }> 
   { key: 'email', label: 'Email' },
 ]
 
+const productionOauthProviderKeys = new Set<JobsFlowSsoProviderKey>(['google', 'apple'])
+
 const ssoProviderIconText: Record<JobsFlowSsoProviderKey, string> = {
   apple: 'A',
   email: '@',
@@ -1539,7 +1541,9 @@ function AuthPanel({
   }, [session])
 
   if (!session) {
-    const oauthProviders = ssoProviderActions.filter((provider) => provider.key !== 'email')
+    const oauthProviders = ssoProviderActions.filter(
+      (provider) => provider.key !== 'email' && productionOauthProviderKeys.has(provider.key),
+    )
     const gatewayStatus = !sso.configured
       ? 'Secure sign-in is not connected yet.'
       : !sso.isLoaded
