@@ -46,22 +46,25 @@
   filter: drop-shadow(0 8px 14px rgba(6, 78, 59, 0.14));
 }
 
-.brand-mark-jf-primary {
-  fill: #0a8f8a;
+.brand-mark-jf-j-base {
+  fill: #93c5fd;
+}
+
+.brand-mark-jf-j {
+  fill: #2563eb;
+}
+
+.brand-mark-jf-f {
+  fill: #0f766e;
 }
 
 .brand-mark-jf-accent {
-  fill: #11b8a7;
-}
-
-.brand-mark-jf-shadow {
-  fill: #075985;
-  opacity: 0.18;
+  fill: #14b8a6;
 }
 
 .brand-mark-jf-highlight {
-  fill: #5eead4;
-  opacity: 0.36;
+  fill: #bfdbfe;
+  opacity: 0.47;
 }
 
 .brand strong,
