@@ -112,15 +112,15 @@ type LandingSearchIntent = {
   location: string
 }
 
-const ssoProviderActions: Array<{ key: JobsFlowSsoProviderKey; label: string; visibleInGateway?: boolean }> = [
-  { key: 'google', label: 'Google', visibleInGateway: true },
-  { key: 'apple', label: 'Apple', visibleInGateway: true },
+const ssoProviderActions: Array<{ key: JobsFlowSsoProviderKey; label: string }> = [
+  { key: 'google', label: 'Google' },
+  { key: 'apple', label: 'Apple' },
   { key: 'linkedin_oidc', label: 'LinkedIn' },
   { key: 'microsoft', label: 'Microsoft' },
   { key: 'facebook', label: 'Facebook' },
   { key: 'github', label: 'GitHub' },
   { key: 'x', label: 'X' },
-  { key: 'email', label: 'Email', visibleInGateway: true },
+  { key: 'email', label: 'Email' },
 ]
 
 const ssoProviderIconText: Record<JobsFlowSsoProviderKey, string> = {
@@ -1296,6 +1296,7 @@ function AuthPanel({
   const [isBusy, setIsBusy] = useState(false)
   const sso = useJobsFlowSso()
   const autoSsoSessionAttempted = useRef(false)
+  const hostedSignInUrl = `https://accounts.jobsflowai.ai/sign-in?redirect_url=${encodeURIComponent(window.location.href)}`
   const selectedChecklist =
     accountType === 'candidate' ? candidateActivationChecklist : employerActivationChecklist
 
@@ -1382,11 +1383,8 @@ function AuthPanel({
       }
 
       if (!sso.isLoaded) {
-        setMessage(
-          sso.loadTimedOut
-            ? 'SSO is connected, but this browser could not load Clerk yet. Hard refresh, disable blockers for JobsFlow and Clerk, or use the private beta fallback.'
-            : 'SSO is loading. The provider buttons will unlock as soon as Clerk is ready.',
-        )
+        setMessage('Opening secure sign-in through Clerk.')
+        window.location.assign(hostedSignInUrl)
         return
       }
 
@@ -1403,7 +1401,7 @@ function AuthPanel({
       )
       void sso.openProviderSignIn(provider)
     },
-    [handleCreateSsoSession, sso],
+    [handleCreateSsoSession, hostedSignInUrl, sso],
   )
 
   function handleEmailContinue(event: FormEvent<HTMLFormElement>) {
@@ -1478,9 +1476,7 @@ function AuthPanel({
   }, [session])
 
   if (!session) {
-    const oauthProviders = ssoProviderActions.filter(
-      (provider) => provider.key !== 'email' && provider.visibleInGateway,
-    )
+    const oauthProviders = ssoProviderActions.filter((provider) => provider.key !== 'email')
     const gatewayStatus = !sso.configured
       ? 'Secure sign-in is not connected yet.'
       : !sso.isLoaded
@@ -1544,7 +1540,7 @@ function AuthPanel({
                 />
               </label>
               <button
-                disabled={isBusy || !sso.configured || !sso.isLoaded || !email.trim()}
+                disabled={isBusy || !sso.configured || !email.trim()}
                 type="submit"
               >
                 Continue
