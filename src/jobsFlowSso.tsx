@@ -72,7 +72,12 @@ const emailOnlyClerkAppearance = {
 
 const oauthStrategyByProvider = {
   apple: 'oauth_apple',
+  facebook: 'oauth_facebook',
+  github: 'oauth_github',
   google: 'oauth_google',
+  linkedin_oidc: 'oauth_linkedin_oidc',
+  microsoft: 'oauth_microsoft',
+  x: 'oauth_x',
 } as const
 
 function ClerkBridge({ children }: { children: ReactNode }) {
@@ -131,6 +136,17 @@ function ClerkBridge({ children }: { children: ReactNode }) {
       return
     }
 
+    if (!(provider in oauthStrategyByProvider)) {
+      openSignIn({
+        appearance: jobsFlowClerkAppearance,
+        fallbackRedirectUrl: redirectUrlComplete,
+        forceRedirectUrl: redirectUrlComplete,
+        signUpFallbackRedirectUrl: redirectUrlComplete,
+        withSignUp: true,
+      })
+      return
+    }
+
     delete document.documentElement.dataset.jobsflowClerkMode
     if (!isSignInLoaded || !signIn) {
       openSignIn({
@@ -148,7 +164,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
       continueSignUp: true,
       redirectUrl,
       redirectUrlComplete,
-      strategy: oauthStrategyByProvider[provider],
+      strategy: oauthStrategyByProvider[provider as keyof typeof oauthStrategyByProvider],
     })
   }
 

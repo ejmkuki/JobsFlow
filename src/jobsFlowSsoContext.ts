@@ -1,6 +1,14 @@
 import { createContext, useContext } from 'react'
 
-export type JobsFlowSsoProviderKey = 'apple' | 'email' | 'google'
+export type JobsFlowSsoProviderKey =
+  | 'apple'
+  | 'email'
+  | 'facebook'
+  | 'github'
+  | 'google'
+  | 'linkedin_oidc'
+  | 'microsoft'
+  | 'x'
 
 export type JobsFlowSsoContextValue = {
   configured: boolean

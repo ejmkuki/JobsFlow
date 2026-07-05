@@ -1,6 +1,7 @@
 const baseUrl = process.env.JOBSFLOW_BASE_URL ?? 'https://jobsflow.workflowfy.ai'
 const explicitFrontendApi = process.env.JOBSFLOW_CLERK_FRONTEND_API?.trim()
 const shouldRequireApple = process.argv.includes('--require-apple')
+const shouldRequireAllSocial = process.argv.includes('--require-all-social')
 
 function parseJson(text) {
   try {
@@ -83,7 +84,16 @@ function inspectAuthConfig(authConfig) {
     includesStrategy(firstFactors, 'email_code') ||
     includesStrategy(firstFactors, 'email_link')
   const appleEnabled = includesStrategy(identificationStrategies, 'oauth_apple') || includesStrategy(firstFactors, 'oauth_apple')
+  const facebookEnabled = includesStrategy(identificationStrategies, 'oauth_facebook') || includesStrategy(firstFactors, 'oauth_facebook')
+  const githubEnabled = includesStrategy(identificationStrategies, 'oauth_github') || includesStrategy(firstFactors, 'oauth_github')
   const googleEnabled = includesStrategy(identificationStrategies, 'oauth_google') || includesStrategy(firstFactors, 'oauth_google')
+  const linkedInEnabled =
+    includesStrategy(identificationStrategies, 'oauth_linkedin_oidc') ||
+    includesStrategy(firstFactors, 'oauth_linkedin_oidc')
+  const microsoftEnabled =
+    includesStrategy(identificationStrategies, 'oauth_microsoft') ||
+    includesStrategy(firstFactors, 'oauth_microsoft')
+  const xEnabled = includesStrategy(identificationStrategies, 'oauth_x') || includesStrategy(firstFactors, 'oauth_x')
 
   return [
     {
@@ -105,6 +115,31 @@ function inspectAuthConfig(authConfig) {
       method: 'Sign In with Apple',
       ok: appleEnabled,
       evidence: appleEnabled ? 'oauth_apple is enabled' : 'oauth_apple is not configured in Clerk',
+    },
+    {
+      method: 'Sign In with LinkedIn',
+      ok: linkedInEnabled,
+      evidence: linkedInEnabled ? 'oauth_linkedin_oidc is enabled' : 'oauth_linkedin_oidc is not configured in Clerk',
+    },
+    {
+      method: 'Sign In with Microsoft',
+      ok: microsoftEnabled,
+      evidence: microsoftEnabled ? 'oauth_microsoft is enabled' : 'oauth_microsoft is not configured in Clerk',
+    },
+    {
+      method: 'Sign In with Facebook',
+      ok: facebookEnabled,
+      evidence: facebookEnabled ? 'oauth_facebook is enabled' : 'oauth_facebook is not configured in Clerk',
+    },
+    {
+      method: 'Sign In with GitHub',
+      ok: githubEnabled,
+      evidence: githubEnabled ? 'oauth_github is enabled' : 'oauth_github is not configured in Clerk',
+    },
+    {
+      method: 'Sign In with X',
+      ok: xEnabled,
+      evidence: xEnabled ? 'oauth_x is enabled' : 'oauth_x is not configured in Clerk',
     },
   ]
 }
@@ -137,7 +172,28 @@ console.table(
   })),
 )
 
-const requiredMethods = shouldRequireApple ? results : results.filter((result) => result.method !== 'Sign In with Apple')
+const optionalSocialMethods = new Set([
+  'Sign In with Apple',
+  'Sign In with LinkedIn',
+  'Sign In with Microsoft',
+  'Sign In with Facebook',
+  'Sign In with GitHub',
+  'Sign In with X',
+])
+
+function isRequiredAuthMethod(result) {
+  if (shouldRequireAllSocial) {
+    return true
+  }
+
+  if (shouldRequireApple) {
+    return !optionalSocialMethods.has(result.method) || result.method === 'Sign In with Apple'
+  }
+
+  return !optionalSocialMethods.has(result.method)
+}
+
+const requiredMethods = results.filter((result) => isRequiredAuthMethod(result))
 const missingRequiredMethods = requiredMethods.filter((result) => !result.ok)
 
 if (missingRequiredMethods.length) {

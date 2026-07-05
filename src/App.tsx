@@ -115,8 +115,24 @@ type LandingSearchIntent = {
 const ssoProviderActions: Array<{ key: JobsFlowSsoProviderKey; label: string }> = [
   { key: 'google', label: 'Google' },
   { key: 'apple', label: 'Apple' },
+  { key: 'linkedin_oidc', label: 'LinkedIn' },
+  { key: 'microsoft', label: 'Microsoft' },
+  { key: 'facebook', label: 'Facebook' },
+  { key: 'github', label: 'GitHub' },
+  { key: 'x', label: 'X' },
   { key: 'email', label: 'Email' },
 ]
+
+const ssoProviderIconText: Record<JobsFlowSsoProviderKey, string> = {
+  apple: 'A',
+  email: '@',
+  facebook: 'f',
+  github: 'GH',
+  google: 'G',
+  linkedin_oidc: 'in',
+  microsoft: 'M',
+  x: 'X',
+}
 
 type Metric = {
   label: string
@@ -1379,7 +1395,7 @@ function AuthPanel({
         return
       }
 
-      const providerLabel = provider === 'apple' ? 'Apple' : provider === 'google' ? 'Google' : 'Email'
+      const providerLabel = ssoProviderActions.find((action) => action.key === provider)?.label ?? 'Email'
       setMessage(
         provider === 'email'
           ? 'Opening the email sign-in screen.'
@@ -1494,13 +1510,13 @@ function AuthPanel({
               {oauthProviders.map((provider) => (
                 <button
                   className="auth-provider-button"
-                  disabled={isBusy || !sso.configured || !sso.isLoaded}
+                  disabled={isBusy || !sso.configured}
                   key={provider.key}
                   onClick={() => handleProviderSignIn(provider.key)}
                   type="button"
                 >
                   <span className={`auth-provider-icon auth-provider-icon-${provider.key}`}>
-                    {provider.key === 'google' ? 'G' : 'A'}
+                    {ssoProviderIconText[provider.key]}
                   </span>
                   Continue with {provider.label}
                 </button>

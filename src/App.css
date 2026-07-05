@@ -664,6 +664,27 @@
   background: #111827;
 }
 
+.auth-provider-icon-linkedin_oidc {
+  background: #0a66c2;
+}
+
+.auth-provider-icon-microsoft {
+  background: #5e5e5e;
+}
+
+.auth-provider-icon-facebook {
+  background: #1877f2;
+}
+
+.auth-provider-icon-github {
+  font-size: 0.74rem;
+  background: #24292f;
+}
+
+.auth-provider-icon-x {
+  background: #000000;
+}
+
 .auth-gateway-divider {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
