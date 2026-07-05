@@ -1,4 +1,4 @@
-const baseUrl = process.env.JOBSFLOW_BASE_URL ?? 'https://jobsflow.workflowfy.ai'
+const baseUrl = process.env.JOBSFLOW_BASE_URL ?? 'https://jobsflowai.ai'
 const explicitFrontendApi = process.env.JOBSFLOW_CLERK_FRONTEND_API?.trim()
 const shouldRequireApple = process.argv.includes('--require-apple')
 const shouldRequireAllSocial = process.argv.includes('--require-all-social')
