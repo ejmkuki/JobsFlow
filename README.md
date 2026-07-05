@@ -166,7 +166,7 @@ $env:NODE_OPTIONS="--use-system-ca"
 npm run cf:auth:audit
 ```
 
-Current production Clerk frontend API: `clerk.workflowfy.ai`. Email sign-up and email sign-in are enabled through Clerk email/password flows. Google is enabled. Apple requires a production Apple Developer setup before Clerk exposes `oauth_apple`: create the Apple App ID, Services ID, Key ID, and private key; add `clerk.workflowfy.ai` as the Apple Services ID domain; add Clerk's Apple return URL in Apple; then enable Apple under Clerk SSO connections with custom credentials. Re-run `npm run cf:auth:audit -- --require-apple` after Apple is configured.
+Current production Clerk frontend API should follow the active primary domain: `clerk.jobsflowai.ai`, with `clerk.workflowfy.ai` allowed during the transition. Email sign-up and email sign-in are enabled through Clerk email/password flows. Google is enabled. Apple requires a production Apple Developer setup before Clerk exposes `oauth_apple`: create the Apple App ID, Services ID, Key ID, and private key; add the active Clerk frontend API domain as the Apple Services ID domain; add Clerk's Apple return URL in Apple; then enable Apple under Clerk SSO connections with custom credentials. Re-run `npm run cf:auth:audit -- --require-apple` after Apple is configured.
 
 Production activation:
 
