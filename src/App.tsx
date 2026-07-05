@@ -4918,6 +4918,8 @@ function App() {
           </span>
         </a>
 
+        <div className="launch-notice" role="status">Coming Soon</div>
+
         <nav className="header-nav" aria-label="JobsFlow sections">
           {workspaces.map((workspace) => (
             <WorkspaceButton

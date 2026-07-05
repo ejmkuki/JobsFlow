@@ -60,12 +60,34 @@
   font-size: 0.78rem;
 }
 
+.launch-notice {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  color: #075985;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+  border-radius: 999px;
+  transform: translateX(-50%);
+}
+
 .header-nav {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 28px;
   min-width: 0;
+  padding-top: 16px;
 }
 
 .header-nav-link {
@@ -3490,6 +3512,12 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
     padding: 14px 24px;
   }
 
+  .launch-notice {
+    position: static;
+    justify-self: start;
+    transform: none;
+  }
+
   .onboarding-panel,
   .ops-layer,
   .auth-panel,
@@ -3505,6 +3533,10 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
   .header-nav,
   .header-actions {
     justify-content: flex-start;
+  }
+
+  .header-nav {
+    padding-top: 0;
   }
 
   .landing-hero {
