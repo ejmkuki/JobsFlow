@@ -1098,12 +1098,11 @@ function LandingHero({
         </div>
 
         <h1 id="landing-title">
-          JobsFlow AI turns resumes, job descriptions, interviews, and hiring signals
-          into automated match pipelines.
+          AI-powered pipelines that match candidates and employers with precision.
         </h1>
         <p>
-          Optimize your profile, track applications, prep for interviews, and help
-          employers find verified-fit candidates faster.
+          Optimize your profile, automate your job search, prep for interviews, and help
+          hiring teams discover verified fit talent faster.
         </p>
 
         <form className="landing-search" aria-label="Start a JobsFlow match" onSubmit={handleSubmit}>
