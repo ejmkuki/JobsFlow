@@ -4901,7 +4901,7 @@ function App() {
           <span className="brand-mark">J</span>
           <span>
             <strong>JobsFlow AI</strong>
-            <small>by Workflowfy AI</small>
+            <small>by Momentum AI Technologies</small>
           </span>
         </a>
 

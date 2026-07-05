@@ -1,10 +1,10 @@
-# JobsFlow by Workflowfy AI
+# JobsFlow by Momentum AI Technologies
 
-JobsFlow by Workflowfy AI is the candidate-trusted, employer-ready AI hiring workflow platform for `https://jobsflow.workflowfy.ai`.
+JobsFlow by Momentum AI Technologies is the candidate-trusted, employer-ready AI hiring workflow platform for `https://jobsflow.workflowfy.ai`.
 
 JobsFlow is being shaped as a candidate-trusted, employer-ready AI hiring workflow platform. The current build includes the frontend workspace plus a Cloudflare-ready backend slice for signed sessions, tenants, resume storage, and audit logs. It does not submit applications, send email, charge cards, scrape job boards, or run AI calls.
 
-Workflowfy AI is the public brand and product layer for JobsFlow.
+Momentum AI Technologies is the public brand and product layer for JobsFlow.
 
 ## Strategy Memo
 
