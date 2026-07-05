@@ -35,6 +35,7 @@ export type Env = {
   CLERK_ISSUER?: string
   CLERK_JWKS_URL?: string
   CLERK_SECRET_KEY?: string
+  RESEND_API_KEY?: string
 }
 
 export type RequestContext = {

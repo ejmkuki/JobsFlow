@@ -90,6 +90,7 @@ import {
   runPipelineStaleCheck,
   runPrescreeningSession,
   seedAtsSyncConnections,
+  sendEmailTest,
   startWorkflowRun,
   uploadResume,
 } from './backendClient'
@@ -1816,6 +1817,23 @@ function BackendStatusPanel({
     }
   }
 
+  async function sendOutboundEmailTest() {
+    if (!session) {
+      setMessage('Start a workspace first, then JobsFlow can send a Resend test email to the signed-in address.')
+      return
+    }
+
+    setIsBusy(true)
+    try {
+      const result = await sendEmailTest()
+      setMessage(`Resend accepted the JobsFlow test email for ${result.recipient}. Message id ${result.emailId.slice(0, 8)}...`)
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'email'))
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
   useEffect(() => {
     void refreshBackend()
   }, [refreshBackend])
@@ -1827,6 +1845,7 @@ function BackendStatusPanel({
         ['Session signing', health.bindings.sessionSecret],
         ['Private beta gate', health.bindings.bootstrapToken],
         ['SSO provider', Boolean(health.features?.ssoProvider)],
+        ['Outbound email', Boolean(health.features?.outboundEmail || health.bindings.emailProvider)],
         ['Packet review engine', Boolean(health.features?.packetReviewEngine)],
       ]
     : []
@@ -1854,6 +1873,14 @@ function BackendStatusPanel({
             <button disabled={isBusy} onClick={loadAuditEvents} type="button">
               <DatabaseZap size={16} aria-hidden="true" />
               Load audit log
+            </button>
+            <button
+              disabled={isBusy || !session || !(health?.features?.outboundEmail || health?.bindings.emailProvider)}
+              onClick={sendOutboundEmailTest}
+              type="button"
+            >
+              <MailCheck size={16} aria-hidden="true" />
+              Send email test
             </button>
           </div>
         </div>

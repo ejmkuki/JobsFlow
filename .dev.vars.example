@@ -4,4 +4,5 @@ ALLOW_DEV_AUTH=true
 CLERK_ISSUER=https://your-clerk-issuer.example
 CLERK_JWKS_URL=https://your-clerk-issuer.example/.well-known/jwks.json
 CLERK_SECRET_KEY=sk_test_replace-with-clerk-secret-key
-CLERK_AUTHORIZED_PARTIES=http://localhost:5173,https://jobsflow.workflowfy.ai
+CLERK_AUTHORIZED_PARTIES=http://localhost:5173,https://jobsflow.workflowfy.ai,https://jobsflowai.ai,https://www.jobsflowai.ai
+RESEND_API_KEY=re_replace-with-resend-api-key

@@ -2,6 +2,7 @@ export type BackendHealth = {
   bindings: {
     bootstrapToken: boolean
     db: boolean
+    emailProvider: boolean
     resumeBucket: boolean
     sessionSecret: boolean
   }
@@ -14,6 +15,7 @@ export type BackendHealth = {
     interviewPrep?: boolean
     jobSyndication?: boolean
     passiveSourcing?: boolean
+    outboundEmail?: boolean
     packetReviewEngine: boolean
     prescreening?: boolean
     resumeIntelligence?: boolean
@@ -34,6 +36,21 @@ export type BackendSession = {
   role: string
   tenantId: string
   userId: string
+}
+
+export type EmailProviderStatus = {
+  availableActions: string[]
+  configured: boolean
+  from: string
+  ok: boolean
+  recipient: string
+  replyTo: string
+}
+
+export type EmailTestResult = {
+  emailId: string
+  ok: boolean
+  recipient: string
 }
 
 export type SessionRequest = {
@@ -974,6 +991,7 @@ type JobsFlowErrorContext =
   | 'audit'
   | 'auth'
   | 'backend'
+  | 'email'
   | 'interview-prep'
   | 'job-syndication'
   | 'packet'
@@ -1091,6 +1109,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
         return 'Start a workspace first, then the audit trail will show tenant-scoped activity.'
       }
 
+      if (context === 'email') {
+        return 'Start a workspace first, then JobsFlow can send a Resend test email to the signed-in address.'
+      }
+
       return 'No active workspace yet. Enter your email and private beta code to begin.'
     }
 
@@ -1099,7 +1121,15 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
     }
 
     if (error.code === 'missing_configuration') {
+      if (context === 'email') {
+        return 'JobsFlow is waiting for the Resend production secret before sending outbound email.'
+      }
+
       return 'JobsFlow is holding this action because a production setting is missing.'
+    }
+
+    if (error.code === 'resend_unavailable') {
+      return error.message
     }
 
     if (error.code === 'workflow_kernel_unavailable') {
@@ -1158,6 +1188,22 @@ export async function getBackendHealth() {
 
 export async function getBackendSession() {
   return readJson<{ authenticated: boolean; session: BackendSession }>(await fetch('/api/session'))
+}
+
+export async function getEmailProviderStatus() {
+  return readJson<EmailProviderStatus>(await fetch('/api/email'))
+}
+
+export async function sendEmailTest() {
+  return readJson<EmailTestResult>(
+    await fetch('/api/email', {
+      body: JSON.stringify({ action: 'send_test' }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }),
+  )
 }
 
 export async function createJobsFlowSession(input: SessionRequest) {

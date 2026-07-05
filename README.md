@@ -119,6 +119,7 @@ The app now includes a real Cloudflare-ready backend surface:
 - `functions/api/prescreening.ts`: runs conversational pre-screening agents for minimum criteria, transcript capture, risk flags, and scheduling recommendations.
 - `functions/api/achievement-profiles.ts`: runs dynamic achievement profile generation from resume evidence into structured cards and credential verification records.
 - `functions/api/ats-sync.ts`: runs ATS synchronizer setup for OAuth boundaries, Greenhouse/Lever/Workday mappings, dry-run sync runs, and event logs.
+- `functions/api/email.ts`: sends authenticated transactional email tests through Resend and records a tenant-scoped audit event.
 - `migrations/0001_initial.sql`: creates tenants, users, sessions, candidate profiles, resume artifacts, and audit events.
 - `migrations/0002_application_packet_review.sql`: creates application packets, review gates, and state transitions.
 - `migrations/0003_workflow_kernel.sql`: creates the workflow kernel tables that every production JobsFlow pillar should use.
@@ -133,7 +134,7 @@ The app now includes a real Cloudflare-ready backend surface:
 - `migrations/0012_dynamic_achievement_profiles.sql`: creates achievement profiles, profile cards, and credential verifications.
 - `migrations/0013_ats_synchronizers.sql`: creates ATS connections, sync mappings, sync runs, and sync events.
 
-The backend fails closed when bindings or secrets are missing. It does not submit applications, send email, scrape jobs, charge cards, or expose resume files publicly.
+The backend fails closed when bindings or secrets are missing. It only sends explicit transactional email through Resend when `RESEND_API_KEY` is configured; it does not submit applications, scrape jobs, charge cards, or expose resume files publicly.
 
 ## SSO Direction
 
@@ -153,7 +154,7 @@ VITE_CLERK_PUBLISHABLE_KEY=pk_live_...
 CLERK_ISSUER=https://your-clerk-issuer
 CLERK_JWKS_URL=https://your-clerk-issuer/.well-known/jwks.json
 CLERK_SECRET_KEY=sk_live_...
-CLERK_AUTHORIZED_PARTIES=https://jobsflow.workflowfy.ai
+CLERK_AUTHORIZED_PARTIES=https://jobsflow.workflowfy.ai,https://jobsflowai.ai,https://www.jobsflowai.ai
 ```
 
 The frontend shows SSO as the recommended sign-in path when the publishable key is present. The backend only accepts Clerk sessions after verifying the JWT signature, issuer, expiration, optional authorized party, and Clerk user email through the Clerk Backend API. If SSO keys are not configured, JobsFlow keeps the private beta gate active and reports SSO as not connected.
@@ -237,6 +238,7 @@ Set production secrets in Cloudflare Pages:
 ```bash
 npx wrangler pages secret put AUTH_SESSION_SECRET --project-name=workflowfy-jobsflow
 npx wrangler pages secret put AUTH_BOOTSTRAP_TOKEN --project-name=workflowfy-jobsflow
+npx wrangler pages secret put RESEND_API_KEY --project-name=workflowfy-jobsflow
 ```
 
 Recommended auth path for the first protected beta is Cloudflare Access in front of the Pages app. JobsFlow also supports a private bootstrap-token path for the first founder/admin session. Public candidate signup should wait for a proper auth provider and email verification.

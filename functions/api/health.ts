@@ -71,6 +71,7 @@ export async function onRequestGet({ env }: RequestContext) {
       resumeBucket: Boolean(env.RESUME_BUCKET),
       sessionSecret: Boolean(env.AUTH_SESSION_SECRET),
       bootstrapToken: Boolean(env.AUTH_BOOTSTRAP_TOKEN),
+      emailProvider: Boolean(env.RESEND_API_KEY),
     },
     databaseReady,
     features: {
@@ -85,6 +86,7 @@ export async function onRequestGet({ env }: RequestContext) {
       resumeIntelligence: resumeIntelligenceReady,
       skillMatching: skillMatchingReady,
       ssoProvider: Boolean(env.CLERK_JWKS_URL && env.CLERK_ISSUER && env.CLERK_SECRET_KEY),
+      outboundEmail: Boolean(env.RESEND_API_KEY),
       transparencyBlueprint: transparencyBlueprintReady,
       workflowKernel: workflowKernelReady,
     },
