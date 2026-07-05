@@ -197,6 +197,11 @@
   outline: none;
 }
 
+.header-actions button:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
 .header-post-link {
   position: relative;
 }
@@ -265,6 +270,15 @@
   max-width: 1180px;
   margin: 0 auto;
   padding: 0 28px 48px;
+}
+
+.app-main-landing,
+.app-main-auth {
+  padding-bottom: 0;
+}
+
+.app-main-landing .landing-hero {
+  border-bottom: 0;
 }
 
 .landing-hero {
