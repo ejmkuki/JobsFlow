@@ -1,9 +1,11 @@
 import type { RequestContext } from '../_shared'
 import {
   clearSessionCookieHeader,
+  clientIdentifier,
   createSignedCookieValue,
+  enforceRateLimit,
   getSession,
-  isLocalRequest,
+  isTrustedDevRequest,
   json,
   missingConfig,
   normalizeEmail,
@@ -12,8 +14,10 @@ import {
   safeString,
   sessionCookieHeader,
   sha256Hex,
+  tooManyRequests,
   writeAuditEvent,
 } from '../_shared'
+import { verifyRs256Jwt } from '../_jwt'
 
 type SessionRequestBody = {
   accountType?: 'candidate' | 'employer'
@@ -39,12 +43,6 @@ type SessionAccess =
       message: string
     }
 
-type JwtHeader = {
-  alg?: string
-  kid?: string
-  typ?: string
-}
-
 type JwtPayload = {
   azp?: string
   email?: string
@@ -54,12 +52,12 @@ type JwtPayload = {
   sub?: string
 }
 
-type JwksPayload = {
-  keys?: ClerkJwk[]
-}
-
-type ClerkJwk = JsonWebKey & {
-  kid?: string
+type AccessPayload = {
+  aud?: string | string[]
+  email?: string
+  exp?: number
+  iss?: string
+  sub?: string
 }
 
 type ClerkEmailAddress = {
@@ -76,10 +74,14 @@ type ClerkUser = {
 }
 
 const sessionMaxAgeSeconds = 60 * 60 * 24 * 7
-const tokenEncoder = new TextEncoder()
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function isAllowedRole(value: string): value is NonNullable<SessionRequestBody['role']> {
   return ['candidate', 'recruiter', 'hiring_manager', 'platform_admin'].includes(value)
+}
+
+function isValidEmail(value: unknown): value is string {
+  return typeof value === 'string' && emailPattern.test(value.trim())
 }
 
 async function readBody(request: Request) {
@@ -88,23 +90,6 @@ async function readBody(request: Request) {
   } catch {
     return {}
   }
-}
-
-function decodeBase64Url(value: string) {
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/')
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')
-  const binary = atob(padded)
-  const bytes = new Uint8Array(binary.length)
-
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index)
-  }
-
-  return bytes
-}
-
-function decodeJwtPart<T>(value: string) {
-  return JSON.parse(new TextDecoder().decode(decodeBase64Url(value))) as T
 }
 
 function readBearerToken(request: Request) {
@@ -127,51 +112,12 @@ async function verifyClerkToken(token: string, env: RequestContext['env']) {
     throw new Error('sso_not_configured')
   }
 
-  const parts = token.split('.')
-  if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
-    throw new Error('invalid_sso_token')
-  }
-
-  const [encodedHeader, encodedPayload, encodedSignature] = parts
-  const header = decodeJwtPart<JwtHeader>(encodedHeader)
-  const payload = decodeJwtPart<JwtPayload>(encodedPayload)
-
-  if (header.alg !== 'RS256' || !header.kid) {
-    throw new Error('invalid_sso_token')
-  }
-
-  const jwksResponse = await fetch(env.CLERK_JWKS_URL, {
-    headers: {
-      accept: 'application/json',
-    },
-  })
-
-  if (!jwksResponse.ok) {
-    throw new Error('sso_provider_unavailable')
-  }
-
-  const jwks = (await jwksResponse.json()) as JwksPayload
-  const jwk = jwks.keys?.find((key) => key.kid === header.kid)
-  if (!jwk) {
-    throw new Error('invalid_sso_token')
-  }
-
-  const key = await crypto.subtle.importKey(
-    'jwk',
-    jwk,
-    { hash: 'SHA-256', name: 'RSASSA-PKCS1-v1_5' },
-    false,
-    ['verify'],
-  )
-  const verified = await crypto.subtle.verify(
-    'RSASSA-PKCS1-v1_5',
-    key,
-    decodeBase64Url(encodedSignature),
-    tokenEncoder.encode(`${encodedHeader}.${encodedPayload}`),
-  )
-
-  if (!verified) {
-    throw new Error('invalid_sso_token')
+  let payload: JwtPayload
+  try {
+    ;({ payload } = await verifyRs256Jwt<JwtPayload>(token, env.CLERK_JWKS_URL))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'invalid_sso_token'
+    throw new Error(message === 'jwks_unavailable' ? 'sso_provider_unavailable' : 'invalid_sso_token')
   }
 
   const nowSeconds = Math.floor(Date.now() / 1000)
@@ -197,6 +143,56 @@ async function verifyClerkToken(token: string, env: RequestContext['env']) {
   }
 
   return payload.sub
+}
+
+function accessConfigReady(env: RequestContext['env']) {
+  return Boolean(env.CF_ACCESS_TEAM_DOMAIN && env.CF_ACCESS_AUD)
+}
+
+function normalizeTeamDomain(rawDomain: string) {
+  const trimmed = rawDomain.trim().replace(/\/+$/, '')
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+  return withScheme.replace(/\/$/, '')
+}
+
+// Verifies a Cloudflare Access application token (Cf-Access-Jwt-Assertion).
+// The signed JWT — not the raw authenticated-email header — is the trust
+// anchor: an attacker cannot forge it without the Access team's private key.
+export async function verifyAccessToken(token: string, env: RequestContext['env']) {
+  if (!env.CF_ACCESS_TEAM_DOMAIN || !env.CF_ACCESS_AUD) {
+    throw new Error('access_not_configured')
+  }
+
+  const issuer = normalizeTeamDomain(env.CF_ACCESS_TEAM_DOMAIN)
+  const jwksUrl = `${issuer}/cdn-cgi/access/certs`
+
+  let payload: AccessPayload
+  try {
+    ;({ payload } = await verifyRs256Jwt<AccessPayload>(token, jwksUrl))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'invalid_access_token'
+    throw new Error(message === 'jwks_unavailable' ? 'access_provider_unavailable' : 'invalid_access_token')
+  }
+
+  if (payload.iss !== issuer) {
+    throw new Error('invalid_access_token')
+  }
+
+  const audiences = Array.isArray(payload.aud) ? payload.aud : payload.aud ? [payload.aud] : []
+  if (!audiences.includes(env.CF_ACCESS_AUD)) {
+    throw new Error('invalid_access_audience')
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000)
+  if (typeof payload.exp !== 'number' || payload.exp <= nowSeconds) {
+    throw new Error('expired_access_token')
+  }
+
+  if (!isValidEmail(payload.email)) {
+    throw new Error('access_email_missing')
+  }
+
+  return normalizeEmail(payload.email)
 }
 
 async function getClerkIdentity(subject: string, env: RequestContext['env']) {
@@ -231,7 +227,11 @@ async function getClerkIdentity(subject: string, env: RequestContext['env']) {
   }
 }
 
-async function getSessionAccess(request: Request, env: RequestContext['env']): Promise<SessionAccess> {
+export async function getSessionAccess(
+  request: Request,
+  env: RequestContext['env'],
+  body: SessionRequestBody,
+): Promise<SessionAccess> {
   const bearerToken = readBearerToken(request)
   if (bearerToken) {
     if (!clerkConfigReady(env)) {
@@ -265,18 +265,69 @@ async function getSessionAccess(request: Request, env: RequestContext['env']): P
     }
   }
 
-  const cloudflareAccessEmail = request.headers.get('cf-access-authenticated-user-email')
-  if (cloudflareAccessEmail) {
-    return { allowed: true as const, mode: 'cloudflare_access' }
+  // Cloudflare Access: trust only the signed application token, never the
+  // plaintext cf-access-authenticated-user-email header (which is trivially
+  // spoofable if the app is ever reachable outside the Access tunnel).
+  const accessAssertion = request.headers.get('cf-access-jwt-assertion')
+  if (accessAssertion) {
+    if (!accessConfigReady(env)) {
+      return {
+        allowed: false,
+        error: 'access_not_configured',
+        message: 'Workspace access is still being prepared. Please try again shortly.',
+      }
+    }
+
+    try {
+      const email = await verifyAccessToken(accessAssertion, env)
+      return {
+        allowed: true,
+        externalUserId: email,
+        identity: { displayName: email.split('@')[0] ?? 'JobsFlow User', email },
+        mode: 'cloudflare_access',
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'invalid_access_token'
+      return {
+        allowed: false,
+        error: message,
+        message: 'We could not confirm your workspace access. Please try again.',
+      }
+    }
   }
 
+  // Bootstrap token: a privileged operator path. It must still name a real
+  // account email so two operators never collapse into one shared tenant.
   const bootstrapToken = request.headers.get('x-jobsflow-bootstrap-token')
   if (env.AUTH_BOOTSTRAP_TOKEN && bootstrapToken === env.AUTH_BOOTSTRAP_TOKEN) {
-    return { allowed: true as const, mode: 'bootstrap_token' }
+    if (!isValidEmail(body.email)) {
+      return {
+        allowed: false,
+        error: 'bootstrap_email_required',
+        message: 'Provide the account email to start a workspace with this invite code.',
+      }
+    }
+
+    const email = normalizeEmail(body.email)
+    return {
+      allowed: true,
+      externalUserId: `bootstrap:${email}`,
+      identity: { displayName: safeString(body.displayName, email.split('@')[0] ?? 'JobsFlow User'), email },
+      mode: 'bootstrap_token',
+    }
   }
 
-  if (env.ALLOW_DEV_AUTH === 'true' || isLocalRequest(request)) {
-    return { allowed: true as const, mode: 'local_development' }
+  // Local development only. Gated on isTrustedDevRequest, which requires the
+  // absence of the edge-injected request.cf object — a production request with
+  // a spoofed Host header cannot satisfy it.
+  if (isTrustedDevRequest(request)) {
+    const email = isValidEmail(body.email) ? normalizeEmail(body.email) : 'dev@localhost'
+    return {
+      allowed: true,
+      externalUserId: `dev:${email}`,
+      identity: { displayName: safeString(body.displayName, email.split('@')[0] ?? 'JobsFlow Dev'), email },
+      mode: 'local_development',
+    }
   }
 
   if (!env.AUTH_BOOTSTRAP_TOKEN) {
@@ -332,8 +383,15 @@ export async function onRequestPost({ request, env }: RequestContext) {
     return missingConfig('AUTH_SESSION_SECRET')
   }
 
+  // Unauthenticated, row-creating endpoint: cap attempts per client IP to blunt
+  // credential stuffing and tenant-table flooding.
+  const rate = await enforceRateLimit(env, `session:${clientIdentifier(request)}`, 10, 60)
+  if (!rate.allowed) {
+    return tooManyRequests(rate)
+  }
+
   const body = await readBody(request)
-  const sessionAccess = await getSessionAccess(request, env)
+  const sessionAccess = await getSessionAccess(request, env, body)
   if (!sessionAccess.allowed) {
     return json(
       {
@@ -345,9 +403,21 @@ export async function onRequestPost({ request, env }: RequestContext) {
     )
   }
 
-  const accessEmail = request.headers.get('cf-access-authenticated-user-email')
-  const email = sessionAccess.identity?.email ?? normalizeEmail(accessEmail ?? safeString(body.email, 'founder@workflowfy.ai'))
-  const displayName = sessionAccess.identity?.displayName ?? safeString(body.displayName, email.split('@')[0] ?? 'JobsFlow User')
+  // Every allowed access mode now resolves a verified or explicitly supplied
+  // email. There is no shared default identity for anonymous callers.
+  if (!sessionAccess.identity || !isValidEmail(sessionAccess.identity.email)) {
+    return json(
+      {
+        ok: false,
+        error: 'identity_unresolved',
+        message: 'We could not confirm your account identity. Please try again.',
+      },
+      403,
+    )
+  }
+
+  const email = normalizeEmail(sessionAccess.identity.email)
+  const displayName = safeString(sessionAccess.identity.displayName, email.split('@')[0] ?? 'JobsFlow User')
   const accountType = body.accountType === 'employer' ? 'employer' : 'candidate'
   const role = isAllowedRole(safeString(body.role, accountType)) ? safeString(body.role, accountType) : accountType
   const tenantName = safeString(

@@ -1,8 +1,14 @@
 AUTH_SESSION_SECRET=replace-with-a-long-random-secret
 AUTH_BOOTSTRAP_TOKEN=replace-with-a-private-bootstrap-token
-ALLOW_DEV_AUTH=true
 CLERK_ISSUER=https://your-clerk-issuer.example
 CLERK_JWKS_URL=https://your-clerk-issuer.example/.well-known/jwks.json
 CLERK_SECRET_KEY=sk_test_replace-with-clerk-secret-key
 CLERK_AUTHORIZED_PARTIES=http://localhost:5173,https://jobsflow.workflowfy.ai,https://jobsflowai.ai,https://www.jobsflowai.ai
+# Cloudflare Access (optional). When set, the signed Cf-Access-Jwt-Assertion
+# token is validated against the team certs; the raw email header is never
+# trusted. CF_ACCESS_AUD is the Access application Audience (AUD) tag.
+CF_ACCESS_TEAM_DOMAIN=https://your-team.cloudflareaccess.com
+CF_ACCESS_AUD=replace-with-access-application-aud-tag
 RESEND_API_KEY=re_replace-with-resend-api-key
+# Local dev auth requires no env flag: it is enabled only for loopback requests
+# that lack the Cloudflare edge request.cf object (see isTrustedDevRequest).

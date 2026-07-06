@@ -30,7 +30,8 @@ export type Env = {
   RESUME_BUCKET?: R2Bucket
   AUTH_SESSION_SECRET?: string
   AUTH_BOOTSTRAP_TOKEN?: string
-  ALLOW_DEV_AUTH?: string
+  CF_ACCESS_TEAM_DOMAIN?: string
+  CF_ACCESS_AUD?: string
   CLERK_AUTHORIZED_PARTIES?: string
   CLERK_ISSUER?: string
   CLERK_JWKS_URL?: string
@@ -105,6 +106,16 @@ export function isLocalRequest(request: Request) {
   return host === '127.0.0.1' || host === 'localhost' || host === '::1'
 }
 
+// A request is only treated as trusted local development when it both targets a
+// loopback host AND lacks the `cf` property that the Cloudflare edge always
+// attaches in production. This cannot be forged by spoofing the Host header on
+// a production request, because the edge-injected `request.cf` object is still
+// present. It is the single source of truth for enabling any dev-only auth path.
+export function isTrustedDevRequest(request: Request) {
+  const edgeMetadata = (request as Request & { cf?: unknown }).cf
+  return isLocalRequest(request) && edgeMetadata === undefined
+}
+
 export function requireDb(env: Env) {
   return env.DB
 }
@@ -114,11 +125,26 @@ export function requireSessionSecret(env: Env, request: Request) {
     return env.AUTH_SESSION_SECRET
   }
 
-  if (isLocalRequest(request)) {
+  if (isTrustedDevRequest(request)) {
     return 'jobsflow-local-development-secret'
   }
 
   return null
+}
+
+// Constant-time comparison for equal-purpose hex strings (HMAC signatures,
+// tokens). Avoids leaking match position through early-exit timing.
+export function timingSafeEqualHex(a: string, b: string) {
+  if (a.length !== b.length) {
+    return false
+  }
+
+  let mismatch = 0
+  for (let index = 0; index < a.length; index += 1) {
+    mismatch |= a.charCodeAt(index) ^ b.charCodeAt(index)
+  }
+
+  return mismatch === 0
 }
 
 export async function sha256Hex(value: string | ArrayBuffer) {
@@ -157,14 +183,14 @@ export async function createSignedCookieValue(sessionId: string, secret: string)
   return `${sessionId}.${await sign(secret, sessionId)}`
 }
 
-async function verifySignedCookieValue(value: string, secret: string) {
+export async function verifySignedCookieValue(value: string, secret: string) {
   const [sessionId, signature] = value.split('.')
   if (!sessionId || !signature) {
     return null
   }
 
   const expected = await sign(secret, sessionId)
-  if (expected !== signature) {
+  if (!timingSafeEqualHex(expected, signature)) {
     return null
   }
 
@@ -237,6 +263,91 @@ export async function getSession(request: Request, env: Env): Promise<SessionCon
     .first<SessionRow>()
 
   return row
+}
+
+export function clientIdentifier(request: Request) {
+  return (
+    request.headers.get('cf-connecting-ip') ??
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    'unknown'
+  )
+}
+
+export type RateLimitResult = {
+  allowed: boolean
+  limit: number
+  remaining: number
+  retryAfterSeconds: number
+}
+
+// D1-backed fixed-window rate limiter. Returns allowed=false once `limit`
+// requests have been recorded for `key` within the current window. Fails open
+// only when no database is bound (local scaffolding), never on a real request
+// path in production where DB is always present.
+export async function enforceRateLimit(
+  env: Env,
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<RateLimitResult> {
+  const db = requireDb(env)
+  if (!db) {
+    return { allowed: true, limit, remaining: limit, retryAfterSeconds: 0 }
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000)
+  const windowStart = nowSeconds - (nowSeconds % windowSeconds)
+  const bucketKey = `${key}:${windowSeconds}`
+
+  await db
+    .prepare(
+      `
+      INSERT INTO rate_limit_hits (bucket_key, window_start, count)
+      VALUES (?, ?, 1)
+      ON CONFLICT(bucket_key, window_start)
+      DO UPDATE SET count = count + 1
+      `,
+    )
+    .bind(bucketKey, windowStart)
+    .run()
+
+  const row = await db
+    .prepare('SELECT count FROM rate_limit_hits WHERE bucket_key = ? AND window_start = ?')
+    .bind(bucketKey, windowStart)
+    .first<{ count: number }>()
+
+  // Opportunistic prune of expired windows to keep the table bounded.
+  if (Math.random() < 0.02) {
+    await db
+      .prepare('DELETE FROM rate_limit_hits WHERE window_start < ?')
+      .bind(windowStart - windowSeconds)
+      .run()
+  }
+
+  const count = row?.count ?? 0
+  const remaining = Math.max(0, limit - count)
+  return {
+    allowed: count <= limit,
+    limit,
+    remaining,
+    retryAfterSeconds: windowStart + windowSeconds - nowSeconds,
+  }
+}
+
+export function tooManyRequests(result: RateLimitResult) {
+  return json(
+    {
+      ok: false,
+      error: 'rate_limited',
+      message: 'Too many requests. Please wait a moment and try again.',
+    },
+    {
+      status: 429,
+      headers: {
+        'retry-after': String(Math.max(1, result.retryAfterSeconds)),
+      },
+    },
+  )
 }
 
 export async function writeAuditEvent(

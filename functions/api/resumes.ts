@@ -1,10 +1,12 @@
 import type { RequestContext } from '../_shared'
 import {
+  enforceRateLimit,
   getSession,
   json,
   missingConfig,
   sanitizeFilename,
   sha256Hex,
+  tooManyRequests,
   writeAuditEvent,
 } from '../_shared'
 
@@ -73,6 +75,12 @@ export async function onRequestPost({ request, env }: RequestContext) {
   const session = await getSession(request, env)
   if (!session) {
     return json({ ok: false, error: 'unauthorized', message: 'Sign in before uploading resumes.' }, 401)
+  }
+
+  // R2 writes are expensive; cap per tenant to prevent storage-abuse floods.
+  const rate = await enforceRateLimit(env, `resume-upload:${session.tenantId}`, 20, 60)
+  if (!rate.allowed) {
+    return tooManyRequests(rate)
   }
 
   const formData = await request.formData()
