@@ -168,6 +168,28 @@ function humanizeSsoError(error: unknown, fallback = 'Secure sign-in could not c
   return fallback
 }
 
+const authReturnStorageKey = 'jobsflow.auth.return.pending'
+
+function readAuthReturnPending() {
+  try {
+    return window.sessionStorage.getItem(authReturnStorageKey) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writeAuthReturnPending(value: boolean) {
+  try {
+    if (value) {
+      window.sessionStorage.setItem(authReturnStorageKey, '1')
+    } else {
+      window.sessionStorage.removeItem(authReturnStorageKey)
+    }
+  } catch {
+    // Session storage can be unavailable in hardened browser modes.
+  }
+}
+
 function JobsFlowLogoMark({ className = 'brand-mark' }: { className?: string }) {
   return (
     <svg
@@ -1368,9 +1390,11 @@ function SignalOperationsLayer({
 function AuthPanel({
   session,
   onSessionChange,
+  onAuthReturnPendingChange,
 }: {
   session: BackendSession | null
   onSessionChange: (session: BackendSession | null) => void
+  onAuthReturnPendingChange: (pending: boolean) => void
 }) {
   const [accountType, setAccountType] = useState<'candidate' | 'employer'>('candidate')
   const [displayName, setDisplayName] = useState('')
@@ -1382,9 +1406,15 @@ function AuthPanel({
   const [isBusy, setIsBusy] = useState(false)
   const sso = useJobsFlowSso()
   const autoSsoSessionAttempted = useRef(false)
-  const hostedSignInUrl = `https://accounts.jobsflowai.ai/sign-in?redirect_url=${encodeURIComponent(window.location.href)}`
+  const authRedirectUrl = `${window.location.origin}/#signin`
+  const hostedSignInUrl = `https://accounts.jobsflowai.ai/sign-in?redirect_url=${encodeURIComponent(authRedirectUrl)}`
   const selectedChecklist =
     accountType === 'candidate' ? candidateActivationChecklist : employerActivationChecklist
+
+  const setAuthReturnPending = useCallback((pending: boolean) => {
+    writeAuthReturnPending(pending)
+    onAuthReturnPendingChange(pending)
+  }, [onAuthReturnPendingChange])
 
   const checkSession = useCallback(async () => {
     setIsBusy(true)
@@ -1392,13 +1422,14 @@ function AuthPanel({
       const result = await getBackendSession()
       onSessionChange(result.session)
       setMessage(`Workspace is open for ${result.session.email}.`)
+      setAuthReturnPending(false)
     } catch (error) {
       onSessionChange(null)
       setMessage(humanizeJobsFlowError(error, 'auth'))
     } finally {
       setIsBusy(false)
     }
-  }, [onSessionChange])
+  }, [onSessionChange, setAuthReturnPending])
 
   const handleCreateSsoSession = useCallback(async () => {
     if (!sso.configured) {
@@ -1452,6 +1483,7 @@ function AuthPanel({
             : `${normalizedName} Career Workspace`),
       })
       onSessionChange(result.session)
+      setAuthReturnPending(false)
       setMessage(`Workspace opened from SSO for ${result.session.email}. JobsFlow is ready to keep actions behind review.`)
     } catch (error) {
       onSessionChange(null)
@@ -1459,7 +1491,7 @@ function AuthPanel({
     } finally {
       setIsBusy(false)
     }
-  }, [accountType, displayName, email, onSessionChange, sso, tenantName])
+  }, [accountType, displayName, email, onSessionChange, setAuthReturnPending, sso, tenantName])
 
   const handleProviderSignIn = useCallback(
     (provider: JobsFlowSsoProviderKey) => {
@@ -1469,6 +1501,7 @@ function AuthPanel({
       }
 
       if (!sso.isLoaded) {
+        setAuthReturnPending(true)
         setMessage('Opening secure sign-in through Clerk.')
         window.location.assign(hostedSignInUrl)
         return
@@ -1480,16 +1513,25 @@ function AuthPanel({
       }
 
       const providerLabel = ssoProviderActions.find((action) => action.key === provider)?.label ?? 'Email'
+      setAuthReturnPending(true)
       setMessage(
         provider === 'email'
           ? 'Opening the email sign-in screen.'
           : `Opening ${providerLabel} sign-in through Clerk.`,
       )
+      if (provider !== 'email') {
+        window.setTimeout(() => {
+          if (document.visibilityState === 'visible') {
+            setMessage(`Still opening ${providerLabel}. Switching to secure hosted sign-in...`)
+            window.location.assign(hostedSignInUrl)
+          }
+        }, 2500)
+      }
       void sso.openProviderSignIn(provider).catch((error: unknown) => {
         setMessage(humanizeSsoError(error))
       })
     },
-    [handleCreateSsoSession, hostedSignInUrl, sso],
+    [handleCreateSsoSession, hostedSignInUrl, setAuthReturnPending, sso],
   )
 
   async function handleEmailContinue(event: FormEvent<HTMLFormElement>) {
@@ -1514,7 +1556,15 @@ function AuthPanel({
     }
 
     setIsBusy(true)
+    setAuthReturnPending(true)
     setMessage('Signing in with email and password...')
+
+    if (!sso.isLoaded) {
+      setIsBusy(false)
+      setMessage('Secure sign-in is still loading. Switching to secure hosted sign-in...')
+      window.location.assign(hostedSignInUrl)
+      return
+    }
 
     try {
       await sso.signInWithPassword(normalizedEmail, password)
@@ -1536,6 +1586,7 @@ function AuthPanel({
         await sso.signOut()
       }
       autoSsoSessionAttempted.current = false
+      setAuthReturnPending(false)
       onSessionChange(null)
       setMessage('Workspace closed. Your next action will need a fresh signed session.')
     } catch (error) {
@@ -1680,6 +1731,7 @@ function AuthPanel({
               </button>
             </form>
 
+            <p className="auth-gateway-status" aria-live="polite">{message}</p>
             {gatewayStatus ? <p className="auth-gateway-status">{gatewayStatus}</p> : null}
           </article>
         </div>
@@ -4987,6 +5039,7 @@ function App() {
   const [activeOnboardingStep, setActiveOnboardingStep] = useState(onboardingSteps[0].key)
   const [session, setSession] = useState<BackendSession | null>(null)
   const [searchIntent, setSearchIntent] = useState<LandingSearchIntent | null>(null)
+  const [authReturnPending, setAuthReturnPending] = useState(() => readAuthReturnPending())
   const [isSigningOut, setIsSigningOut] = useState(false)
   const sso = useJobsFlowSso()
 
@@ -4995,13 +5048,7 @@ function App() {
     [activeWorkspace],
   )
 
-  const effectiveView: AppView = session
-    ? 'workspace'
-    : sso.isSignedIn
-      ? 'auth'
-      : appView === 'workspace'
-        ? 'auth'
-        : appView
+  const effectiveView: AppView = session ? 'workspace' : appView === 'workspace' ? 'auth' : appView
 
   function navigateToView(view: AppView, mode: 'push' | 'replace' = 'push') {
     setAppView(view)
@@ -5038,6 +5085,8 @@ function App() {
 
   function handleBrandClick(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault()
+    writeAuthReturnPending(false)
+    setAuthReturnPending(false)
     navigateToView('landing')
   }
 
@@ -5049,6 +5098,8 @@ function App() {
         await sso.signOut()
       }
       setSession(null)
+      writeAuthReturnPending(false)
+      setAuthReturnPending(false)
       navigateToView('landing', 'replace')
     } finally {
       setIsSigningOut(false)
@@ -5083,16 +5134,18 @@ function App() {
     }
 
     setActiveWorkspace(session.role === 'candidate' ? 'candidate' : 'employer')
+    writeAuthReturnPending(false)
+    setAuthReturnPending(false)
     navigateToView('workspace', 'replace')
   }, [session])
 
   useEffect(() => {
-    if (session || !sso.isSignedIn || appView !== 'landing') {
+    if (session || !authReturnPending || !sso.isSignedIn || appView !== 'landing') {
       return
     }
 
     navigateToView('auth', 'replace')
-  }, [appView, session, sso.isSignedIn])
+  }, [appView, authReturnPending, session, sso.isSignedIn])
 
   return (
     <div className="app-root">
@@ -5151,7 +5204,11 @@ function App() {
 
         {effectiveView === 'auth' ? (
           <div id="secure-access" className="landing-section-anchor">
-            <AuthPanel session={session} onSessionChange={setSession} />
+            <AuthPanel
+              onAuthReturnPendingChange={setAuthReturnPending}
+              session={session}
+              onSessionChange={setSession}
+            />
           </div>
         ) : null}
 

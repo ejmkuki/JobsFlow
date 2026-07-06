@@ -80,6 +80,16 @@ const oauthStrategyByProvider = {
   x: 'oauth_x',
 } as const
 
+const authReturnStorageKey = 'jobsflow.auth.return.pending'
+
+function markAuthReturnPending() {
+  try {
+    window.sessionStorage.setItem(authReturnStorageKey, '1')
+  } catch {
+    // Session storage can be unavailable in hardened browser modes.
+  }
+}
+
 function ClerkBridge({ children }: { children: ReactNode }) {
   const { getToken, isLoaded, isSignedIn } = useAuth()
   const { openSignIn, openSignUp, signOut } = useClerk()
@@ -125,6 +135,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
 
   async function openProviderSignIn(provider: JobsFlowSsoProviderKey) {
     if (provider === 'email') {
+      markAuthReturnPending()
       document.documentElement.dataset.jobsflowClerkMode = 'email'
       openSignIn({
         appearance: emailOnlyClerkAppearance,
@@ -137,6 +148,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
     }
 
     if (!(provider in oauthStrategyByProvider)) {
+      markAuthReturnPending()
       openSignIn({
         appearance: jobsFlowClerkAppearance,
         fallbackRedirectUrl: redirectUrlComplete,
@@ -147,6 +159,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
       return
     }
 
+    markAuthReturnPending()
     delete document.documentElement.dataset.jobsflowClerkMode
     if (!isSignInLoaded || !signIn) {
       openSignIn({
@@ -173,8 +186,10 @@ function ClerkBridge({ children }: { children: ReactNode }) {
       throw new Error('Secure sign-in is still loading. Try again in a moment.')
     }
 
-    const result = await signIn.create({
-      identifier,
+    markAuthReturnPending()
+
+    const signInAttempt = await signIn.create({ identifier })
+    const result = await signInAttempt.attemptFirstFactor({
       password,
       strategy: 'password',
     })
@@ -198,6 +213,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
         loadTimedOut,
         openProviderSignIn,
         openSignIn: () => {
+          markAuthReturnPending()
           delete document.documentElement.dataset.jobsflowClerkMode
           openSignIn({
             appearance: jobsFlowClerkAppearance,
@@ -208,6 +224,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
           })
         },
         openSignUp: () => {
+          markAuthReturnPending()
           document.documentElement.dataset.jobsflowClerkMode = 'signup'
           openSignUp({
             appearance: emailOnlyClerkAppearance,
