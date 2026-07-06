@@ -162,14 +162,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
     markAuthReturnPending()
     delete document.documentElement.dataset.jobsflowClerkMode
     if (!isSignInLoaded || !signIn) {
-      openSignIn({
-        appearance: jobsFlowClerkAppearance,
-        fallbackRedirectUrl: redirectUrlComplete,
-        forceRedirectUrl: redirectUrlComplete,
-        signUpFallbackRedirectUrl: redirectUrlComplete,
-        withSignUp: true,
-      })
-      return
+      throw new Error('Secure provider sign-in is still loading. Try again in a moment.')
     }
 
     await signIn.authenticateWithRedirect({
@@ -188,10 +181,10 @@ function ClerkBridge({ children }: { children: ReactNode }) {
 
     markAuthReturnPending()
 
-    const signInAttempt = await signIn.create({ identifier })
-    const result = await signInAttempt.attemptFirstFactor({
-      password,
+    const result = await signIn.create({
+      identifier,
       strategy: 'password',
+      password,
     })
 
     if (result.status !== 'complete' || !result.createdSessionId) {
@@ -223,13 +216,15 @@ function ClerkBridge({ children }: { children: ReactNode }) {
             withSignUp: true,
           })
         },
-        openSignUp: () => {
+        openSignUp: (initialEmail?: string) => {
           markAuthReturnPending()
           document.documentElement.dataset.jobsflowClerkMode = 'signup'
+          const trimmedInitialEmail = initialEmail?.trim()
           openSignUp({
             appearance: emailOnlyClerkAppearance,
             fallbackRedirectUrl: redirectUrlComplete,
             forceRedirectUrl: redirectUrlComplete,
+            initialValues: trimmedInitialEmail ? { emailAddress: trimmedInitialEmail } : undefined,
             signInFallbackRedirectUrl: redirectUrlComplete,
           })
         },

@@ -149,9 +149,87 @@ function writeAppViewHash(view: AppView, mode: 'push' | 'replace' = 'push') {
   window.history.pushState(null, '', nextUrl)
 }
 
+type ClerkAuthError = {
+  code?: string
+  longMessage?: string
+  message?: string
+}
+
+function collectSsoErrorText(error: unknown) {
+  const clerkErrors = (error as { errors?: ClerkAuthError[] })?.errors
+  const parts: string[] = []
+
+  if (Array.isArray(clerkErrors)) {
+    clerkErrors.forEach((clerkError) => {
+      if (clerkError.code) {
+        parts.push(clerkError.code)
+      }
+      if (clerkError.longMessage) {
+        parts.push(clerkError.longMessage)
+      }
+      if (clerkError.message) {
+        parts.push(clerkError.message)
+      }
+    })
+  }
+
+  if (error instanceof Error && error.message) {
+    parts.push(error.message)
+  }
+
+  return parts.join(' ')
+}
+
+function isMissingEmailAccountError(error: unknown) {
+  const normalized = collectSsoErrorText(error).toLowerCase()
+
+  return (
+    normalized.includes('identifier_not_found') ||
+    normalized.includes('form_identifier_not_found') ||
+    normalized.includes('not found') ||
+    normalized.includes('does not exist') ||
+    normalized.includes('could not find') ||
+    normalized.includes("couldn't find")
+  )
+}
+
+function isPasswordStrategyError(error: unknown) {
+  return collectSsoErrorText(error).toLowerCase().includes('verification strategy is not valid')
+}
+
 function humanizeSsoError(error: unknown, fallback = 'Secure sign-in could not complete. Try again.') {
-  const clerkErrors = (error as { errors?: Array<{ longMessage?: string; message?: string }> })?.errors
+  const clerkErrors = (error as { errors?: ClerkAuthError[] })?.errors
   const firstClerkError = Array.isArray(clerkErrors) ? clerkErrors[0] : null
+  const normalized = collectSsoErrorText(error).toLowerCase()
+
+  if (!normalized) {
+    return fallback
+  }
+
+  if (normalized.includes('clerkjs: response') || normalized.includes('not supported yet')) {
+    return 'We could not open that sign-in provider in this browser. Please try again, refresh the page, or use email sign-in.'
+  }
+
+  if (isMissingEmailAccountError(error)) {
+    return 'No JobsFlow account exists for this email yet. Use Sign up to create one.'
+  }
+
+  if (isPasswordStrategyError(error)) {
+    return 'We could not sign in with that password. This account may use Google, Apple, or another sign-in method; you can also sign up to create a password account.'
+  }
+
+  if (
+    normalized.includes('form_password_incorrect') ||
+    normalized.includes('form_password_or_identifier_incorrect') ||
+    (normalized.includes('password') &&
+      (normalized.includes('incorrect') || normalized.includes('invalid') || normalized.includes('wrong')))
+  ) {
+    return 'That password is not correct. Check it and try again.'
+  }
+
+  if (normalized.includes('clerkjs:')) {
+    return fallback
+  }
 
   if (firstClerkError?.longMessage) {
     return firstClerkError.longMessage
@@ -1401,13 +1479,12 @@ function AuthPanel({
   const [email, setEmail] = useState('')
   const [emailSignInStep, setEmailSignInStep] = useState<'email' | 'password'>('email')
   const [password, setPassword] = useState('')
+  const [showInlineSignUp, setShowInlineSignUp] = useState(false)
   const [tenantName] = useState('')
   const [message, setMessage] = useState('Looking for an active JobsFlow workspace...')
   const [isBusy, setIsBusy] = useState(false)
   const sso = useJobsFlowSso()
   const autoSsoSessionAttempted = useRef(false)
-  const authRedirectUrl = `${window.location.origin}/#signin`
-  const hostedSignInUrl = `https://accounts.jobsflowai.ai/sign-in?redirect_url=${encodeURIComponent(authRedirectUrl)}`
   const selectedChecklist =
     accountType === 'candidate' ? candidateActivationChecklist : employerActivationChecklist
 
@@ -1501,9 +1578,11 @@ function AuthPanel({
       }
 
       if (!sso.isLoaded) {
-        setAuthReturnPending(true)
-        setMessage('Opening secure sign-in through Clerk.')
-        window.location.assign(hostedSignInUrl)
+        setMessage(
+          sso.loadTimedOut
+            ? 'Secure sign-in has not loaded in this browser yet. Refresh the page or disable blockers for JobsFlow and Clerk.'
+            : 'Secure sign-in is still loading. Please try again in a moment.',
+        )
         return
       }
 
@@ -1517,21 +1596,14 @@ function AuthPanel({
       setMessage(
         provider === 'email'
           ? 'Opening the email sign-in screen.'
-          : `Opening ${providerLabel} sign-in through Clerk.`,
+          : `Opening ${providerLabel} sign-in...`,
       )
-      if (provider !== 'email') {
-        window.setTimeout(() => {
-          if (document.visibilityState === 'visible') {
-            setMessage(`Still opening ${providerLabel}. Switching to secure hosted sign-in...`)
-            window.location.assign(hostedSignInUrl)
-          }
-        }, 2500)
-      }
       void sso.openProviderSignIn(provider).catch((error: unknown) => {
         setMessage(humanizeSsoError(error))
+        setAuthReturnPending(false)
       })
     },
-    [handleCreateSsoSession, hostedSignInUrl, setAuthReturnPending, sso],
+    [handleCreateSsoSession, setAuthReturnPending, sso],
   )
 
   async function handleEmailContinue(event: FormEvent<HTMLFormElement>) {
@@ -1539,6 +1611,7 @@ function AuthPanel({
     const normalizedEmail = email.trim()
     if (!normalizedEmail) {
       setMessage('Enter your email address to continue.')
+      setShowInlineSignUp(false)
       return
     }
 
@@ -1546,12 +1619,14 @@ function AuthPanel({
 
     if (emailSignInStep === 'email') {
       setEmailSignInStep('password')
+      setShowInlineSignUp(false)
       setMessage(`Enter the password for ${normalizedEmail}.`)
       return
     }
 
     if (!password) {
       setMessage('Enter your password to continue.')
+      setShowInlineSignUp(false)
       return
     }
 
@@ -1561,21 +1636,57 @@ function AuthPanel({
 
     if (!sso.isLoaded) {
       setIsBusy(false)
-      setMessage('Secure sign-in is still loading. Switching to secure hosted sign-in...')
-      window.location.assign(hostedSignInUrl)
+      setAuthReturnPending(false)
+      setShowInlineSignUp(false)
+      setMessage(
+        sso.loadTimedOut
+          ? 'Secure sign-in has not loaded in this browser yet. Refresh the page or disable blockers for JobsFlow and Clerk.'
+          : 'Secure sign-in is still loading. Please try again in a moment.',
+      )
       return
     }
 
     try {
       await sso.signInWithPassword(normalizedEmail, password)
       setPassword('')
+      setShowInlineSignUp(false)
       autoSsoSessionAttempted.current = false
       setMessage('Email sign-in complete. Opening your JobsFlow workspace...')
     } catch (error) {
+      setAuthReturnPending(false)
+      setShowInlineSignUp(isMissingEmailAccountError(error) || isPasswordStrategyError(error))
       setMessage(humanizeSsoError(error, 'Email sign-in could not complete. Check the password and try again.'))
     } finally {
       setIsBusy(false)
     }
+  }
+
+  function handleInlineSignUp() {
+    const normalizedEmail = email.trim()
+
+    if (!normalizedEmail) {
+      setMessage('Enter your email address before creating a JobsFlow account.')
+      setShowInlineSignUp(false)
+      return
+    }
+
+    if (!sso.configured) {
+      setMessage('Secure sign-up is not connected yet.')
+      return
+    }
+
+    if (!sso.isLoaded) {
+      setMessage(
+        sso.loadTimedOut
+          ? 'Secure sign-up has not loaded in this browser yet. Refresh the page or disable blockers for JobsFlow and Clerk.'
+          : 'Secure sign-up is still loading. Please try again in a moment.',
+      )
+      return
+    }
+
+    setAuthReturnPending(true)
+    setMessage(`Opening sign up for ${normalizedEmail}.`)
+    sso.openSignUp(normalizedEmail)
   }
 
   async function handleSignOut() {
@@ -1703,7 +1814,11 @@ function AuthPanel({
                 <strong>Email address *</strong>
                 <input
                   autoComplete="email"
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) => {
+                    setEmail(event.target.value)
+                    setPassword('')
+                    setShowInlineSignUp(false)
+                  }}
                   required
                   type="email"
                   value={email}
@@ -1715,7 +1830,10 @@ function AuthPanel({
                   <input
                     autoComplete="current-password"
                     autoFocus
-                    onChange={(event) => setPassword(event.target.value)}
+                    onChange={(event) => {
+                      setPassword(event.target.value)
+                      setShowInlineSignUp(false)
+                    }}
                     required
                     type="password"
                     value={password}
@@ -1730,6 +1848,15 @@ function AuthPanel({
                 <ArrowRight size={24} aria-hidden="true" />
               </button>
             </form>
+
+            {showInlineSignUp ? (
+              <div className="auth-inline-signup" role="note">
+                <span>No account or password sign-in is available for this email yet.</span>
+                <button type="button" onClick={handleInlineSignUp}>
+                  Sign up with this email
+                </button>
+              </div>
+            ) : null}
 
             <p className="auth-gateway-status" aria-live="polite">{message}</p>
             {gatewayStatus ? <p className="auth-gateway-status">{gatewayStatus}</p> : null}

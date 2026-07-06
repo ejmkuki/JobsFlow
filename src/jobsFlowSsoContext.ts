@@ -19,7 +19,7 @@ export type JobsFlowSsoContextValue = {
   isSignedIn: boolean
   loadTimedOut: boolean
   openSignIn: () => void
-  openSignUp: () => void
+  openSignUp: (initialEmail?: string) => void
   openProviderSignIn: (provider: JobsFlowSsoProviderKey) => Promise<void>
   signInWithPassword: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>

@@ -812,6 +812,38 @@
   border-color: #9bbcec;
 }
 
+.auth-inline-signup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  padding: 14px 16px;
+  color: #374151;
+  font-weight: 700;
+  background: #f8fbff;
+  border: 1px solid #d8dee6;
+  border-radius: 8px;
+}
+
+.auth-inline-signup button {
+  appearance: none;
+  padding: 0;
+  color: #075fc6;
+  font: inherit;
+  font-weight: 850;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.auth-inline-signup button:hover,
+.auth-inline-signup button:focus-visible {
+  color: #003f91;
+  text-decoration: underline;
+  outline: none;
+}
+
 .auth-gateway-status {
   margin: 0;
   color: var(--muted);
