@@ -104,254 +104,31 @@ import {
   productStates,
   providerReadiness,
 } from './productModel'
+import type {
+  AppView,
+  CandidateEvidenceReview,
+  ComplianceLedgerItem,
+  EmployerEvidenceReview,
+  LandingSearchIntent,
+  Metric,
+  Mode,
+  SignalDecision,
+  Tone,
+  Workspace,
+} from "./types"
+import { readAppViewFromHash, writeAppViewHash, writeAuthReturnPending } from "./lib/appView"
+import {
+  formatCents,
+  formatProductLabel,
+  friendlyUserMessage,
+  pipelineTone,
+  textFromRecord,
+  toneClass,
+  workflowTone,
+} from "./lib/format"
+import { humanizeSsoError, isMissingEmailAccountError } from "./lib/ssoErrors"
 
-type Workspace = 'candidate' | 'employer' | 'trust'
-type Tone = 'green' | 'amber' | 'red' | 'blue' | 'neutral'
-type AppView = 'landing' | 'auth' | 'workspace'
-type LandingSearchIntent = {
-  role: string
-  location: string
-}
 
-function readAppViewFromHash(): AppView {
-  if (typeof window === 'undefined') {
-    return 'landing'
-  }
-
-  if (window.location.hash === '#signin' || window.location.hash === '#auth') {
-    return 'auth'
-  }
-
-  if (window.location.hash === '#workspace') {
-    return 'workspace'
-  }
-
-  return 'landing'
-}
-
-function writeAppViewHash(view: AppView, mode: 'push' | 'replace' = 'push') {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  const nextHash = view === 'landing' ? '' : view === 'auth' ? '#signin' : '#workspace'
-  const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`
-
-  if (`${window.location.pathname}${window.location.search}${window.location.hash}` === nextUrl) {
-    return
-  }
-
-  if (mode === 'replace') {
-    window.history.replaceState(null, '', nextUrl)
-    return
-  }
-
-  window.history.pushState(null, '', nextUrl)
-}
-
-type ClerkAuthError = {
-  code?: string
-  longMessage?: string
-  message?: string
-}
-
-function collectSsoErrorText(error: unknown) {
-  const clerkErrors = (error as { errors?: ClerkAuthError[] })?.errors
-  const parts: string[] = []
-
-  if (Array.isArray(clerkErrors)) {
-    clerkErrors.forEach((clerkError) => {
-      if (clerkError.code) {
-        parts.push(clerkError.code)
-      }
-      if (clerkError.longMessage) {
-        parts.push(clerkError.longMessage)
-      }
-      if (clerkError.message) {
-        parts.push(clerkError.message)
-      }
-    })
-  }
-
-  if (error instanceof Error && error.message) {
-    parts.push(error.message)
-  }
-
-  return parts.join(' ')
-}
-
-function isMissingEmailAccountError(error: unknown) {
-  const normalized = collectSsoErrorText(error).toLowerCase()
-
-  return (
-    normalized.includes('identifier_not_found') ||
-    normalized.includes('form_identifier_not_found') ||
-    normalized.includes('not found') ||
-    normalized.includes('does not exist') ||
-    normalized.includes('could not find') ||
-    normalized.includes("couldn't find")
-  )
-}
-
-function isPasswordStrategyError(error: unknown) {
-  return collectSsoErrorText(error).toLowerCase().includes('verification strategy is not valid')
-}
-
-function humanizeSsoError(error: unknown, fallback = 'Sign-in could not complete. Try again.') {
-  const clerkErrors = (error as { errors?: ClerkAuthError[] })?.errors
-  const firstClerkError = Array.isArray(clerkErrors) ? clerkErrors[0] : null
-  const normalized = collectSsoErrorText(error).toLowerCase()
-
-  if (!normalized) {
-    return fallback
-  }
-
-  if (normalized.includes('clerkjs: response') || normalized.includes('not supported yet')) {
-    return 'We could not open that sign-in option in this browser. Refresh the page and try again, or continue with email.'
-  }
-
-  if (isMissingEmailAccountError(error)) {
-    return 'No JobsFlow account exists for this email yet. Use Sign up to create one.'
-  }
-
-  if (isPasswordStrategyError(error)) {
-    return 'This email is not set up with a JobsFlow password yet. Use Google or Apple if that is how you created the account.'
-  }
-
-  if (
-    normalized.includes('form_password_incorrect') ||
-    normalized.includes('form_password_or_identifier_incorrect') ||
-    (normalized.includes('password') &&
-      (normalized.includes('incorrect') || normalized.includes('invalid') || normalized.includes('wrong')))
-  ) {
-    return 'That password is not correct. Check it and try again.'
-  }
-
-  if (
-    normalized.includes('form_code_incorrect') ||
-    normalized.includes('verification_failed') ||
-    (normalized.includes('code') && (normalized.includes('incorrect') || normalized.includes('invalid')))
-  ) {
-    return 'That verification code is not correct. Check the code and try again.'
-  }
-
-  if (normalized.includes('expired') && normalized.includes('code')) {
-    return 'That verification code expired. Start again to request a new code.'
-  }
-
-  if (normalized.includes('clerkjs:')) {
-    return fallback
-  }
-
-  if (normalized.includes('sso') || normalized.includes('oauth')) {
-    return 'Google or Apple sign-in is taking longer than expected. Try again, or continue with email.'
-  }
-
-  if (normalized.includes('session') && normalized.includes('token')) {
-    return 'We could not open your workspace yet. Refresh the page and sign in again.'
-  }
-
-  if (firstClerkError?.code) {
-    return fallback
-  }
-
-  if (error instanceof Error && error.message) {
-    return friendlyUserMessage(error.message, fallback)
-  }
-
-  return fallback
-}
-
-function friendlyUserMessage(message: string | null | undefined, fallback = 'JobsFlow could not complete that action. Please try again.') {
-  const raw = message?.trim()
-  if (!raw) {
-    return fallback
-  }
-
-  const normalized = raw.toLowerCase()
-
-  if (
-    normalized.includes('clerk') ||
-    normalized.includes('clerkjs') ||
-    normalized.includes('sso') ||
-    normalized.includes('provider keys') ||
-    normalized.includes('session token') ||
-    normalized.includes('verification strategy')
-  ) {
-    return 'Sign-in is taking longer than expected. Try again, or continue with email.'
-  }
-
-  if (normalized.includes('oauth')) {
-    return 'This connection is still being prepared. Please try again shortly.'
-  }
-
-  if (normalized.includes('resend') || normalized.includes('message id')) {
-    return normalized.includes('accepted') || normalized.includes('sent')
-      ? 'Test email sent. Check your inbox in a moment.'
-      : 'Email delivery is being prepared. Please try again shortly.'
-  }
-
-  if (
-    normalized.includes('runtime') ||
-    normalized.includes('cloudflare') ||
-    normalized.includes('d1') ||
-    normalized.includes('r2') ||
-    normalized.includes('migration') ||
-    normalized.includes('binding') ||
-    normalized.includes('secret') ||
-    normalized.includes('bootstrap') ||
-    normalized.includes('status 4') ||
-    normalized.includes('status 5') ||
-    normalized.includes('payload')
-  ) {
-    return 'This part of JobsFlow is still being prepared. Please try again shortly.'
-  }
-
-  return raw
-    .replace(/\btenant-scoped\b/gi, 'workspace-protected')
-    .replace(/\btenant\b/gi, 'workspace')
-    .replace(/\bkernel\b/gi, 'workspace engine')
-    .replace(/\bartifact\b/gi, 'file')
-    .replace(/\bvector-ready\b/gi, 'ready')
-    .replace(/\bvector\b/gi, 'evidence')
-    .replace(/\bsyndication\b/gi, 'publishing')
-    .replace(/\bATS\b/g, 'hiring system')
-    .replace(/\bprovider\b/gi, 'connection')
-}
-
-function formatProductLabel(value: string | null | undefined, fallback = 'Not available') {
-  const raw = value?.trim()
-  if (!raw) {
-    return fallback
-  }
-
-  return raw
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/^platform\.workflow_kernel$/i, 'JobsFlow automation foundation')
-    .replace(/[._-]+/g, ' ')
-    .replace(/\bats\b/gi, 'hiring system')
-    .replace(/\bsso\b/gi, 'sign in')
-    .replace(/\boauth\b/gi, 'external account')
-    .replace(/\bkernel\b/gi, 'automation')
-    .replace(/\bsyndication\b/gi, 'publishing')
-    .replace(/\bsemantic\b/gi, 'skill')
-    .replace(/\bvector\b/gi, 'evidence')
-    .replace(/\bartifact\b/gi, 'file')
-}
-
-const authReturnStorageKey = 'jobsflow.auth.return.pending'
-
-function writeAuthReturnPending(value: boolean) {
-  try {
-    if (value) {
-      window.sessionStorage.setItem(authReturnStorageKey, '1')
-    } else {
-      window.sessionStorage.removeItem(authReturnStorageKey)
-    }
-  } catch {
-    // Session storage can be unavailable in hardened browser modes.
-  }
-}
 
 function JobsFlowLogoMark({ className = 'brand-mark' }: { className?: string }) {
   return (
@@ -404,67 +181,6 @@ const ssoProviderIconText: Record<JobsFlowSsoProviderKey, string> = {
   x: 'X',
 }
 
-type Metric = {
-  label: string
-  value: string
-  detail: string
-  tone?: Tone
-}
-
-type Mode = {
-  name: string
-  detail: string
-  owner: string
-  limit: string
-  log: string
-}
-
-type SignalDecision = {
-  workspace: Workspace
-  label: string
-  title: string
-  status: string
-  owner: string
-  changed: string
-  matters: string
-  next: string
-  tone: Tone
-  evidence: string[]
-}
-
-type CandidateEvidenceReview = {
-  role: string
-  company: string
-  fit: string
-  decision: string
-  gate: string
-  evidence: string[]
-  gaps: string[]
-  safeguards: string[]
-  next: string
-  tone: Tone
-}
-
-type EmployerEvidenceReview = {
-  candidate: string
-  recommendation: string
-  score: string
-  owner: string
-  rubric: Array<[string, string]>
-  evidence: string[]
-  risks: string[]
-  next: string
-  tone: Tone
-}
-
-type ComplianceLedgerItem = {
-  control: string
-  status: string
-  owner: string
-  proof: string
-  next: string
-  tone: Tone
-}
 
 const workspaces: Array<{
   id: Workspace
@@ -1268,9 +984,6 @@ const integrations = [
   ['Slack', 'Employer team alerts'],
 ]
 
-function toneClass(tone: Tone = 'neutral') {
-  return `tone-${tone}`
-}
 
 function StatusPill({ children, tone = 'neutral' }: { children: string; tone?: Tone }) {
   return <span className={`status-pill ${toneClass(tone)}`}>{children}</span>
@@ -2394,22 +2107,6 @@ function BackendStatusPanel({
   )
 }
 
-function workflowTone(state: string): Tone {
-  if (state === 'completed' || state === 'running') {
-    return 'green'
-  }
-
-  if (state === 'blocked' || state === 'failed') {
-    return 'red'
-  }
-
-  return state === 'waiting_for_approval' ? 'amber' : 'blue'
-}
-
-function textFromRecord(record: Record<string, unknown>, key: string, fallback: string) {
-  const value = record[key]
-  return typeof value === 'string' && value.trim() ? value : fallback
-}
 
 function WorkflowKernelPanel({ session }: { session: BackendSession | null }) {
   const [kernelState, setKernelState] = useState<WorkflowKernelState | null>(null)
@@ -2797,17 +2494,6 @@ const pipelineStages: Array<{ key: PipelineState; label: string }> = [
   { key: 'offer', label: 'Offer' },
 ]
 
-function pipelineTone(status: string): Tone {
-  if (status === 'overdue' || status === 'high') {
-    return 'red'
-  }
-
-  if (status === 'due_soon' || status === 'medium') {
-    return 'amber'
-  }
-
-  return status === 'not_required' ? 'neutral' : 'green'
-}
 
 function AntiGhostingPipelinePanel({ session }: { session: BackendSession | null }) {
   const [pipelineState, setPipelineState] = useState<AntiGhostingPipelineState | null>(null)
@@ -3217,17 +2903,6 @@ function InterviewPrepSandboxPanel({ session }: { session: BackendSession | null
   )
 }
 
-function formatCents(cents: number | undefined, currency = 'USD') {
-  if (typeof cents !== 'number' || !Number.isFinite(cents)) {
-    return 'Not enough signal'
-  }
-
-  return new Intl.NumberFormat('en-US', {
-    currency,
-    maximumFractionDigits: 0,
-    style: 'currency',
-  }).format(cents / 100)
-}
 
 function TransparencyBlueprintPanel({ session }: { session: BackendSession | null }) {
   const [transparencyState, setTransparencyState] = useState<TransparencyBlueprintState | null>(null)
