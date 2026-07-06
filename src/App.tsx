@@ -215,7 +215,7 @@ function humanizeSsoError(error: unknown, fallback = 'Secure sign-in could not c
   }
 
   if (isPasswordStrategyError(error)) {
-    return 'We could not sign in with that password. This account may use Google, Apple, or another sign-in method; you can also sign up to create a password account.'
+    return 'This email is not set up for password sign-in. Use the Google or Apple option above if that is how you created the account.'
   }
 
   if (
@@ -225,6 +225,18 @@ function humanizeSsoError(error: unknown, fallback = 'Secure sign-in could not c
       (normalized.includes('incorrect') || normalized.includes('invalid') || normalized.includes('wrong')))
   ) {
     return 'That password is not correct. Check it and try again.'
+  }
+
+  if (
+    normalized.includes('form_code_incorrect') ||
+    normalized.includes('verification_failed') ||
+    (normalized.includes('code') && (normalized.includes('incorrect') || normalized.includes('invalid')))
+  ) {
+    return 'That verification code is not correct. Check the code and try again.'
+  }
+
+  if (normalized.includes('expired') && normalized.includes('code')) {
+    return 'That verification code expired. Start again to request a new code.'
   }
 
   if (normalized.includes('clerkjs:')) {
@@ -247,14 +259,6 @@ function humanizeSsoError(error: unknown, fallback = 'Secure sign-in could not c
 }
 
 const authReturnStorageKey = 'jobsflow.auth.return.pending'
-
-function readAuthReturnPending() {
-  try {
-    return window.sessionStorage.getItem(authReturnStorageKey) === '1'
-  } catch {
-    return false
-  }
-}
 
 function writeAuthReturnPending(value: boolean) {
   try {
@@ -1253,15 +1257,11 @@ function WorkspaceButton({
 }
 
 function LandingHero({
-  activeWorkspace,
   onGetStarted,
   onSearch,
-  onWorkspaceChange,
 }: {
-  activeWorkspace: Workspace
   onGetStarted: () => void
   onSearch: (intent: LandingSearchIntent) => void
-  onWorkspaceChange: (workspace: Workspace) => void
 }) {
   const [role, setRole] = useState('')
   const [location, setLocation] = useState('')
@@ -1283,11 +1283,11 @@ function LandingHero({
         </div>
 
         <h1 id="landing-title">
-          AI-powered pipelines that match candidates and employers with precision.
+          JobsFlow AI turns resumes, jobs, and hiring signals into evidence-based matches.
         </h1>
         <p>
-          Optimize your profile, automate your job search, prep for interviews, and help
-          hiring teams discover verified fit talent faster.
+          Optimize your profile, track applications, prep for interviews, and help
+          employers find verified-fit candidates faster.
         </p>
 
         <form className="landing-search" aria-label="Start a JobsFlow match" onSubmit={handleSubmit}>
@@ -1319,24 +1319,10 @@ function LandingHero({
           </button>
         </form>
 
-        <div className="hero-secondary-actions" aria-label="JobsFlow entry points">
+        <div className="hero-secondary-actions">
           <button type="button" onClick={onGetStarted}>
             Get started
             <ArrowRight size={18} aria-hidden="true" />
-          </button>
-          <button
-            className={activeWorkspace === 'candidate' ? 'active' : ''}
-            type="button"
-            onClick={() => onWorkspaceChange('candidate')}
-          >
-            Candidate
-          </button>
-          <button
-            className={activeWorkspace === 'employer' ? 'active' : ''}
-            type="button"
-            onClick={() => onWorkspaceChange('employer')}
-          >
-            Employer
           </button>
         </div>
       </div>
@@ -1468,17 +1454,16 @@ function SignalOperationsLayer({
 function AuthPanel({
   session,
   onSessionChange,
-  onAuthReturnPendingChange,
 }: {
   session: BackendSession | null
   onSessionChange: (session: BackendSession | null) => void
-  onAuthReturnPendingChange: (pending: boolean) => void
 }) {
   const [accountType, setAccountType] = useState<'candidate' | 'employer'>('candidate')
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
-  const [emailSignInStep, setEmailSignInStep] = useState<'email' | 'password'>('email')
+  const [emailSignInStep, setEmailSignInStep] = useState<'email' | 'password' | 'code'>('email')
   const [password, setPassword] = useState('')
+  const [emailCode, setEmailCode] = useState('')
   const [showInlineSignUp, setShowInlineSignUp] = useState(false)
   const [tenantName] = useState('')
   const [message, setMessage] = useState('Looking for an active JobsFlow workspace...')
@@ -1490,8 +1475,7 @@ function AuthPanel({
 
   const setAuthReturnPending = useCallback((pending: boolean) => {
     writeAuthReturnPending(pending)
-    onAuthReturnPendingChange(pending)
-  }, [onAuthReturnPendingChange])
+  }, [])
 
   const checkSession = useCallback(async () => {
     setIsBusy(true)
@@ -1618,21 +1602,68 @@ function AuthPanel({
     setEmail(normalizedEmail)
 
     if (emailSignInStep === 'email') {
-      setEmailSignInStep('password')
+      if (!sso.isLoaded) {
+        setMessage(
+          sso.loadTimedOut
+            ? 'Secure sign-in has not loaded in this browser yet. Refresh the page or disable blockers for JobsFlow and Clerk.'
+            : 'Secure sign-in is still loading. Please try again in a moment.',
+        )
+        setShowInlineSignUp(false)
+        return
+      }
+
+      setIsBusy(true)
       setShowInlineSignUp(false)
-      setMessage(`Enter the password for ${normalizedEmail}.`)
+      setMessage(`Checking sign-in options for ${normalizedEmail}...`)
+      try {
+        const signInOptions = await sso.prepareEmailSignIn(normalizedEmail)
+        if (signInOptions.method === 'password') {
+          setEmailSignInStep('password')
+          setPassword('')
+          setEmailCode('')
+          setMessage(`Enter the password for ${normalizedEmail}.`)
+          return
+        }
+
+        if (signInOptions.method === 'email_code') {
+          setEmailSignInStep('code')
+          setPassword('')
+          setEmailCode('')
+          setMessage(
+            `Enter the verification code sent to ${signInOptions.safeIdentifier ?? normalizedEmail}.`,
+          )
+          return
+        }
+
+        setMessage(
+          signInOptions.provider
+            ? `This email is set up for ${ssoProviderActions.find((provider) => provider.key === signInOptions.provider)?.label ?? 'social'} sign-in. Use that Continue option above.`
+            : 'This email is not set up for password sign-in. Use Google or Apple if that is how you created the account.',
+        )
+      } catch (error) {
+        setShowInlineSignUp(isMissingEmailAccountError(error))
+        setMessage(humanizeSsoError(error, 'We could not find sign-in options for this email.'))
+      } finally {
+        setIsBusy(false)
+      }
       return
     }
 
-    if (!password) {
+    if (emailSignInStep === 'password' && !password) {
       setMessage('Enter your password to continue.')
+      setShowInlineSignUp(false)
+      return
+    }
+
+    if (emailSignInStep === 'code' && !emailCode.trim()) {
+      setMessage('Enter the verification code from your email to continue.')
       setShowInlineSignUp(false)
       return
     }
 
     setIsBusy(true)
     setAuthReturnPending(true)
-    setMessage('Signing in with email and password...')
+    setMessage(emailSignInStep === 'code' ? 'Checking the email verification code...' : 'Signing in with email and password...')
 
     if (!sso.isLoaded) {
       setIsBusy(false)
@@ -1647,15 +1678,27 @@ function AuthPanel({
     }
 
     try {
-      await sso.signInWithPassword(normalizedEmail, password)
+      if (emailSignInStep === 'code') {
+        await sso.signInWithEmailCode(emailCode.trim())
+      } else {
+        await sso.signInWithPassword(normalizedEmail, password)
+      }
       setPassword('')
+      setEmailCode('')
       setShowInlineSignUp(false)
       autoSsoSessionAttempted.current = false
       setMessage('Email sign-in complete. Opening your JobsFlow workspace...')
     } catch (error) {
       setAuthReturnPending(false)
-      setShowInlineSignUp(isMissingEmailAccountError(error) || isPasswordStrategyError(error))
-      setMessage(humanizeSsoError(error, 'Email sign-in could not complete. Check the password and try again.'))
+      setShowInlineSignUp(isMissingEmailAccountError(error))
+      setMessage(
+        humanizeSsoError(
+          error,
+          emailSignInStep === 'code'
+            ? 'Email sign-in could not complete. Check the verification code and try again.'
+            : 'Email sign-in could not complete. Check the password and try again.',
+        ),
+      )
     } finally {
       setIsBusy(false)
     }
@@ -1757,7 +1800,9 @@ function AuthPanel({
     const emailSubmitDisabled =
       !sso.configured ||
       !email.trim() ||
-      (emailSignInStep === 'password' && (!password || isBusy))
+      isBusy ||
+      (emailSignInStep === 'password' && !password) ||
+      (emailSignInStep === 'code' && !emailCode.trim())
     const gatewayStatus = !sso.configured
       ? 'Secure sign-in is not connected yet.'
       : !sso.isLoaded
@@ -1817,6 +1862,8 @@ function AuthPanel({
                   onChange={(event) => {
                     setEmail(event.target.value)
                     setPassword('')
+                    setEmailCode('')
+                    setEmailSignInStep('email')
                     setShowInlineSignUp(false)
                   }}
                   required
@@ -1840,18 +1887,35 @@ function AuthPanel({
                   />
                 </label>
               ) : null}
+              {emailSignInStep === 'code' ? (
+                <label>
+                  <strong>Verification code *</strong>
+                  <input
+                    autoComplete="one-time-code"
+                    autoFocus
+                    inputMode="numeric"
+                    onChange={(event) => {
+                      setEmailCode(event.target.value)
+                      setShowInlineSignUp(false)
+                    }}
+                    required
+                    type="text"
+                    value={emailCode}
+                  />
+                </label>
+              ) : null}
               <button
                 disabled={emailSubmitDisabled}
                 type="submit"
               >
-                {emailSignInStep === 'password' ? 'Sign in' : 'Continue'}
+                {emailSignInStep === 'email' ? 'Continue' : 'Sign in'}
                 <ArrowRight size={24} aria-hidden="true" />
               </button>
             </form>
 
             {showInlineSignUp ? (
               <div className="auth-inline-signup" role="note">
-                <span>No account or password sign-in is available for this email yet.</span>
+                <span>No JobsFlow account exists for this email yet.</span>
                 <button type="button" onClick={handleInlineSignUp}>
                   Sign up with this email
                 </button>
@@ -5166,7 +5230,6 @@ function App() {
   const [activeOnboardingStep, setActiveOnboardingStep] = useState(onboardingSteps[0].key)
   const [session, setSession] = useState<BackendSession | null>(null)
   const [searchIntent, setSearchIntent] = useState<LandingSearchIntent | null>(null)
-  const [authReturnPending, setAuthReturnPending] = useState(() => readAuthReturnPending())
   const [isSigningOut, setIsSigningOut] = useState(false)
   const sso = useJobsFlowSso()
 
@@ -5200,10 +5263,6 @@ function App() {
     navigateToView(session ? 'workspace' : 'landing')
   }
 
-  function handleHeroWorkspaceChange(workspace: Workspace) {
-    setActiveWorkspace(workspace)
-  }
-
   function handleLandingSearch(intent: LandingSearchIntent) {
     setSearchIntent(intent)
     setActiveWorkspace('candidate')
@@ -5213,7 +5272,6 @@ function App() {
   function handleBrandClick(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault()
     writeAuthReturnPending(false)
-    setAuthReturnPending(false)
     navigateToView('landing')
   }
 
@@ -5226,7 +5284,6 @@ function App() {
       }
       setSession(null)
       writeAuthReturnPending(false)
-      setAuthReturnPending(false)
       navigateToView('landing', 'replace')
     } finally {
       setIsSigningOut(false)
@@ -5262,17 +5319,8 @@ function App() {
 
     setActiveWorkspace(session.role === 'candidate' ? 'candidate' : 'employer')
     writeAuthReturnPending(false)
-    setAuthReturnPending(false)
     navigateToView('workspace', 'replace')
   }, [session])
-
-  useEffect(() => {
-    if (session || !authReturnPending || !sso.isSignedIn || appView !== 'landing') {
-      return
-    }
-
-    navigateToView('auth', 'replace')
-  }, [appView, authReturnPending, session, sso.isSignedIn])
 
   return (
     <div className="app-root">
@@ -5281,11 +5329,8 @@ function App() {
           <JobsFlowLogoMark />
           <span>
             <strong>JobsFlow AI</strong>
-            <small>by Momentum AI Technologies</small>
           </span>
         </a>
-
-        <div className="launch-notice" role="status">Coming Soon</div>
 
         <nav className="header-nav" aria-label="JobsFlow sections">
           {workspaces.map((workspace) => (
@@ -5322,17 +5367,14 @@ function App() {
       <main className={`app-main app-main-${effectiveView}`}>
         {effectiveView === 'landing' ? (
           <LandingHero
-            activeWorkspace={activeWorkspace}
             onGetStarted={handleGetStarted}
             onSearch={handleLandingSearch}
-            onWorkspaceChange={handleHeroWorkspaceChange}
           />
         ) : null}
 
         {effectiveView === 'auth' ? (
           <div id="secure-access" className="landing-section-anchor">
             <AuthPanel
-              onAuthReturnPendingChange={setAuthReturnPending}
               session={session}
               onSessionChange={setSession}
             />

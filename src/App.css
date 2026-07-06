@@ -43,7 +43,6 @@
   height: 32px;
   flex: 0 0 auto;
   overflow: visible;
-  filter: drop-shadow(0 8px 14px rgba(6, 78, 59, 0.14));
 }
 
 .brand-mark-jf-j-base {
@@ -67,38 +66,9 @@
   opacity: 0.47;
 }
 
-.brand strong,
-.brand small {
+.brand strong {
   display: block;
   line-height: 1.1;
-}
-
-.brand small {
-  margin-top: 2px;
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.launch-notice {
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  display: inline-flex;
-  min-height: 28px;
-  align-items: center;
-  justify-content: center;
-  padding: 0 14px;
-  color: #111827;
-  font-size: 0.76rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  background: #ffd60a;
-  border: 2px solid #111827;
-  border-radius: 4px;
-  box-shadow: 0 8px 0 rgba(17, 24, 39, 0.12);
-  transform: translateX(-50%);
 }
 
 .header-nav {
@@ -107,7 +77,6 @@
   justify-content: center;
   gap: 28px;
   min-width: 0;
-  padding-top: 16px;
 }
 
 .header-nav-link {
@@ -342,7 +311,7 @@
   background: #ffffff;
   border: 1px solid #d1d5db;
   border-radius: 8px;
-  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.11);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
 }
 
 .landing-search-field {
@@ -408,25 +377,23 @@
 }
 
 .hero-secondary-actions button {
-  min-height: 42px;
-  padding: 0 16px;
-  color: #075985;
-  background: #ffffff;
-  border: 1px solid #dbeafe;
-}
-
-.hero-secondary-actions button:first-child {
+  min-height: 44px;
+  padding: 0 22px;
   color: #111827;
-  border-color: transparent;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
 }
 
-.hero-secondary-actions button:hover,
-.hero-secondary-actions button:focus-visible,
-.hero-secondary-actions button.active {
-  color: #ffffff;
-  background: var(--teal);
-  border-color: var(--teal);
-  outline: none;
+.hero-secondary-actions button:hover {
+  color: #075985;
+  border-color: #7dd3fc;
+}
+
+.hero-secondary-actions button:focus-visible {
+  color: #075985;
+  border-color: #0284c7;
+  outline: 2px solid #0284c7;
+  outline-offset: 2px;
 }
 
 .landing-section-anchor {
@@ -3578,12 +3545,6 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
     padding: 14px 24px;
   }
 
-  .launch-notice {
-    position: static;
-    justify-self: start;
-    transform: none;
-  }
-
   .onboarding-panel,
   .ops-layer,
   .auth-panel,
@@ -3599,10 +3560,6 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
   .header-nav,
   .header-actions {
     justify-content: flex-start;
-  }
-
-  .header-nav {
-    padding-top: 0;
   }
 
   .landing-hero {
@@ -3900,13 +3857,11 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
   }
 
   .hero-secondary-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     width: min(100%, 338px);
   }
 
-  .hero-secondary-actions button:first-child {
-    grid-column: 1 / -1;
+  .hero-secondary-actions button {
+    width: 100%;
   }
 
   .workspace-summary,

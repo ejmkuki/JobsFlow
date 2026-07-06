@@ -10,6 +10,14 @@ export type JobsFlowSsoProviderKey =
   | 'microsoft'
   | 'x'
 
+export type JobsFlowEmailSignInMethod = 'password' | 'email_code' | 'oauth_only'
+
+export type JobsFlowEmailSignInOptions = {
+  method: JobsFlowEmailSignInMethod
+  provider?: JobsFlowSsoProviderKey
+  safeIdentifier?: string
+}
+
 export type JobsFlowSsoContextValue = {
   configured: boolean
   displayName: string | null
@@ -21,6 +29,8 @@ export type JobsFlowSsoContextValue = {
   openSignIn: () => void
   openSignUp: (initialEmail?: string) => void
   openProviderSignIn: (provider: JobsFlowSsoProviderKey) => Promise<void>
+  prepareEmailSignIn: (email: string) => Promise<JobsFlowEmailSignInOptions>
+  signInWithEmailCode: (code: string) => Promise<void>
   signInWithPassword: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }
@@ -36,6 +46,8 @@ export const disabledSso: JobsFlowSsoContextValue = {
   openSignIn: () => undefined,
   openSignUp: () => undefined,
   openProviderSignIn: async () => undefined,
+  prepareEmailSignIn: async () => ({ method: 'password' }),
+  signInWithEmailCode: async () => undefined,
   signInWithPassword: async () => undefined,
   signOut: async () => undefined,
 }
