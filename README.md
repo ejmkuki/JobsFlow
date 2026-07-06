@@ -1,6 +1,10 @@
-# JobsFlow by Momentum AI Technologies
+# JobsFlow AI by Momentum AI Technologies
 
-JobsFlow by Momentum AI Technologies is the candidate-trusted, employer-ready AI hiring workflow platform for `https://jobsflow.workflowfy.ai`.
+JobsFlow AI by Momentum AI Technologies is the candidate-trusted, employer-ready AI hiring workflow platform for `https://jobsflowai.ai` and `https://jobsflow.workflowfy.ai`.
+
+## Platform Consistency Rule
+
+Every JobsFlow change must be universal across the platform surface it touches. Brand, copy, auth behavior, error handling, metadata, email templates, API-facing user messages, documentation, smoke-test expectations, and both production domains must stay aligned. Do not leave parallel names, stale titles, old provider wording, mixed auth behavior, or mismatched user guidance anywhere in the product. If a change affects one public path, check and update every equivalent path before build, deploy, verification, commit, and push.
 
 JobsFlow is being shaped as a candidate-trusted, employer-ready AI hiring workflow platform. The current build includes the frontend workspace plus a Cloudflare-ready backend slice for signed sessions, tenants, resume storage, and audit logs. It does not submit applications, send email, charge cards, scrape job boards, or run AI calls.
 
@@ -86,7 +90,7 @@ These modules remain consent-first. The prototype does not scrape external platf
 - `migrations/0009_semantic_skill_matching.sql` adds tenant-scoped skill taxonomy nodes, employer role requirements, candidate skill profiles, and semantic match runs.
 - `functions/api/skill-matching.ts` creates taxonomy-adjacent match runs that separate direct skill proof, adjacent bridges, and review gaps.
 - Employer Workspace now includes live Semantic Vector Skill-Matching for role requirements, vector-ready candidate profiles, and evidence-first fit scoring.
-- `migrations/0010_job_syndication.sql` adds validated job syndication posts plus Google-for-Jobs, partner network, and Workflowfy digest delivery records.
+- `migrations/0010_job_syndication.sql` adds validated job syndication posts plus Google-for-Jobs, partner network, and digest delivery records.
 - `functions/api/job-syndication.ts` validates job payloads, builds Google JobPosting JSON-LD and partner payloads, queues delivery records, and keeps external publication review-gated.
 - Employer Workspace now includes a live One-Click Job Syndication Engine with validation status, salary payloads, and delivery records.
 - `migrations/0011_prescreening_agents.sql` adds conversational pre-screening agents, sessions, transcript messages, and decision records.
