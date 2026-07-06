@@ -21,6 +21,7 @@ export type JobsFlowSsoContextValue = {
   openSignIn: () => void
   openSignUp: () => void
   openProviderSignIn: (provider: JobsFlowSsoProviderKey) => Promise<void>
+  signInWithPassword: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -35,6 +36,7 @@ export const disabledSso: JobsFlowSsoContextValue = {
   openSignIn: () => undefined,
   openSignUp: () => undefined,
   openProviderSignIn: async () => undefined,
+  signInWithPassword: async () => undefined,
   signOut: async () => undefined,
 }
 

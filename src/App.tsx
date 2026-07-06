@@ -149,6 +149,25 @@ function writeAppViewHash(view: AppView, mode: 'push' | 'replace' = 'push') {
   window.history.pushState(null, '', nextUrl)
 }
 
+function humanizeSsoError(error: unknown, fallback = 'Secure sign-in could not complete. Try again.') {
+  const clerkErrors = (error as { errors?: Array<{ longMessage?: string; message?: string }> })?.errors
+  const firstClerkError = Array.isArray(clerkErrors) ? clerkErrors[0] : null
+
+  if (firstClerkError?.longMessage) {
+    return firstClerkError.longMessage
+  }
+
+  if (firstClerkError?.message) {
+    return firstClerkError.message
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  return fallback
+}
+
 function JobsFlowLogoMark({ className = 'brand-mark' }: { className?: string }) {
   return (
     <svg
@@ -1356,6 +1375,8 @@ function AuthPanel({
   const [accountType, setAccountType] = useState<'candidate' | 'employer'>('candidate')
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
+  const [emailSignInStep, setEmailSignInStep] = useState<'email' | 'password'>('email')
+  const [password, setPassword] = useState('')
   const [tenantName] = useState('')
   const [message, setMessage] = useState('Looking for an active JobsFlow workspace...')
   const [isBusy, setIsBusy] = useState(false)
@@ -1464,12 +1485,14 @@ function AuthPanel({
           ? 'Opening the email sign-in screen.'
           : `Opening ${providerLabel} sign-in through Clerk.`,
       )
-      void sso.openProviderSignIn(provider)
+      void sso.openProviderSignIn(provider).catch((error: unknown) => {
+        setMessage(humanizeSsoError(error))
+      })
     },
     [handleCreateSsoSession, hostedSignInUrl, sso],
   )
 
-  function handleEmailContinue(event: FormEvent<HTMLFormElement>) {
+  async function handleEmailContinue(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const normalizedEmail = email.trim()
     if (!normalizedEmail) {
@@ -1478,7 +1501,31 @@ function AuthPanel({
     }
 
     setEmail(normalizedEmail)
-    handleProviderSignIn('email')
+
+    if (emailSignInStep === 'email') {
+      setEmailSignInStep('password')
+      setMessage(`Enter the password for ${normalizedEmail}.`)
+      return
+    }
+
+    if (!password) {
+      setMessage('Enter your password to continue.')
+      return
+    }
+
+    setIsBusy(true)
+    setMessage('Signing in with email and password...')
+
+    try {
+      await sso.signInWithPassword(normalizedEmail, password)
+      setPassword('')
+      autoSsoSessionAttempted.current = false
+      setMessage('Email sign-in complete. Opening your JobsFlow workspace...')
+    } catch (error) {
+      setMessage(humanizeSsoError(error, 'Email sign-in could not complete. Check the password and try again.'))
+    } finally {
+      setIsBusy(false)
+    }
   }
 
   async function handleSignOut() {
@@ -1515,6 +1562,7 @@ function AuthPanel({
 
     if (sso.email && !email) {
       setEmail(sso.email)
+      setEmailSignInStep('password')
     }
 
     if (sso.displayName && !displayName) {
@@ -1544,6 +1592,10 @@ function AuthPanel({
     const oauthProviders = ssoProviderActions.filter(
       (provider) => provider.key !== 'email' && productionOauthProviderKeys.has(provider.key),
     )
+    const emailSubmitDisabled =
+      !sso.configured ||
+      !email.trim() ||
+      (emailSignInStep === 'password' && (!password || isBusy))
     const gatewayStatus = !sso.configured
       ? 'Secure sign-in is not connected yet.'
       : !sso.isLoaded
@@ -1575,7 +1627,7 @@ function AuthPanel({
               {oauthProviders.map((provider) => (
                 <button
                   className="auth-provider-button"
-                  disabled={isBusy || !sso.configured}
+                  disabled={!sso.configured}
                   key={provider.key}
                   onClick={() => handleProviderSignIn(provider.key)}
                   type="button"
@@ -1606,11 +1658,24 @@ function AuthPanel({
                   value={email}
                 />
               </label>
+              {emailSignInStep === 'password' ? (
+                <label>
+                  <strong>Password *</strong>
+                  <input
+                    autoComplete="current-password"
+                    autoFocus
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                    type="password"
+                    value={password}
+                  />
+                </label>
+              ) : null}
               <button
-                disabled={isBusy || !sso.configured || !email.trim()}
+                disabled={emailSubmitDisabled}
                 type="submit"
               >
-                Continue
+                {emailSignInStep === 'password' ? 'Sign in' : 'Continue'}
                 <ArrowRight size={24} aria-hidden="true" />
               </button>
             </form>
@@ -4930,7 +4995,13 @@ function App() {
     [activeWorkspace],
   )
 
-  const effectiveView: AppView = session ? 'workspace' : appView === 'workspace' ? 'auth' : appView
+  const effectiveView: AppView = session
+    ? 'workspace'
+    : sso.isSignedIn
+      ? 'auth'
+      : appView === 'workspace'
+        ? 'auth'
+        : appView
 
   function navigateToView(view: AppView, mode: 'push' | 'replace' = 'push') {
     setAppView(view)
@@ -5014,6 +5085,14 @@ function App() {
     setActiveWorkspace(session.role === 'candidate' ? 'candidate' : 'employer')
     navigateToView('workspace', 'replace')
   }, [session])
+
+  useEffect(() => {
+    if (session || !sso.isSignedIn || appView !== 'landing') {
+      return
+    }
+
+    navigateToView('auth', 'replace')
+  }, [appView, session, sso.isSignedIn])
 
   return (
     <div className="app-root">

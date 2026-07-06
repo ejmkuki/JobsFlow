@@ -83,7 +83,7 @@ const oauthStrategyByProvider = {
 function ClerkBridge({ children }: { children: ReactNode }) {
   const { getToken, isLoaded, isSignedIn } = useAuth()
   const { openSignIn, openSignUp, signOut } = useClerk()
-  const { isLoaded: isSignInLoaded, signIn } = useSignIn()
+  const { isLoaded: isSignInLoaded, setActive, signIn } = useSignIn()
   const { user } = useUser()
   const [loadTimedOut, setLoadTimedOut] = useState(false)
 
@@ -120,7 +120,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
 
   const email = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses[0]?.emailAddress ?? null
   const displayName = user?.fullName ?? user?.username ?? email
-  const redirectUrlComplete = window.location.href
+  const redirectUrlComplete = `${window.location.origin}/#signin`
   const redirectUrl = `${window.location.origin}/sso-callback`
 
   async function openProviderSignIn(provider: JobsFlowSsoProviderKey) {
@@ -168,6 +168,24 @@ function ClerkBridge({ children }: { children: ReactNode }) {
     })
   }
 
+  async function signInWithPassword(identifier: string, password: string) {
+    if (!isSignInLoaded || !signIn || !setActive) {
+      throw new Error('Secure sign-in is still loading. Try again in a moment.')
+    }
+
+    const result = await signIn.create({
+      identifier,
+      password,
+      strategy: 'password',
+    })
+
+    if (result.status !== 'complete' || !result.createdSessionId) {
+      throw new Error('JobsFlow needs another verification step before this session can open.')
+    }
+
+    await setActive({ session: result.createdSessionId })
+  }
+
   return (
     <JobsFlowSsoContext.Provider
       value={{
@@ -183,9 +201,9 @@ function ClerkBridge({ children }: { children: ReactNode }) {
           delete document.documentElement.dataset.jobsflowClerkMode
           openSignIn({
             appearance: jobsFlowClerkAppearance,
-            fallbackRedirectUrl: window.location.href,
-            forceRedirectUrl: window.location.href,
-            signUpFallbackRedirectUrl: window.location.href,
+            fallbackRedirectUrl: redirectUrlComplete,
+            forceRedirectUrl: redirectUrlComplete,
+            signUpFallbackRedirectUrl: redirectUrlComplete,
             withSignUp: true,
           })
         },
@@ -193,11 +211,12 @@ function ClerkBridge({ children }: { children: ReactNode }) {
           document.documentElement.dataset.jobsflowClerkMode = 'signup'
           openSignUp({
             appearance: emailOnlyClerkAppearance,
-            fallbackRedirectUrl: window.location.href,
-            forceRedirectUrl: window.location.href,
-            signInFallbackRedirectUrl: window.location.href,
+            fallbackRedirectUrl: redirectUrlComplete,
+            forceRedirectUrl: redirectUrlComplete,
+            signInFallbackRedirectUrl: redirectUrlComplete,
           })
         },
+        signInWithPassword,
         signOut: () => signOut(),
       }}
     >
