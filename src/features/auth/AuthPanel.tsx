@@ -1,41 +1,15 @@
 import type { BackendSession } from '../../backendClient'
 import { createJobsFlowSession, deleteBackendSession, getBackendSession, humanizeJobsFlowError } from '../../backendClient'
-import { ArrowRight, LogOut, RefreshCw } from 'lucide-react'
-import { JobsFlowLogoMark, StatusPill } from '../../components/ui'
-import { friendlyUserMessage } from '../../lib/format'
 import { candidateActivationChecklist } from '../../data/candidate'
-import { employerActivationChecklist, employerActivationPreview } from '../../data/employer'
-import { ResumeStoragePanel } from '../shared/ResumeStoragePanel'
+import { employerActivationChecklist } from '../../data/employer'
 import type { JobsFlowSsoProviderKey } from '../../jobsFlowSsoContext'
 import { useJobsFlowSso } from '../../jobsFlowSsoContext'
 import { writeAuthReturnPending } from '../../lib/appView'
 import { humanizeSsoError, isMissingEmailAccountError } from '../../lib/ssoErrors'
-import type { FormEvent } from 'react'
-import { useCallback, useEffect, useRef, useState } from 'react'
-
-export const ssoProviderActions: Array<{ key: JobsFlowSsoProviderKey; label: string }> = [
-  { key: 'google', label: 'Google' },
-  { key: 'apple', label: 'Apple' },
-  { key: 'linkedin_oidc', label: 'LinkedIn' },
-  { key: 'microsoft', label: 'Microsoft' },
-  { key: 'facebook', label: 'Facebook' },
-  { key: 'github', label: 'GitHub' },
-  { key: 'x', label: 'X' },
-  { key: 'email', label: 'Email' },
-]
-
-export const productionOauthProviderKeys = new Set<JobsFlowSsoProviderKey>(['google', 'apple'])
-
-export const ssoProviderIconText: Record<JobsFlowSsoProviderKey, string> = {
-  apple: 'A',
-  email: '@',
-  facebook: 'f',
-  github: 'GH',
-  google: 'G',
-  linkedin_oidc: 'in',
-  microsoft: 'M',
-  x: 'X',
-}
+import { AuthGateway } from './AuthGateway'
+import { WorkspaceReadyView } from './WorkspaceReadyView'
+import { ssoProviderActions } from './ssoProviders'
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 
 export function AuthPanel({
   session,
@@ -380,241 +354,47 @@ export function AuthPanel({
   }, [session])
 
   if (!session) {
-    const oauthProviders = ssoProviderActions.filter(
-      (provider) => provider.key !== 'email' && productionOauthProviderKeys.has(provider.key),
-    )
-    const emailSubmitDisabled =
-      !sso.configured ||
-      !email.trim() ||
-      isBusy ||
-      (emailSignInStep === 'password' && !password) ||
-      (emailSignInStep === 'code' && !emailCode.trim())
-    const gatewayStatus = !sso.configured
-      ? 'Sign-in is being prepared. Please try again shortly.'
-      : !sso.isLoaded
-        ? sso.loadTimedOut
-          ? 'Sign-in is taking longer than expected in this browser. Refresh the page, then try again.'
-          : 'Loading sign-in...'
-        : null
-
     return (
-      <section className="auth-gateway" aria-label="JobsFlow account access">
-        <div className="auth-gateway-inner">
-          <div className="auth-gateway-wordmark" aria-label="JobsFlow AI">
-            <JobsFlowLogoMark />
-            <strong>JobsFlow AI</strong>
-          </div>
-
-          <article className="auth-gateway-card">
-            <div className="auth-gateway-copy">
-              <h2>Ready to take the next step?</h2>
-              <p className="auth-gateway-subtitle">Create an account or sign in.</p>
-              <p className="auth-gateway-terms">
-                By clicking any of the Continue options below, you understand and agree
-                to JobsFlow's <a href="#workspace">Terms</a>. You also acknowledge our{' '}
-                <a href="#workspace">Cookie</a> and <a href="#workspace">Privacy</a> policies.
-              </p>
-            </div>
-
-            <div className="auth-gateway-oauth" aria-label="Continue with a sign-in option">
-              {oauthProviders.map((provider) => (
-                <button
-                  className="auth-provider-button"
-                  disabled={!sso.configured}
-                  key={provider.key}
-                  onClick={() => handleProviderSignIn(provider.key)}
-                  type="button"
-                >
-                  <span className={`auth-provider-icon auth-provider-icon-${provider.key}`}>
-                    {ssoProviderIconText[provider.key]}
-                  </span>
-                  Continue with {provider.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="auth-gateway-divider">
-              <span />
-              <strong>or</strong>
-              <span />
-            </div>
-
-            <form className="auth-gateway-email-form" onSubmit={handleEmailContinue}>
-              <label>
-                <span>All fields marked with * are required.</span>
-                <strong>Email address *</strong>
-                <input
-                  autoComplete="email"
-                  onChange={(event) => {
-                    setEmail(event.target.value)
-                    setPassword('')
-                    setEmailCode('')
-                    setEmailSignInStep('email')
-                    setShowInlineSignUp(false)
-                  }}
-                  required
-                  type="email"
-                  value={email}
-                />
-              </label>
-              {emailSignInStep === 'password' ? (
-                <label>
-                  <strong>Password *</strong>
-                  <input
-                    autoComplete="current-password"
-                    autoFocus
-                    onChange={(event) => {
-                      setPassword(event.target.value)
-                      setShowInlineSignUp(false)
-                    }}
-                    required
-                    type="password"
-                    value={password}
-                  />
-                </label>
-              ) : null}
-              {emailSignInStep === 'code' ? (
-                <label>
-                  <strong>Verification code *</strong>
-                  <input
-                    autoComplete="one-time-code"
-                    autoFocus
-                    inputMode="numeric"
-                    onChange={(event) => {
-                      setEmailCode(event.target.value)
-                      setShowInlineSignUp(false)
-                    }}
-                    required
-                    type="text"
-                    value={emailCode}
-                  />
-                </label>
-              ) : null}
-              <button
-                disabled={emailSubmitDisabled}
-                type="submit"
-              >
-                {emailSignInStep === 'email' ? 'Continue' : 'Sign in'}
-                <ArrowRight size={24} aria-hidden="true" />
-              </button>
-            </form>
-
-            {showInlineSignUp ? (
-              <div className="auth-inline-signup" role="note">
-                <span>No JobsFlow account exists for this email yet.</span>
-                <button type="button" onClick={handleInlineSignUp}>
-                  Sign up with this email
-                </button>
-              </div>
-            ) : null}
-
-            <p className="auth-gateway-status" aria-live="polite">{friendlyUserMessage(message)}</p>
-            {gatewayStatus ? <p className="auth-gateway-status">{friendlyUserMessage(gatewayStatus)}</p> : null}
-          </article>
-        </div>
-      </section>
+      <AuthGateway
+        sso={sso}
+        email={email}
+        password={password}
+        emailCode={emailCode}
+        emailSignInStep={emailSignInStep}
+        showInlineSignUp={showInlineSignUp}
+        message={message}
+        isBusy={isBusy}
+        onEmailChange={(value) => {
+          setEmail(value)
+          setPassword('')
+          setEmailCode('')
+          setEmailSignInStep('email')
+          setShowInlineSignUp(false)
+        }}
+        onPasswordChange={(value) => {
+          setPassword(value)
+          setShowInlineSignUp(false)
+        }}
+        onCodeChange={(value) => {
+          setEmailCode(value)
+          setShowInlineSignUp(false)
+        }}
+        onSubmit={handleEmailContinue}
+        onProviderSignIn={handleProviderSignIn}
+        onInlineSignUp={handleInlineSignUp}
+      />
     )
   }
 
   return (
-    <section className="auth-panel auth-panel-ready" aria-label="JobsFlow activation center">
-      <div className="auth-copy">
-        <span>Private workspace</span>
-        <h2>Open JobsFlow, then decide what leaves the room</h2>
-        <p>
-          Sign in once. Upload evidence, review matches, and keep every employer-facing
-          action behind consent.
-        </p>
-        <div className="activation-path">
-          {selectedChecklist.slice(0, 3).map((item, index) => (
-            <div className="activation-item" key={item.step}>
-              <b>{String(index + 1).padStart(2, '0')}</b>
-              <div>
-                <strong>{item.step}</strong>
-                <p>{item.detail}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="auth-workspace-card">
-        <StatusPill tone="green">Workspace ready</StatusPill>
-        <h3>Your JobsFlow workspace is open</h3>
-        <strong>{session.displayName}</strong>
-        <span>{session.email}</span>
-        <p>
-          Resume upload, packet review, and the consent gate are unlocked for this
-          signed session.
-        </p>
-      </div>
-
-      <div className="auth-state">
-        <StatusPill tone="green">Workspace open</StatusPill>
-        <div className="session-summary">
-          <strong>{session.displayName}</strong>
-          <span>{session.email}</span>
-          <small>{session.role} workspace</small>
-        </div>
-        <p className="runtime-message">{friendlyUserMessage(message)}</p>
-        <div className="auth-actions">
-          <button disabled={isBusy} onClick={checkSession} type="button">
-            <RefreshCw size={16} aria-hidden="true" />
-            Refresh status
-          </button>
-          <button disabled={isBusy} onClick={handleSignOut} type="button">
-            <LogOut size={16} aria-hidden="true" />
-            Sign out
-          </button>
-        </div>
-      </div>
-
-      <div className="activation-next">
-        {accountType === 'candidate' ? (
-          <>
-            <div className="activation-next-copy">
-              <span>Candidate first action</span>
-              <h3>Upload the resume that becomes your evidence base</h3>
-              <p>
-                The best candidate experience starts with one concrete action. Once
-                signed in, store your resume here, then JobsFlow can build profile
-                health, match evidence, and packet review around it.
-              </p>
-            </div>
-            {session ? (
-              <ResumeStoragePanel session={session} variant="activation" />
-            ) : (
-              <div className="activation-placeholder">
-                <StatusPill tone="amber">Session needed</StatusPill>
-                <strong>Start a workspace to unlock secure resume upload.</strong>
-                <p>
-                  Resume storage uses your signed-in workspace so files and metadata stay
-                  protected.
-                </p>
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <div className="activation-next-copy">
-              <span>Employer first action</span>
-              <h3>Clarify the role before JobsFlow ranks anyone</h3>
-              <p>
-                The employer path starts with role criteria, scorecard weights, and
-                compensation visibility. Better shortlists begin with better intake.
-              </p>
-            </div>
-            <div className="employer-activation-preview">
-              {employerActivationPreview.map(([label, value]) => (
-                <div key={label}>
-                  <span>{label}</span>
-                  <strong>{value}</strong>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-    </section>
+    <WorkspaceReadyView
+      session={session}
+      accountType={accountType}
+      selectedChecklist={selectedChecklist}
+      message={message}
+      isBusy={isBusy}
+      onRefresh={checkSession}
+      onSignOut={handleSignOut}
+    />
   )
 }
