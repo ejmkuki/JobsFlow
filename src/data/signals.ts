@@ -1,0 +1,40 @@
+import type { SignalDecision } from '../types'
+
+export const signalDecisions: SignalDecision[] = [
+  {
+    workspace: 'candidate',
+    label: 'Candidate decision',
+    title: 'Approve Kora packet only after the proof gap is fixed',
+    status: 'Review gate open',
+    owner: 'Maya',
+    changed: 'Resume storage and packet builder are ready for the first high-fit role.',
+    matters: 'A missing claims-operations example could make the tailored packet feel generic.',
+    next: 'Add one evidence bullet, then approve the resume variant and two screening answers.',
+    tone: 'amber',
+    evidence: ['96% role fit', '$118k floor satisfied', 'No company exclusion'],
+  },
+  {
+    workspace: 'employer',
+    label: 'Employer decision',
+    title: 'Lock the scorecard before outreach leaves draft mode',
+    status: 'Manager input needed',
+    owner: 'Hiring manager',
+    changed: 'Shortlist is usable, but compensation and product analytics criteria are not final.',
+    matters: 'Ranking before criteria are locked creates fairness and expectation risk.',
+    next: 'Confirm comp band and whether product analytics is required or coachable.',
+    tone: 'amber',
+    evidence: ['24 qualified candidates', '5 of 6 fairness checks', 'Two candidate gaps flagged'],
+  },
+  {
+    workspace: 'trust',
+    label: 'Platform decision',
+    title: 'Keep external actions blocked until consent receipts exist',
+    status: 'Production gate',
+    owner: 'Platform',
+    changed: 'Workspace storage, private sessions, and activity history are live in the beta stack.',
+    matters: 'Real automation needs export/delete, retention, abuse review, and billing controls.',
+    next: 'Ship production auth UI, consent receipts, and activity review before any integration sends.',
+    tone: 'green',
+    evidence: ['Live health check passes', 'Resume upload smoke test passes', 'External submissions disabled'],
+  },
+]
