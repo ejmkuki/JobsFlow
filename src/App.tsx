@@ -1,3 +1,6 @@
+import type { MouseEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import type { BackendSession } from './backendClient'
 import { deleteBackendSession } from './backendClient'
 import { JobsFlowLogoMark, StatusPill, WorkspaceButton } from './components/ui'
@@ -6,66 +9,72 @@ import { workspaces } from './data/workspaces'
 import { AuthPanel } from './features/auth/AuthPanel'
 import { CandidateWorkspace } from './features/candidate/CandidateWorkspace'
 import { EmployerWorkspace } from './features/employer/EmployerWorkspace'
-import { LandingHero, ProductOnboarding, SignalOperationsLayer } from './features/landing'
+import { ProductOnboarding, SignalOperationsLayer } from './features/landing'
+import { LandingHero } from './features/landing'
 import { TrustWorkspace } from './features/trust/TrustWorkspace'
 import { useJobsFlowSso } from './jobsFlowSsoContext'
-import { readAppViewFromHash, writeAppViewHash, writeAuthReturnPending } from './lib/appView'
+import { writeAuthReturnPending } from './lib/appView'
 import { onboardingSteps } from './productModel'
-import type { MouseEvent } from 'react'
-import { useEffect, useMemo, useState } from 'react'
-import type { AppView, LandingSearchIntent, Workspace } from './types'
+import type { LandingSearchIntent, Workspace } from './types'
 import './App.css'
 
+const workspaceIds: Workspace[] = ['candidate', 'employer', 'trust']
+
+function isWorkspaceId(value: string): value is Workspace {
+  return (workspaceIds as string[]).includes(value)
+}
+
+function roleWorkspace(session: BackendSession): Workspace {
+  return session.role === 'candidate' ? 'candidate' : 'employer'
+}
+
 function App() {
-  const [activeWorkspace, setActiveWorkspace] = useState<Workspace>('candidate')
-  const [appView, setAppView] = useState<AppView>(() => readAppViewFromHash())
+  return (
+    <BrowserRouter>
+      <AppShell />
+    </BrowserRouter>
+  )
+}
+
+function AppShell() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const sso = useJobsFlowSso()
   const [automationMode, setAutomationMode] = useState(automationModes[1].name)
   const [activeOnboardingStep, setActiveOnboardingStep] = useState(onboardingSteps[0].key)
   const [session, setSession] = useState<BackendSession | null>(null)
   const [searchIntent, setSearchIntent] = useState<LandingSearchIntent | null>(null)
   const [isSigningOut, setIsSigningOut] = useState(false)
-  const sso = useJobsFlowSso()
 
-  const activeSummary = useMemo(
-    () => workspaces.find((workspace) => workspace.id === activeWorkspace)?.summary,
-    [activeWorkspace],
-  )
+  const pathId = location.pathname.slice(1)
+  const activeWorkspace: Workspace = isWorkspaceId(pathId) ? pathId : 'candidate'
+  const viewClass = location.pathname === '/' ? 'landing' : location.pathname === '/auth' ? 'auth' : 'workspace'
 
-  const effectiveView: AppView = session ? 'workspace' : appView === 'workspace' ? 'auth' : appView
-
-  function navigateToView(view: AppView, mode: 'push' | 'replace' = 'push') {
-    setAppView(view)
-    writeAppViewHash(view, mode)
+  function handleHeaderWorkspaceChange(workspace: Workspace) {
+    navigate(session ? `/${workspace}` : '/')
   }
 
   function handleHeaderSignIn() {
-    navigateToView(session ? 'workspace' : 'auth')
+    navigate(session ? `/${roleWorkspace(session)}` : '/auth')
   }
 
   function handleGetStarted() {
-    navigateToView('auth')
+    navigate('/auth')
   }
 
   function handlePostJob() {
-    setActiveWorkspace('employer')
-    navigateToView(session ? 'workspace' : 'auth')
-  }
-
-  function handleHeaderWorkspaceChange(workspace: Workspace) {
-    setActiveWorkspace(workspace)
-    navigateToView(session ? 'workspace' : 'landing')
+    navigate(session ? '/employer' : '/auth')
   }
 
   function handleLandingSearch(intent: LandingSearchIntent) {
     setSearchIntent(intent)
-    setActiveWorkspace('candidate')
-    navigateToView('auth')
+    navigate('/auth')
   }
 
   function handleBrandClick(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault()
     writeAuthReturnPending(false)
-    navigateToView('landing')
+    navigate('/')
   }
 
   async function handleSignOut() {
@@ -77,7 +86,7 @@ function App() {
       }
       setSession(null)
       writeAuthReturnPending(false)
-      navigateToView('landing', 'replace')
+      navigate('/', { replace: true })
     } finally {
       setIsSigningOut(false)
     }
@@ -92,28 +101,15 @@ function App() {
         .join(' / ')
     : null
 
-  useEffect(() => {
-    function handleHashChange() {
-      setAppView(readAppViewFromHash())
-    }
-
-    window.addEventListener('hashchange', handleHashChange)
-    window.addEventListener('popstate', handleHashChange)
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange)
-      window.removeEventListener('popstate', handleHashChange)
-    }
-  }, [])
-
+  // After a session is established, land the user in their role workspace.
   useEffect(() => {
     if (!session) {
       return
     }
 
-    setActiveWorkspace(session.role === 'candidate' ? 'candidate' : 'employer')
     writeAuthReturnPending(false)
-    navigateToView('workspace', 'replace')
-  }, [session])
+    navigate(`/${roleWorkspace(session)}`, { replace: true })
+  }, [session, navigate])
 
   return (
     <div className="app-root">
@@ -128,7 +124,7 @@ function App() {
         <nav className="header-nav" aria-label="JobsFlow sections">
           {workspaces.map((workspace) => (
             <WorkspaceButton
-              active={workspace.id === activeWorkspace}
+              active={workspace.id === activeWorkspace && viewClass === 'workspace'}
               key={workspace.id}
               onClick={() => handleHeaderWorkspaceChange(workspace.id)}
               workspace={workspace}
@@ -157,67 +153,109 @@ function App() {
         </div>
       </header>
 
-      <main className={`app-main app-main-${effectiveView}`}>
-        {effectiveView === 'landing' ? (
-          <LandingHero
-            onGetStarted={handleGetStarted}
-            onSearch={handleLandingSearch}
+      <main className={`app-main app-main-${viewClass}`}>
+        <Routes>
+          <Route
+            path="/"
+            element={<LandingHero onGetStarted={handleGetStarted} onSearch={handleLandingSearch} />}
           />
-        ) : null}
-
-        {effectiveView === 'auth' ? (
-          <div id="secure-access" className="landing-section-anchor">
-            <AuthPanel
-              session={session}
-              onSessionChange={setSession}
-            />
-          </div>
-        ) : null}
-
-        {effectiveView === 'workspace' ? (
-          <>
-            <section className="workspace-summary workspace-context" id="workspace" aria-label="Current workspace">
-              <div>
-                <span>Workspace context</span>
-                <h2>{workspaces.find((workspace) => workspace.id === activeWorkspace)?.label}</h2>
-                <p>
-                  {searchIntentCopy
-                    ? `Starting point saved from the hero search: ${searchIntentCopy}.`
-                    : activeSummary}
-                </p>
+          <Route
+            path="/auth"
+            element={
+              <div id="secure-access" className="landing-section-anchor">
+                <AuthPanel session={session} onSessionChange={setSession} />
               </div>
-              <div className="summary-controls">
-                <StatusPill tone="blue">Signal over volume</StatusPill>
-                <StatusPill tone="green">Consent before action</StatusPill>
-                <StatusPill tone="amber">Review before automation</StatusPill>
-              </div>
-            </section>
-
-            <ProductOnboarding
-              activeStep={activeOnboardingStep}
-              onStepChange={setActiveOnboardingStep}
+            }
+          />
+          {workspaceIds.map((workspace) => (
+            <Route
+              key={workspace}
+              path={`/${workspace}`}
+              element={
+                session ? (
+                  <WorkspacePane
+                    activeWorkspace={workspace}
+                    session={session}
+                    automationMode={automationMode}
+                    onModeChange={setAutomationMode}
+                    activeOnboardingStep={activeOnboardingStep}
+                    onStepChange={setActiveOnboardingStep}
+                    searchIntentCopy={searchIntentCopy}
+                    onWorkspaceChange={handleHeaderWorkspaceChange}
+                    onSessionChange={setSession}
+                  />
+                ) : (
+                  <Navigate replace to="/auth" />
+                )
+              }
             />
-
-            <SignalOperationsLayer
-              activeWorkspace={activeWorkspace}
-              onWorkspaceChange={setActiveWorkspace}
-            />
-
-            {activeWorkspace === 'candidate' ? (
-              <CandidateWorkspace
-                automationMode={automationMode}
-                onModeChange={setAutomationMode}
-                session={session}
-              />
-            ) : null}
-            {activeWorkspace === 'employer' ? <EmployerWorkspace session={session} /> : null}
-            {activeWorkspace === 'trust' ? (
-              <TrustWorkspace session={session} onSessionChange={setSession} />
-            ) : null}
-          </>
-        ) : null}
+          ))}
+          <Route path="*" element={<Navigate replace to="/" />} />
+        </Routes>
       </main>
     </div>
+  )
+}
+
+type WorkspacePaneProps = {
+  activeWorkspace: Workspace
+  session: BackendSession
+  automationMode: string
+  onModeChange: (mode: string) => void
+  activeOnboardingStep: string
+  onStepChange: (step: string) => void
+  searchIntentCopy: string | null
+  onWorkspaceChange: (workspace: Workspace) => void
+  onSessionChange: (session: BackendSession | null) => void
+}
+
+function WorkspacePane({
+  activeWorkspace,
+  session,
+  automationMode,
+  onModeChange,
+  activeOnboardingStep,
+  onStepChange,
+  searchIntentCopy,
+  onWorkspaceChange,
+  onSessionChange,
+}: WorkspacePaneProps) {
+  const activeSummary = useMemo(
+    () => workspaces.find((workspace) => workspace.id === activeWorkspace)?.summary,
+    [activeWorkspace],
+  )
+
+  return (
+    <>
+      <section className="workspace-summary workspace-context" id="workspace" aria-label="Current workspace">
+        <div>
+          <span>Workspace context</span>
+          <h2>{workspaces.find((workspace) => workspace.id === activeWorkspace)?.label}</h2>
+          <p>
+            {searchIntentCopy
+              ? `Starting point saved from the hero search: ${searchIntentCopy}.`
+              : activeSummary}
+          </p>
+        </div>
+        <div className="summary-controls">
+          <StatusPill tone="blue">Signal over volume</StatusPill>
+          <StatusPill tone="green">Consent before action</StatusPill>
+          <StatusPill tone="amber">Review before automation</StatusPill>
+        </div>
+      </section>
+
+      <ProductOnboarding activeStep={activeOnboardingStep} onStepChange={onStepChange} />
+
+      <SignalOperationsLayer activeWorkspace={activeWorkspace} onWorkspaceChange={onWorkspaceChange} />
+
+      {activeWorkspace === 'candidate' ? (
+        <CandidateWorkspace automationMode={automationMode} onModeChange={onModeChange} session={session} />
+      ) : null}
+      {activeWorkspace === 'employer' ? <EmployerWorkspace session={session} /> : null}
+      {activeWorkspace === 'trust' ? (
+        <TrustWorkspace session={session} onSessionChange={onSessionChange} />
+      ) : null}
+    </>
   )
 }
 

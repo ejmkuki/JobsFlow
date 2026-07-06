@@ -1,6 +1,5 @@
 export type Workspace = 'candidate' | 'employer' | 'trust'
 export type Tone = 'green' | 'amber' | 'red' | 'blue' | 'neutral'
-export type AppView = 'landing' | 'auth' | 'workspace'
 
 export type LandingSearchIntent = {
   role: string
