@@ -148,7 +148,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
     userId: session.userId,
     eventType: 'resume.uploaded',
     actorType: 'user',
-    action: 'Uploaded resume artifact to private R2 storage',
+    action: 'Uploaded resume file to private workspace storage',
     riskLevel: 'medium',
     metadata: {
       artifactId,

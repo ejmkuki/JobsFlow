@@ -302,7 +302,7 @@ function evaluatePacket(input: {
 
   if (input.duplicateFound) {
     gaps.push({
-      detail: 'A possible duplicate application or prior ATS record was reported.',
+      detail: 'A possible duplicate application or prior hiring-system record was reported.',
       key: 'duplicate_application_risk',
       requiredAction: 'Resolve the duplicate before any outreach or submission.',
       riskLevel: 'high',
@@ -445,7 +445,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'wrong_workspace_type',
-        message: 'Application packet review is currently scoped to candidate workspaces.',
+        message: 'Application packet review is available in candidate workspaces.',
       },
       403,
     )
@@ -453,7 +453,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const body = await readBody(request)
   if (!body) {
-    return json({ ok: false, error: 'payload_too_large', message: 'Packet review payload is limited to 64 KB.' }, 413)
+    return json({ ok: false, error: 'payload_too_large', message: 'That packet review request is too large.' }, 413)
   }
 
   const targetRole = cleanText(body.targetRole)
@@ -463,7 +463,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'missing_target',
-        message: 'Provide both targetRole and company before packet review.',
+        message: 'Add both the role and company before reviewing this packet.',
       },
       400,
     )
@@ -491,7 +491,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'invalid_salary_range',
-        message: 'salaryRange.minCents cannot be greater than salaryRange.maxCents.',
+        message: 'The minimum salary cannot be greater than the maximum salary.',
       },
       400,
     )

@@ -1,5 +1,5 @@
 import type { RequestContext, SessionContext } from '../_shared'
-import { getSession, json, missingConfig, safeString, writeAuditEvent } from '../_shared'
+import { getSession, json, missingConfig, writeAuditEvent } from '../_shared'
 
 type PrescreeningBody = {
   action?: unknown
@@ -455,13 +455,12 @@ export async function onRequestGet({ request, env }: RequestContext) {
       ok: true,
       state: await fetchPrescreeningState(env, session),
     })
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'prescreening_unavailable',
-        message: 'Pre-screening tables are not ready yet. Apply the latest D1 migration.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
+        message: 'Pre-screening is being updated. Please try again shortly.',
       },
       503,
     )
@@ -483,7 +482,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'wrong_workspace_type',
-        message: 'Conversational pre-screening is scoped to employer workspaces.',
+        message: 'Conversational pre-screening is available in employer workspaces.',
       },
       403,
     )
@@ -491,7 +490,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const body = await readBody(request)
   if (!body) {
-    return json({ ok: false, error: 'payload_too_large', message: 'Pre-screening payload is limited to 64 KB.' }, 413)
+    return json({ ok: false, error: 'payload_too_large', message: 'That pre-screening request is too large.' }, 413)
   }
 
   const action = cleanAction(body.action, 'run_prescreen')
@@ -504,17 +503,16 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'unsupported_prescreening_action',
-        message: 'Pre-screening action must be run_prescreen.',
+        message: 'Choose a supported pre-screening action.',
       },
       400,
     )
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'prescreening_error',
         message: 'JobsFlow could not complete the pre-screening action.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
       },
       500,
     )

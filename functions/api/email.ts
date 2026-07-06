@@ -1,6 +1,6 @@
 import { isOutboundEmailConfigured, jobsFlowEmailFrom, jobsFlowReplyTo, sendWorkspaceTestEmail } from '../_email'
 import type { RequestContext } from '../_shared'
-import { getSession, json, missingConfig, sha256Hex, writeAuditEvent } from '../_shared'
+import { getSession, json, sha256Hex, writeAuditEvent } from '../_shared'
 
 type EmailRequestBody = {
   action?: unknown
@@ -24,7 +24,7 @@ async function readBody(request: Request): Promise<EmailRequestBody | null> {
 export async function onRequestGet({ request, env }: RequestContext) {
   const session = await getSession(request, env)
   if (!session) {
-    return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading email provider status.' }, 401)
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in before checking email delivery.' }, 401)
   }
 
   return json({
@@ -40,16 +40,16 @@ export async function onRequestGet({ request, env }: RequestContext) {
 export async function onRequestPost({ request, env }: RequestContext) {
   const session = await getSession(request, env)
   if (!session) {
-    return json({ ok: false, error: 'unauthorized', message: 'Sign in before sending JobsFlow email.' }, 401)
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in before sending a JobsFlow email.' }, 401)
   }
 
   if (!env.RESEND_API_KEY) {
-    return missingConfig('RESEND_API_KEY')
+    return json({ ok: false, error: 'missing_configuration', message: 'Email delivery is still being prepared.' }, 503)
   }
 
   const body = await readBody(request)
   if (!body) {
-    return json({ ok: false, error: 'payload_too_large', message: 'Email request payload is too large.' }, 413)
+    return json({ ok: false, error: 'payload_too_large', message: 'That email request is too large.' }, 413)
   }
 
   if (body.action !== 'send_test') {
@@ -78,12 +78,12 @@ export async function onRequestPost({ request, env }: RequestContext) {
       emailId: result.id,
       recipient: session.email,
     })
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'resend_unavailable',
-        message: error instanceof Error ? error.message : 'Resend could not send the JobsFlow email.',
+        message: 'Email delivery did not complete. Please try again shortly.',
       },
       502,
     )

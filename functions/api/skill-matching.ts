@@ -1,5 +1,5 @@
 import type { RequestContext, SessionContext } from '../_shared'
-import { getSession, json, missingConfig, safeString, sha256Hex, writeAuditEvent } from '../_shared'
+import { getSession, json, missingConfig, sha256Hex, writeAuditEvent } from '../_shared'
 
 type SkillMatchBody = {
   action?: unknown
@@ -235,7 +235,7 @@ function evaluateSkillMatch(input: {
 
   return {
     adjacentMatches,
-    explanation: explanation.length ? explanation : ['No semantic evidence was available for this role yet.'],
+    explanation: explanation.length ? explanation : ['No matching evidence is available for this role yet.'],
     gaps,
     matchedSkills,
     matchScore,
@@ -505,7 +505,7 @@ async function runSemanticSkillMatch(env: RequestContext['env'], session: Sessio
     userId: session.userId,
     eventType: 'skill_matching.run.created',
     actorType: 'system',
-    action: 'Created semantic skill match run with taxonomy-adjacent evidence',
+    action: 'Created skill match with adjacent evidence',
     riskLevel: evaluation.matchScore < 60 ? 'medium' : 'low',
     metadata: {
       candidateProfileId,
@@ -525,7 +525,7 @@ export async function onRequestGet({ request, env }: RequestContext) {
 
   const session = await getSession(request, env)
   if (!session) {
-    return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading semantic skill matching.' }, 401)
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading skill matches.' }, 401)
   }
 
   try {
@@ -533,13 +533,12 @@ export async function onRequestGet({ request, env }: RequestContext) {
       ok: true,
       state: await fetchSkillMatchingState(env, session),
     })
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'skill_matching_unavailable',
-        message: 'Semantic skill matching tables are not ready yet. Apply the latest D1 migration.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
+        message: 'Skill matching is being updated. Please try again shortly.',
       },
       503,
     )
@@ -553,7 +552,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const session = await getSession(request, env)
   if (!session) {
-    return json({ ok: false, error: 'unauthorized', message: 'Sign in before changing semantic skill matching.' }, 401)
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in before changing skill matches.' }, 401)
   }
 
   if (session.tenantType !== 'employer') {
@@ -561,7 +560,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'wrong_workspace_type',
-        message: 'Semantic skill matching is scoped to employer workspaces.',
+        message: 'Skill matching is available in employer workspaces.',
       },
       403,
     )
@@ -569,7 +568,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const body = await readBody(request)
   if (!body) {
-    return json({ ok: false, error: 'payload_too_large', message: 'Skill matching payload is limited to 96 KB.' }, 413)
+    return json({ ok: false, error: 'payload_too_large', message: 'That skill matching request is too large.' }, 413)
   }
 
   const action = skillKey(cleanText(body.action, 'run_match'))
@@ -582,17 +581,16 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'unsupported_skill_matching_action',
-        message: 'Skill matching action must be run_match.',
+        message: 'Choose a supported skill matching action.',
       },
       400,
     )
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'skill_matching_error',
-        message: 'JobsFlow could not complete the semantic skill matching action.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
+        message: 'JobsFlow could not complete the skill matching action.',
       },
       500,
     )

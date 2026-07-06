@@ -1,5 +1,5 @@
 import type { RequestContext, SessionContext } from '../_shared'
-import { getSession, json, missingConfig, safeString, writeAuditEvent } from '../_shared'
+import { getSession, json, missingConfig, writeAuditEvent } from '../_shared'
 
 type JobSyndicationBody = {
   action?: unknown
@@ -133,11 +133,11 @@ function validateJob(input: { description: string; location: string; maxCents: n
   }
 
   if (input.location.length < 2) {
-    errors.push('Location is required for syndication payloads.')
+    errors.push('Location is required before this job can be prepared for publishing.')
   }
 
   if (input.description.length < 180) {
-    errors.push('Description must be at least 180 characters before syndication.')
+    errors.push('Description must be at least 180 characters before publishing review.')
   }
 
   if (input.maxCents < input.minCents) {
@@ -432,7 +432,7 @@ async function createSyndicationPost(env: RequestContext['env'], session: Sessio
     userId: session.userId,
     eventType: 'job_syndication.post.queued',
     actorType: 'system',
-    action: validationErrors.length ? 'Blocked invalid job syndication payload' : 'Queued validated job syndication payloads',
+    action: validationErrors.length ? 'Blocked job publishing until required details are fixed' : 'Queued validated job publishing drafts',
     riskLevel: validationErrors.length ? 'medium' : 'low',
     metadata: {
       destinations,
@@ -452,7 +452,7 @@ export async function onRequestGet({ request, env }: RequestContext) {
 
   const session = await getSession(request, env)
   if (!session) {
-    return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading job syndication.' }, 401)
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading job publishing drafts.' }, 401)
   }
 
   try {
@@ -460,13 +460,12 @@ export async function onRequestGet({ request, env }: RequestContext) {
       ok: true,
       state: await fetchJobSyndicationState(env, session),
     })
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'job_syndication_unavailable',
-        message: 'Job syndication tables are not ready yet. Apply the latest D1 migration.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
+        message: 'Job publishing tools are being updated. Please try again shortly.',
       },
       503,
     )
@@ -480,7 +479,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const session = await getSession(request, env)
   if (!session) {
-    return json({ ok: false, error: 'unauthorized', message: 'Sign in before changing job syndication.' }, 401)
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in before changing job publishing drafts.' }, 401)
   }
 
   if (session.tenantType !== 'employer') {
@@ -488,7 +487,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'wrong_workspace_type',
-        message: 'Job syndication is scoped to employer workspaces.',
+        message: 'Job publishing is available in employer workspaces.',
       },
       403,
     )
@@ -496,7 +495,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const body = await readBody(request)
   if (!body) {
-    return json({ ok: false, error: 'payload_too_large', message: 'Job syndication payload is limited to 96 KB.' }, 413)
+    return json({ ok: false, error: 'payload_too_large', message: 'That job publishing request is too large.' }, 413)
   }
 
   const action = cleanAction(body.action, 'validate_and_queue')
@@ -509,17 +508,16 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'unsupported_job_syndication_action',
-        message: 'Job syndication action must be validate_and_queue.',
+        message: 'Choose a supported job publishing action.',
       },
       400,
     )
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'job_syndication_error',
-        message: 'JobsFlow could not complete the job syndication action.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
+        message: 'JobsFlow could not complete the job publishing action.',
       },
       500,
     )

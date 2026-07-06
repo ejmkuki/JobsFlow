@@ -1,5 +1,5 @@
 import type { RequestContext, SessionContext } from '../_shared'
-import { getSession, json, missingConfig, safeString, writeAuditEvent } from '../_shared'
+import { getSession, json, missingConfig, writeAuditEvent } from '../_shared'
 
 type TransparencyBody = {
   action?: unknown
@@ -324,7 +324,7 @@ function buildRiskFlags(input: { maxCents: number; minCents: number; signals: Cu
   }
 
   if (!flags.length) {
-    flags.push('No critical transparency risk found from tenant-scoped evidence.')
+    flags.push('No critical transparency risk found from workspace evidence.')
   }
 
   return flags
@@ -346,7 +346,7 @@ async function createTransparencyReport(env: RequestContext['env'], session: Ses
       {
         ok: false,
         error: 'missing_transparency_target',
-        message: 'Provide targetRole and targetCompany before creating a transparency blueprint.',
+        message: 'Add the role and company before creating trust insights.',
       },
       400,
     )
@@ -509,13 +509,12 @@ export async function onRequestGet({ request, env }: RequestContext) {
       ok: true,
       state: await fetchTransparencyState(env, session),
     })
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'transparency_unavailable',
-        message: 'Transparency blueprint tables are not ready yet. Apply the latest D1 migration.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
+        message: 'Trust insights are being updated. Please try again shortly.',
       },
       503,
     )
@@ -534,7 +533,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const body = await readBody(request)
   if (!body) {
-    return json({ ok: false, error: 'payload_too_large', message: 'Transparency payload is limited to 64 KB.' }, 413)
+    return json({ ok: false, error: 'payload_too_large', message: 'That transparency request is too large.' }, 413)
   }
 
   const action = cleanText(body.action, 'create_report')
@@ -547,17 +546,16 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'unsupported_transparency_action',
-        message: 'Transparency action must be create_report.',
+        message: 'Choose a supported transparency action.',
       },
       400,
     )
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'transparency_error',
         message: 'JobsFlow could not complete the transparency blueprint action.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
       },
       500,
     )

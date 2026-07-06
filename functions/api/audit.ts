@@ -18,7 +18,7 @@ export async function onRequestGet({ request, env }: RequestContext) {
 
   const session = await getSession(request, env)
   if (!session) {
-    return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading audit logs.' }, 401)
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading activity history.' }, 401)
   }
 
   const rows = await env.DB

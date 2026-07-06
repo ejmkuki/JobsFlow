@@ -1,5 +1,5 @@
 import type { RequestContext, SessionContext } from '../_shared'
-import { getSession, json, missingConfig, safeString, writeAuditEvent } from '../_shared'
+import { getSession, json, missingConfig, writeAuditEvent } from '../_shared'
 
 type WorkflowWorkspace = 'candidate' | 'employer' | 'platform'
 type WorkflowRunState =
@@ -147,12 +147,12 @@ const jsonFallbackList: unknown[] = []
 const workflowDefinitions: WorkflowDefinitionSeed[] = [
   {
     key: 'platform.workflow_kernel',
-    name: 'Cloudflare Production Workflow Kernel',
+    name: 'JobsFlow Automation Foundation',
     version: 1,
     workspace: 'platform',
-    triggerEvent: 'tenant.created',
+    triggerEvent: 'workspace.created',
     description:
-      'Establishes durable workflow runs, consent receipts, automation policies, integration boundaries, webhook delivery state, and audit events for every tenant.',
+      'Prepares automation plans, approvals, safeguards, connection boundaries, delivery history, and activity records for every workspace.',
     steps: [
       'seed_workflow_definitions',
       'seed_tenant_policies',
@@ -165,12 +165,12 @@ const workflowDefinitions: WorkflowDefinitionSeed[] = [
   },
   {
     key: 'resume.tailwind_optimization',
-    name: 'Resume Tailwind Optimization',
+    name: 'Resume Optimization',
     version: 1,
     workspace: 'candidate',
     triggerEvent: 'resume.uploaded',
     description:
-      'Parses a master resume, extracts structured facts, compares against a target job, computes semantic gaps, drafts variants, and requires candidate approval.',
+      'Reads a master resume, extracts structured facts, compares against a target job, identifies proof gaps, drafts variants, and requires candidate approval.',
     steps: [
       'store_source_artifact',
       'parse_resume',
@@ -256,12 +256,12 @@ const workflowDefinitions: WorkflowDefinitionSeed[] = [
   },
   {
     key: 'employer.semantic_skill_matching',
-    name: 'Semantic Vector Skill-Matching',
+    name: 'Skill Matching',
     version: 1,
     workspace: 'employer',
     triggerEvent: 'role.scorecard_locked',
     description:
-      'Embeds role criteria and candidate evidence, then ranks related experience by semantic fit, must-have coverage, and coachable gaps.',
+      'Compares role criteria and candidate evidence, then ranks related experience by fit, must-have coverage, and coachable gaps.',
     steps: [
       'lock_scorecard_version',
       'embed_role_criteria',
@@ -274,12 +274,12 @@ const workflowDefinitions: WorkflowDefinitionSeed[] = [
   },
   {
     key: 'employer.job_syndication',
-    name: 'One-Click Job Syndication Engine',
+    name: 'One-Click Job Publishing',
     version: 1,
     workspace: 'employer',
     triggerEvent: 'job.publish_requested',
     description:
-      'Validates role criteria, compensation visibility, fairness checks, structured data, and delivery state before syndicating a job.',
+      'Validates role criteria, compensation visibility, fairness checks, search listing details, and delivery readiness before publishing a job.',
     steps: [
       'validate_role_readiness',
       'generate_google_jobs_payload',
@@ -328,12 +328,12 @@ const workflowDefinitions: WorkflowDefinitionSeed[] = [
   },
   {
     key: 'integration.ats_synchronizer',
-    name: 'Two-Way Native ATS Synchronizers',
+    name: 'Hiring-System Connections',
     version: 1,
     workspace: 'employer',
-    triggerEvent: 'ats.sync_requested',
+    triggerEvent: 'hiring_system.sync_requested',
     description:
-      'Coordinates OAuth-backed ATS sync with idempotent pushes, webhook ingestion, conflict detection, retries, and tenant-scoped audit history.',
+      'Coordinates approved hiring-system updates with conflict detection, retry handling, and workspace activity history.',
     steps: [
       'verify_oauth_connection',
       'map_provider_fields',
@@ -402,8 +402,8 @@ const policySeeds = [
 ] as const
 
 const integrationSeeds = [
-  ['greenhouse', 'Greenhouse ATS'],
-  ['lever', 'Lever ATS'],
+  ['greenhouse', 'Greenhouse hiring system'],
+  ['lever', 'Lever hiring system'],
   ['workday', 'Workday guarded beta'],
   ['google_jobs', 'Google for Jobs'],
   ['google_calendar', 'Google Calendar'],
@@ -1093,7 +1093,7 @@ async function bootstrapCore(env: RequestContext['env'], session: SessionContext
         JSON.stringify({
           title: 'External actions remain blocked',
           detail:
-            'JobsFlow will not submit applications, send outreach, syndicate jobs, or sync ATS records until the provider is certified and a per-action consent receipt exists.',
+            'JobsFlow will not submit applications, send outreach, publish jobs, or update hiring-system records until the connection is approved and each action is reviewed.',
         }),
       )
       .run()
@@ -1120,7 +1120,7 @@ async function bootstrapCore(env: RequestContext['env'], session: SessionContext
         crypto.randomUUID(),
         session.tenantId,
         runId,
-        'External delivery is blocked until a certified integration and consent receipt exist.',
+        'External delivery is blocked until the connection is approved and the action is reviewed.',
         JSON.stringify({
           reason: 'production_safety_gate',
         }),
@@ -1160,8 +1160,8 @@ async function bootstrapCore(env: RequestContext['env'], session: SessionContext
     eventType: createdRun ? 'workflow.kernel.bootstrapped' : 'workflow.kernel.checked',
     actorType: 'system',
     action: createdRun
-      ? 'Bootstrapped Cloudflare production workflow kernel'
-      : 'Verified Cloudflare production workflow kernel',
+      ? 'Prepared JobsFlow guided automation'
+      : 'Verified JobsFlow guided automation',
     riskLevel: 'low',
     metadata: {
       runId,
@@ -1192,7 +1192,7 @@ async function startWorkflowRun(env: RequestContext['env'], session: SessionCont
       {
         ok: false,
         error: 'missing_workflow_key',
-        message: 'Provide workflowKey before starting a workflow run.',
+        message: 'Choose an automation before starting a plan.',
       },
       400,
     )
@@ -1204,7 +1204,7 @@ async function startWorkflowRun(env: RequestContext['env'], session: SessionCont
       {
         ok: false,
         error: 'workflow_not_found',
-        message: 'JobsFlow does not have an active workflow definition for that key.',
+        message: 'JobsFlow could not find that automation plan.',
       },
       404,
     )
@@ -1302,7 +1302,7 @@ async function startWorkflowRun(env: RequestContext['env'], session: SessionCont
     userId: session.userId,
     eventType: 'workflow.run.started',
     actorType: 'user',
-    action: `Started ${definition.name} workflow run behind a review gate`,
+    action: `Started ${definition.name} automation plan behind a review gate`,
     riskLevel: 'medium',
     metadata: {
       runId,
@@ -1333,7 +1333,7 @@ async function recordConsent(env: RequestContext['env'], session: SessionContext
       {
         ok: false,
         error: 'missing_receipt_id',
-        message: 'Provide receiptId before recording a consent decision.',
+        message: 'Choose an approval record before saving the decision.',
       },
       400,
     )
@@ -1345,7 +1345,7 @@ async function recordConsent(env: RequestContext['env'], session: SessionContext
       {
         ok: false,
         error: 'invalid_consent_status',
-        message: 'Consent status must be approved or revoked.',
+        message: 'Choose approve or revoke before saving the decision.',
       },
       400,
     )
@@ -1368,7 +1368,7 @@ async function recordConsent(env: RequestContext['env'], session: SessionContext
       {
         ok: false,
         error: 'receipt_not_found',
-        message: 'JobsFlow could not find that tenant-scoped consent receipt.',
+        message: 'JobsFlow could not find that approval record.',
       },
       404,
     )
@@ -1462,7 +1462,7 @@ export async function onRequestGet({ request, env }: RequestContext) {
 
   const session = await getSession(request, env)
   if (!session) {
-    return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading workflow state.' }, 401)
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading automation plans.' }, 401)
   }
 
   try {
@@ -1470,13 +1470,12 @@ export async function onRequestGet({ request, env }: RequestContext) {
       ok: true,
       state: await fetchKernelState(env, session),
     })
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'workflow_kernel_unavailable',
-        message: 'Workflow kernel tables are not ready yet. Apply the latest D1 migration.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
+        message: 'Guided automation is being updated. Please try again shortly.',
       },
       503,
     )
@@ -1490,12 +1489,12 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const session = await getSession(request, env)
   if (!session) {
-    return json({ ok: false, error: 'unauthorized', message: 'Sign in before changing workflow state.' }, 401)
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in before changing automation plans.' }, 401)
   }
 
   const body = await readBody(request)
   if (!body) {
-    return json({ ok: false, error: 'payload_too_large', message: 'Workflow payload is limited to 64 KB.' }, 413)
+    return json({ ok: false, error: 'payload_too_large', message: 'That automation request is too large.' }, 413)
   }
 
   const action = cleanKey(body.action, 'bootstrap_core')
@@ -1526,17 +1525,16 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'unsupported_workflow_action',
-        message: 'Workflow action must be bootstrap_core, start_run, or record_consent.',
+        message: 'Choose a supported automation action.',
       },
       400,
     )
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'workflow_kernel_error',
-        message: 'JobsFlow could not complete the workflow kernel action.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
+        message: 'JobsFlow could not complete the automation action.',
       },
       500,
     )

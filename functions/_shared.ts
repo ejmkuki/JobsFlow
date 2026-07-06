@@ -88,12 +88,13 @@ export function json(data: unknown, init: ResponseInit | number = 200) {
 }
 
 export function missingConfig(...bindings: string[]) {
+  void bindings
+
   return json(
     {
       ok: false,
       error: 'missing_configuration',
-      message: `Missing Cloudflare binding or secret: ${bindings.join(', ')}`,
-      required: bindings,
+      message: 'This feature is still being prepared. Please try again shortly.',
     },
     503,
   )

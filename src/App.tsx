@@ -197,7 +197,7 @@ function isPasswordStrategyError(error: unknown) {
   return collectSsoErrorText(error).toLowerCase().includes('verification strategy is not valid')
 }
 
-function humanizeSsoError(error: unknown, fallback = 'Secure sign-in could not complete. Try again.') {
+function humanizeSsoError(error: unknown, fallback = 'Sign-in could not complete. Try again.') {
   const clerkErrors = (error as { errors?: ClerkAuthError[] })?.errors
   const firstClerkError = Array.isArray(clerkErrors) ? clerkErrors[0] : null
   const normalized = collectSsoErrorText(error).toLowerCase()
@@ -207,7 +207,7 @@ function humanizeSsoError(error: unknown, fallback = 'Secure sign-in could not c
   }
 
   if (normalized.includes('clerkjs: response') || normalized.includes('not supported yet')) {
-    return 'We could not open that sign-in provider in this browser. Please try again, refresh the page, or use email sign-in.'
+    return 'We could not open that sign-in option in this browser. Refresh the page and try again, or continue with email.'
   }
 
   if (isMissingEmailAccountError(error)) {
@@ -215,7 +215,7 @@ function humanizeSsoError(error: unknown, fallback = 'Secure sign-in could not c
   }
 
   if (isPasswordStrategyError(error)) {
-    return 'This email is not set up for password sign-in. Use the Google or Apple option above if that is how you created the account.'
+    return 'This email is not set up with a JobsFlow password yet. Use Google or Apple if that is how you created the account.'
   }
 
   if (
@@ -243,19 +243,100 @@ function humanizeSsoError(error: unknown, fallback = 'Secure sign-in could not c
     return fallback
   }
 
-  if (firstClerkError?.longMessage) {
-    return firstClerkError.longMessage
+  if (normalized.includes('sso') || normalized.includes('oauth')) {
+    return 'Google or Apple sign-in is taking longer than expected. Try again, or continue with email.'
   }
 
-  if (firstClerkError?.message) {
-    return firstClerkError.message
+  if (normalized.includes('session') && normalized.includes('token')) {
+    return 'We could not open your workspace yet. Refresh the page and sign in again.'
+  }
+
+  if (firstClerkError?.code) {
+    return fallback
   }
 
   if (error instanceof Error && error.message) {
-    return error.message
+    return friendlyUserMessage(error.message, fallback)
   }
 
   return fallback
+}
+
+function friendlyUserMessage(message: string | null | undefined, fallback = 'JobsFlow could not complete that action. Please try again.') {
+  const raw = message?.trim()
+  if (!raw) {
+    return fallback
+  }
+
+  const normalized = raw.toLowerCase()
+
+  if (
+    normalized.includes('clerk') ||
+    normalized.includes('clerkjs') ||
+    normalized.includes('sso') ||
+    normalized.includes('provider keys') ||
+    normalized.includes('session token') ||
+    normalized.includes('verification strategy')
+  ) {
+    return 'Sign-in is taking longer than expected. Try again, or continue with email.'
+  }
+
+  if (normalized.includes('oauth')) {
+    return 'This connection is still being prepared. Please try again shortly.'
+  }
+
+  if (normalized.includes('resend') || normalized.includes('message id')) {
+    return normalized.includes('accepted') || normalized.includes('sent')
+      ? 'Test email sent. Check your inbox in a moment.'
+      : 'Email delivery is being prepared. Please try again shortly.'
+  }
+
+  if (
+    normalized.includes('runtime') ||
+    normalized.includes('cloudflare') ||
+    normalized.includes('d1') ||
+    normalized.includes('r2') ||
+    normalized.includes('migration') ||
+    normalized.includes('binding') ||
+    normalized.includes('secret') ||
+    normalized.includes('bootstrap') ||
+    normalized.includes('status 4') ||
+    normalized.includes('status 5') ||
+    normalized.includes('payload')
+  ) {
+    return 'This part of JobsFlow is still being prepared. Please try again shortly.'
+  }
+
+  return raw
+    .replace(/\btenant-scoped\b/gi, 'workspace-protected')
+    .replace(/\btenant\b/gi, 'workspace')
+    .replace(/\bkernel\b/gi, 'workspace engine')
+    .replace(/\bartifact\b/gi, 'file')
+    .replace(/\bvector-ready\b/gi, 'ready')
+    .replace(/\bvector\b/gi, 'evidence')
+    .replace(/\bsyndication\b/gi, 'publishing')
+    .replace(/\bATS\b/g, 'hiring system')
+    .replace(/\bprovider\b/gi, 'connection')
+}
+
+function formatProductLabel(value: string | null | undefined, fallback = 'Not available') {
+  const raw = value?.trim()
+  if (!raw) {
+    return fallback
+  }
+
+  return raw
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/^platform\.workflow_kernel$/i, 'JobsFlow automation foundation')
+    .replace(/[._-]+/g, ' ')
+    .replace(/\bats\b/gi, 'hiring system')
+    .replace(/\bsso\b/gi, 'sign in')
+    .replace(/\boauth\b/gi, 'external account')
+    .replace(/\bkernel\b/gi, 'automation')
+    .replace(/\bsyndication\b/gi, 'publishing')
+    .replace(/\bsemantic\b/gi, 'skill')
+    .replace(/\bvector\b/gi, 'evidence')
+    .replace(/\bartifact\b/gi, 'file')
 }
 
 const authReturnStorageKey = 'jobsflow.auth.return.pending'
@@ -407,7 +488,7 @@ const workspaces: Array<{
     id: 'trust',
     label: 'Trust',
     icon: ShieldCheck,
-    summary: 'Consent, auditability, integrations, pricing, and production gates.',
+    summary: 'Consent, accountability, integrations, pricing, and production gates.',
   },
 ]
 
@@ -420,7 +501,7 @@ const signalDecisions: SignalDecision[] = [
     owner: 'Maya',
     changed: 'Resume storage and packet builder are ready for the first high-fit role.',
     matters: 'A missing claims-operations example could make the tailored packet feel generic.',
-    next: 'Add one evidence bullet, then approve the resume variant and two ATS answers.',
+    next: 'Add one evidence bullet, then approve the resume variant and two screening answers.',
     tone: 'amber',
     evidence: ['96% role fit', '$118k floor satisfied', 'No company exclusion'],
   },
@@ -442,11 +523,11 @@ const signalDecisions: SignalDecision[] = [
     title: 'Keep external actions blocked until consent receipts exist',
     status: 'Production gate',
     owner: 'Platform',
-    changed: 'D1, R2, session cookies, and audit writes are live in the beta stack.',
+    changed: 'Workspace storage, private sessions, and activity history are live in the beta stack.',
     matters: 'Real automation needs export/delete, retention, abuse review, and billing controls.',
-    next: 'Ship production auth UI, consent receipts, and audit review before any integration sends.',
+    next: 'Ship production auth UI, consent receipts, and activity review before any integration sends.',
     tone: 'green',
-    evidence: ['Live health check passes', 'R2 upload smoke test passes', 'External submissions disabled'],
+    evidence: ['Live health check passes', 'Resume upload smoke test passes', 'External submissions disabled'],
   },
 ]
 
@@ -533,7 +614,7 @@ const automationModes: Mode[] = [
     detail: 'AI may queue approved-fit roles inside strict rules, exclusions, and daily limits.',
     owner: 'Candidate + policy',
     limit: '12 reviewed actions/day',
-    log: 'Full action audit',
+    log: 'Full action history',
   },
 ]
 
@@ -544,7 +625,7 @@ const applicationPacket = {
   sections: [
     ['Resume variant', 'Ready for candidate review'],
     ['Cover note', 'Drafted from approved evidence'],
-    ['ATS questions', '2 answers need approval'],
+    ['Screening questions', '2 answers need approval'],
     ['Salary check', '$118k floor satisfied'],
     ['Company risk', 'No exclusions detected'],
   ],
@@ -564,7 +645,7 @@ const candidateEvidenceReviews: CandidateEvidenceReview[] = [
     evidence: ['Scaled intake workflow', 'Healthcare SaaS delivery', 'Vendor operations ownership'],
     gaps: ['Add a claims-operations example to strengthen the packet.'],
     safeguards: ['$118k salary floor satisfied', 'No duplicate application found', 'No exclusion conflict'],
-    next: 'Add one quantified claims workflow bullet, then review the resume variant and ATS answers.',
+    next: 'Add one quantified claims workflow bullet, then review the resume variant and screening answers.',
     tone: 'amber',
   },
   {
@@ -607,13 +688,13 @@ const candidateGuardrails = [
   {
     label: 'Duplicate prevention',
     value: 'Active',
-    detail: 'Reposts and previously submitted ATS records are flagged before queueing.',
+    detail: 'Reposts and previously submitted hiring records are flagged before queueing.',
   },
 ]
 
 const resumeSignals = [
   {
-    label: 'ATS fit score',
+    label: 'Role-fit score',
     value: '94%',
     detail: 'For Kora Health Product Operations Manager',
   },
@@ -717,7 +798,7 @@ const prepItems = [
 const candidateActivationChecklist = [
   {
     step: 'Create private workspace',
-    detail: 'Signed session, tenant boundary, and audit trail before resume storage.',
+    detail: 'Private session, workspace boundary, and activity history before resume storage.',
   },
   {
     step: 'Upload resume',
@@ -736,7 +817,7 @@ const candidateActivationChecklist = [
 const employerActivationChecklist = [
   {
     step: 'Create hiring workspace',
-    detail: 'Company, team role, and hiring owners stay scoped to the employer tenant.',
+    detail: 'Company, team role, and hiring owners stay protected inside the employer workspace.',
   },
   {
     step: 'Add first role',
@@ -1015,7 +1096,7 @@ const employerMarketPlays = [
   {
     pattern: 'Invite to apply',
     jobsFlowMove: 'Invite to review',
-    detail: 'Employers can draft targeted invitations, but outreach waits for human review and audit logging.',
+    detail: 'Employers can draft targeted invitations, but outreach waits for human review and activity history.',
   },
   {
     pattern: 'Employer brand',
@@ -1063,7 +1144,7 @@ const trustControls = [
   {
     title: 'Candidate review gate',
     status: 'Required',
-    detail: 'Applications, outreach, and follow-ups require approval until production policies are configured.',
+    detail: 'Applications, outreach, and follow-ups require approval until production policies are active.',
   },
   {
     title: 'Company exclusion list',
@@ -1073,7 +1154,7 @@ const trustControls = [
   {
     title: 'Duplicate prevention',
     status: 'Active',
-    detail: 'Detects repeated roles, recruiter reposts, and ATS duplicates before queueing action.',
+    detail: 'Detects repeated roles, recruiter reposts, and duplicate hiring records before queueing action.',
   },
   {
     title: 'Data export and deletion',
@@ -1085,7 +1166,7 @@ const trustControls = [
 const dataOwnershipControls = [
   {
     title: 'Export readiness',
-    detail: 'Candidate profile, resume artifacts, saved answers, and audit receipts need portable exports.',
+    detail: 'Candidate profile, resume files, saved answers, and activity history need portable exports.',
   },
   {
     title: 'Deletion readiness',
@@ -1099,18 +1180,18 @@ const dataOwnershipControls = [
 
 const complianceLedger: ComplianceLedgerItem[] = [
   {
-    control: 'Consent receipts',
+    control: 'Approval records',
     status: 'Modeled',
     owner: 'Platform',
-    proof: 'Consent matrix identifies required approvals and audit event names.',
-    next: 'Persist consent receipts with scope, actor, expiration, and action preview.',
+    proof: 'Approval matrix identifies required reviews and activity names.',
+    next: 'Save approval records with scope, actor, expiration, and action preview.',
     tone: 'blue',
   },
   {
     control: 'Resume privacy',
     status: 'Live foundation',
     owner: 'Platform',
-    proof: 'R2 upload, D1 metadata, tenant session, and audit event smoke test passed.',
+    proof: 'Resume upload, workspace metadata, signed session, and activity history check passed.',
     next: 'Add private download, malware scanning, source hash, and deletion workflow.',
     tone: 'green',
   },
@@ -1119,7 +1200,7 @@ const complianceLedger: ComplianceLedgerItem[] = [
     status: 'Blocked',
     owner: 'Trust policy',
     proof: 'Prototype has no application submission, outreach send, scraping, or payment behavior.',
-    next: 'Require certified integrations, per-action approval, and audit review before launch.',
+    next: 'Require certified connections, per-action approval, and activity review before launch.',
     tone: 'green',
   },
   {
@@ -1135,7 +1216,7 @@ const complianceLedger: ComplianceLedgerItem[] = [
     status: 'Prototype checklist',
     owner: 'Hiring team',
     proof: 'Employer workspace requires criteria before ranking and shows gap/risk indicators.',
-    next: 'Persist scorecard versions and decision notes with role-level audit history.',
+    next: 'Save scorecard versions and decision notes with role-level activity history.',
     tone: 'amber',
   },
   {
@@ -1143,7 +1224,7 @@ const complianceLedger: ComplianceLedgerItem[] = [
     status: 'Policy needed',
     owner: 'Privacy',
     proof: 'Data ownership surface defines candidate and employer control expectations.',
-    next: 'Build export/delete endpoints, retention jobs, and user-facing confirmation receipts.',
+    next: 'Build export/delete actions, retention jobs, and user-facing confirmation records.',
     tone: 'red',
   },
 ]
@@ -1178,8 +1259,8 @@ const auditEvents = [
 
 const integrations = [
   ['LinkedIn', 'Extension design'],
-  ['Greenhouse', 'ATS adapter'],
-  ['Lever', 'ATS adapter'],
+  ['Greenhouse', 'Hiring-system adapter'],
+  ['Lever', 'Hiring-system adapter'],
   ['Workday', 'Guarded beta'],
   ['Google Calendar', 'Interview sync'],
   ['Gmail / Outlook', 'Follow-up drafts'],
@@ -1494,15 +1575,15 @@ function AuthPanel({
 
   const handleCreateSsoSession = useCallback(async () => {
     if (!sso.configured) {
-      setMessage('SSO is selected for JobsFlow, but the provider keys are not connected yet.')
+      setMessage('Sign-in is being prepared. Please continue with email for now.')
       return
     }
 
     if (!sso.isLoaded) {
       setMessage(
         sso.loadTimedOut
-          ? 'SSO is connected, but this browser could not load Clerk yet. Hard refresh, disable blockers for JobsFlow and Clerk, or use the private beta fallback.'
-          : 'SSO is loading. The sign-in buttons will unlock as soon as Clerk is ready.',
+          ? 'Sign-in is taking longer than expected in this browser. Refresh the page, then try again.'
+          : 'Sign-in is getting ready. The buttons will unlock in a moment.',
       )
       return
     }
@@ -1514,13 +1595,13 @@ function AuthPanel({
 
     const token = await sso.getToken()
     if (!token) {
-      setMessage('SSO is signed in, but JobsFlow could not read a secure session token yet.')
+      setMessage('We could not open your workspace yet. Refresh the page and sign in again.')
       return
     }
 
     const normalizedEmail = sso.email ?? email.trim()
     if (!normalizedEmail) {
-      setMessage('SSO worked, but JobsFlow still needs an email to create the workspace.')
+      setMessage('JobsFlow needs an email address to open your workspace.')
       return
     }
 
@@ -1528,7 +1609,7 @@ function AuthPanel({
       sso.displayName || displayName.trim() || normalizedEmail.split('@')[0] || 'JobsFlow User'
 
     setIsBusy(true)
-    setMessage('Opening a JobsFlow workspace from SSO...')
+    setMessage('Opening your JobsFlow workspace...')
 
     try {
       const result = await createJobsFlowSession({
@@ -1545,7 +1626,7 @@ function AuthPanel({
       })
       onSessionChange(result.session)
       setAuthReturnPending(false)
-      setMessage(`Workspace opened from SSO for ${result.session.email}. JobsFlow is ready to keep actions behind review.`)
+      setMessage(`Workspace opened for ${result.session.email}. JobsFlow is ready.`)
     } catch (error) {
       onSessionChange(null)
       setMessage(humanizeJobsFlowError(error, 'auth'))
@@ -1557,15 +1638,15 @@ function AuthPanel({
   const handleProviderSignIn = useCallback(
     (provider: JobsFlowSsoProviderKey) => {
       if (!sso.configured) {
-        setMessage('SSO is selected for JobsFlow, but the provider keys are not connected yet.')
+        setMessage('Sign-in is being prepared. Please continue with email for now.')
         return
       }
 
       if (!sso.isLoaded) {
         setMessage(
           sso.loadTimedOut
-            ? 'Secure sign-in has not loaded in this browser yet. Refresh the page or disable blockers for JobsFlow and Clerk.'
-            : 'Secure sign-in is still loading. Please try again in a moment.',
+            ? 'Sign-in is taking longer than expected in this browser. Refresh the page, then try again.'
+            : 'Sign-in is getting ready. Please try again in a moment.',
         )
         return
       }
@@ -1605,8 +1686,8 @@ function AuthPanel({
       if (!sso.isLoaded) {
         setMessage(
           sso.loadTimedOut
-            ? 'Secure sign-in has not loaded in this browser yet. Refresh the page or disable blockers for JobsFlow and Clerk.'
-            : 'Secure sign-in is still loading. Please try again in a moment.',
+            ? 'Sign-in is taking longer than expected in this browser. Refresh the page, then try again.'
+            : 'Sign-in is getting ready. Please try again in a moment.',
         )
         setShowInlineSignUp(false)
         return
@@ -1614,14 +1695,14 @@ function AuthPanel({
 
       setIsBusy(true)
       setShowInlineSignUp(false)
-      setMessage(`Checking sign-in options for ${normalizedEmail}...`)
+      setMessage(`Checking how ${normalizedEmail} can sign in...`)
       try {
         const signInOptions = await sso.prepareEmailSignIn(normalizedEmail)
         if (signInOptions.method === 'password') {
           setEmailSignInStep('password')
           setPassword('')
           setEmailCode('')
-          setMessage(`Enter the password for ${normalizedEmail}.`)
+          setMessage(`Enter your JobsFlow password for ${normalizedEmail}.`)
           return
         }
 
@@ -1637,8 +1718,8 @@ function AuthPanel({
 
         setMessage(
           signInOptions.provider
-            ? `This email is set up for ${ssoProviderActions.find((provider) => provider.key === signInOptions.provider)?.label ?? 'social'} sign-in. Use that Continue option above.`
-            : 'This email is not set up for password sign-in. Use Google or Apple if that is how you created the account.',
+            ? `This email uses ${ssoProviderActions.find((provider) => provider.key === signInOptions.provider)?.label ?? 'a social account'} sign-in. Choose that option above.`
+            : 'This email is not set up with a JobsFlow password yet. Use Google or Apple if that is how you created the account.',
         )
       } catch (error) {
         setShowInlineSignUp(isMissingEmailAccountError(error))
@@ -1663,7 +1744,7 @@ function AuthPanel({
 
     setIsBusy(true)
     setAuthReturnPending(true)
-    setMessage(emailSignInStep === 'code' ? 'Checking the email verification code...' : 'Signing in with email and password...')
+    setMessage(emailSignInStep === 'code' ? 'Checking your email code...' : 'Signing you in...')
 
     if (!sso.isLoaded) {
       setIsBusy(false)
@@ -1671,8 +1752,8 @@ function AuthPanel({
       setShowInlineSignUp(false)
       setMessage(
         sso.loadTimedOut
-          ? 'Secure sign-in has not loaded in this browser yet. Refresh the page or disable blockers for JobsFlow and Clerk.'
-          : 'Secure sign-in is still loading. Please try again in a moment.',
+          ? 'Sign-in is taking longer than expected in this browser. Refresh the page, then try again.'
+          : 'Sign-in is getting ready. Please try again in a moment.',
       )
       return
     }
@@ -1714,15 +1795,15 @@ function AuthPanel({
     }
 
     if (!sso.configured) {
-      setMessage('Secure sign-up is not connected yet.')
+      setMessage('Sign-up is being prepared. Please try again shortly.')
       return
     }
 
     if (!sso.isLoaded) {
       setMessage(
         sso.loadTimedOut
-          ? 'Secure sign-up has not loaded in this browser yet. Refresh the page or disable blockers for JobsFlow and Clerk.'
-          : 'Secure sign-up is still loading. Please try again in a moment.',
+          ? 'Sign-up is taking longer than expected in this browser. Refresh the page, then try again.'
+          : 'Sign-up is getting ready. Please try again in a moment.',
       )
       return
     }
@@ -1781,7 +1862,7 @@ function AuthPanel({
     }
 
     autoSsoSessionAttempted.current = true
-    setMessage('SSO sign-in complete. Opening your JobsFlow workspace...')
+    setMessage('Sign-in complete. Opening your JobsFlow workspace...')
     void handleCreateSsoSession()
   }, [handleCreateSsoSession, sso.isLoaded, sso.isSignedIn, session, isBusy])
 
@@ -1804,11 +1885,11 @@ function AuthPanel({
       (emailSignInStep === 'password' && !password) ||
       (emailSignInStep === 'code' && !emailCode.trim())
     const gatewayStatus = !sso.configured
-      ? 'Secure sign-in is not connected yet.'
+      ? 'Sign-in is being prepared. Please try again shortly.'
       : !sso.isLoaded
         ? sso.loadTimedOut
-          ? 'Secure sign-in is connected, but Clerk has not loaded in this browser yet.'
-          : 'Loading secure sign-in...'
+          ? 'Sign-in is taking longer than expected in this browser. Refresh the page, then try again.'
+          : 'Loading sign-in...'
         : null
 
     return (
@@ -1830,7 +1911,7 @@ function AuthPanel({
               </p>
             </div>
 
-            <div className="auth-gateway-oauth" aria-label="Continue with a provider">
+            <div className="auth-gateway-oauth" aria-label="Continue with a sign-in option">
               {oauthProviders.map((provider) => (
                 <button
                   className="auth-provider-button"
@@ -1922,8 +2003,8 @@ function AuthPanel({
               </div>
             ) : null}
 
-            <p className="auth-gateway-status" aria-live="polite">{message}</p>
-            {gatewayStatus ? <p className="auth-gateway-status">{gatewayStatus}</p> : null}
+            <p className="auth-gateway-status" aria-live="polite">{friendlyUserMessage(message)}</p>
+            {gatewayStatus ? <p className="auth-gateway-status">{friendlyUserMessage(gatewayStatus)}</p> : null}
           </article>
         </div>
       </section>
@@ -1968,11 +2049,9 @@ function AuthPanel({
         <div className="session-summary">
           <strong>{session.displayName}</strong>
           <span>{session.email}</span>
-          <small>
-            {session.role} / tenant {session.tenantId.slice(0, 8)}
-          </small>
+          <small>{session.role} workspace</small>
         </div>
-        <p className="runtime-message">{message}</p>
+        <p className="runtime-message">{friendlyUserMessage(message)}</p>
         <div className="auth-actions">
           <button disabled={isBusy} onClick={checkSession} type="button">
             <RefreshCw size={16} aria-hidden="true" />
@@ -2004,8 +2083,8 @@ function AuthPanel({
                 <StatusPill tone="amber">Session needed</StatusPill>
                 <strong>Start a workspace to unlock secure resume upload.</strong>
                 <p>
-                  Resume storage uses the signed session so files and metadata stay
-                  scoped to the active tenant.
+                  Resume storage uses your signed-in workspace so files and metadata stay
+                  protected.
                 </p>
               </div>
             )}
@@ -2071,7 +2150,7 @@ function ResumeStoragePanel({
     try {
       const result = await uploadResume(selectedFile)
       setStatus(
-        `${result.resume.filename} is stored privately. JobsFlow recorded the audit trail.`,
+        `${result.resume.filename} is stored privately. JobsFlow recorded the activity history.`,
       )
       const nextResumes = await listResumes()
       setResumes(nextResumes.resumes)
@@ -2093,7 +2172,7 @@ function ResumeStoragePanel({
     try {
       const result = await listResumes()
       setResumes(result.resumes)
-      setStatus(`${result.resumes.length} resume artifact${result.resumes.length === 1 ? '' : 's'} visible in this workspace.`)
+      setStatus(`${result.resumes.length} resume file${result.resumes.length === 1 ? '' : 's'} visible in this workspace.`)
     } catch (error) {
       setStatus(humanizeJobsFlowError(error, 'resume'))
     } finally {
@@ -2120,7 +2199,7 @@ function ResumeStoragePanel({
       </div>
       <p className="muted-line">
         Your file stays private to this workspace. JobsFlow stores the resume, keeps
-        metadata tenant-scoped, and records the action for audit review.
+        metadata workspace-protected, and records the action for review history.
       </p>
       <div className="upload-control">
         <input
@@ -2137,7 +2216,7 @@ function ResumeStoragePanel({
           Refresh
         </button>
       </div>
-      <p className="runtime-message">{status}</p>
+      <p className="runtime-message">{friendlyUserMessage(status)}</p>
       <div className="resume-artifact-list">
         {resumes.map((resume) => (
           <div className="resume-artifact-row" key={resume.id}>
@@ -2174,8 +2253,8 @@ function BackendStatusPanel({
       setHealth(nextHealth)
       setMessage(
         nextHealth.databaseReady
-          ? 'JobsFlow is awake. Workspace data, packet review, and audit trails are ready.'
-          : 'JobsFlow is reachable, but one production data table still needs attention.',
+          ? 'JobsFlow is online. Workspace data, packet review, and activity history are ready.'
+          : 'JobsFlow is online, but one workspace area still needs attention.',
       )
 
       try {
@@ -2198,7 +2277,7 @@ function BackendStatusPanel({
     try {
       const result = await listAuditEvents()
       setAuditEvents(result.events)
-      setMessage(`${result.events.length} audit event${result.events.length === 1 ? '' : 's'} loaded for this workspace.`)
+      setMessage(`${result.events.length} activity item${result.events.length === 1 ? '' : 's'} loaded for this workspace.`)
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'audit'))
     } finally {
@@ -2208,14 +2287,14 @@ function BackendStatusPanel({
 
   async function sendOutboundEmailTest() {
     if (!session) {
-      setMessage('Start a workspace first, then JobsFlow can send a Resend test email to the signed-in address.')
+      setMessage('Start a workspace first, then JobsFlow can send a test email to the signed-in address.')
       return
     }
 
     setIsBusy(true)
     try {
       const result = await sendEmailTest()
-      setMessage(`Resend accepted the JobsFlow test email for ${result.recipient}. Message id ${result.emailId.slice(0, 8)}...`)
+      setMessage(`Test email sent to ${result.recipient}. Check your inbox in a moment.`)
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'email'))
     } finally {
@@ -2229,11 +2308,11 @@ function BackendStatusPanel({
 
   const bindingRows: Array<[string, boolean]> = health
     ? [
-        ['Workspace database', health.bindings.db],
+        ['Workspace data', health.bindings.db],
         ['Resume storage', health.bindings.resumeBucket],
-        ['Session signing', health.bindings.sessionSecret],
-        ['Private beta gate', health.bindings.bootstrapToken],
-        ['SSO provider', Boolean(health.features?.ssoProvider)],
+        ['Secure sessions', health.bindings.sessionSecret],
+        ['Invite access', health.bindings.bootstrapToken],
+        ['Account sign-in', Boolean(health.features?.ssoProvider)],
         ['Outbound email', Boolean(health.features?.outboundEmail || health.bindings.emailProvider)],
         ['Packet review engine', Boolean(health.features?.packetReviewEngine)],
       ]
@@ -2243,8 +2322,8 @@ function BackendStatusPanel({
     <article className="panel backend-panel wide-panel">
       <div className="panel-title">
         <div>
-          <span>Live backend readiness</span>
-          <h3>Secure workspaces, resume storage, and audit trails</h3>
+          <span>Live workspace readiness</span>
+          <h3>Secure workspaces, resume storage, and activity trails</h3>
         </div>
         <StatusPill tone={health?.databaseReady ? 'green' : 'amber'}>
           {health ? 'Ready' : 'Checking'}
@@ -2253,7 +2332,7 @@ function BackendStatusPanel({
       <div className="backend-grid">
         <div className="backend-card">
           <strong>JobsFlow services</strong>
-          <p>{message}</p>
+          <p>{friendlyUserMessage(message)}</p>
           <div className="backend-actions">
             <button disabled={isBusy} onClick={refreshBackend} type="button">
               <RefreshCw size={16} aria-hidden="true" />
@@ -2261,7 +2340,7 @@ function BackendStatusPanel({
             </button>
             <button disabled={isBusy} onClick={loadAuditEvents} type="button">
               <DatabaseZap size={16} aria-hidden="true" />
-              Load audit log
+              Load activity history
             </button>
             <button
               disabled={isBusy || !session || !(health?.features?.outboundEmail || health?.bindings.emailProvider)}
@@ -2274,13 +2353,13 @@ function BackendStatusPanel({
           </div>
         </div>
         <div className="backend-card">
-          <strong>Bindings</strong>
+          <strong>Readiness</strong>
           <div className="binding-grid">
             {bindingRows.length ? (
               bindingRows.map(([label, ready]) => (
                 <div className="binding-row" key={label}>
                   <span>{label}</span>
-                  <StatusPill tone={ready ? 'green' : 'amber'}>{ready ? 'Ready' : 'Missing'}</StatusPill>
+                  <StatusPill tone={ready ? 'green' : 'amber'}>{ready ? 'Ready' : 'Needs attention'}</StatusPill>
                 </div>
               ))
             ) : (
@@ -2294,20 +2373,20 @@ function BackendStatusPanel({
             <div className="session-summary">
               <span>{session.email}</span>
               <small>
-                {session.role} / tenant {session.tenantId.slice(0, 8)}
+                {session.role} workspace
               </small>
             </div>
           ) : (
-            <p>No active signed JobsFlow session.</p>
+            <p>No active JobsFlow workspace.</p>
           )}
         </div>
       </div>
       <div className="audit-preview">
         {auditEvents.map((event) => (
           <div className="audit-preview-row" key={event.id}>
-            <span>{event.eventType}</span>
-            <strong>{event.action}</strong>
-            <small>{event.riskLevel} risk</small>
+            <span>{formatProductLabel(event.eventType)}</span>
+            <strong>{formatProductLabel(event.action)}</strong>
+            <small>{formatProductLabel(event.riskLevel)} risk</small>
           </div>
         ))}
       </div>
@@ -2335,7 +2414,7 @@ function textFromRecord(record: Record<string, unknown>, key: string, fallback: 
 function WorkflowKernelPanel({ session }: { session: BackendSession | null }) {
   const [kernelState, setKernelState] = useState<WorkflowKernelState | null>(null)
   const [message, setMessage] = useState(
-    'Start a workspace, then activate the Cloudflare workflow kernel for this tenant.',
+    'Start a workspace, then turn on guided automation.',
   )
   const [isBusy, setIsBusy] = useState(false)
   const latestRun = kernelState?.runs[0] ?? null
@@ -2347,7 +2426,7 @@ function WorkflowKernelPanel({ session }: { session: BackendSession | null }) {
   const refreshKernel = useCallback(async () => {
     if (!session) {
       setKernelState(null)
-      setMessage('Start a workspace first, then JobsFlow can read tenant-scoped workflow state.')
+      setMessage('Start a workspace first, then JobsFlow can load guided automation.')
       return
     }
 
@@ -2357,8 +2436,8 @@ function WorkflowKernelPanel({ session }: { session: BackendSession | null }) {
       setKernelState(result.state)
       setMessage(
         result.state.summary.activeDefinitions
-          ? `${result.state.summary.activeDefinitions} workflow definitions are active for this Cloudflare production kernel.`
-          : 'Workflow tables are ready. Activate the kernel to seed the production definitions.',
+          ? `${result.state.summary.activeDefinitions} automation workflow${result.state.summary.activeDefinitions === 1 ? '' : 's'} ready.`
+          : 'Guided automation is ready to activate.',
       )
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'workflow'))
@@ -2369,19 +2448,19 @@ function WorkflowKernelPanel({ session }: { session: BackendSession | null }) {
 
   async function activateKernel() {
     if (!session) {
-      setMessage('Start a workspace first, then JobsFlow can activate the kernel for this tenant.')
+      setMessage('Start a workspace first, then JobsFlow can turn on guided automation.')
       return
     }
 
     setIsBusy(true)
-    setMessage('Seeding workflow definitions, policies, integration boundaries, and consent receipts...')
+    setMessage('Preparing automation rules, safety checks, and approval records...')
     try {
       const result = await bootstrapWorkflowKernel()
       setKernelState(result.state)
       setMessage(
         result.createdRun
-          ? 'Cloudflare workflow kernel activated. External actions are still blocked behind consent and certification.'
-          : 'Cloudflare workflow kernel verified. Existing consent and automation boundaries remain intact.',
+          ? 'Guided automation is ready. External actions remain blocked until reviewed and approved.'
+          : 'Guided automation is ready. Existing approval boundaries remain intact.',
       )
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'workflow'))
@@ -2392,12 +2471,12 @@ function WorkflowKernelPanel({ session }: { session: BackendSession | null }) {
 
   async function startResumeWorkflow() {
     if (!session) {
-      setMessage('Start a workspace before creating a workflow run.')
+      setMessage('Start a workspace before preparing resume automation.')
       return
     }
 
     setIsBusy(true)
-    setMessage('Creating a guarded resume optimization workflow run...')
+    setMessage('Preparing a guarded resume optimization plan...')
     try {
       if (!kernelState?.definitions.some((definition) => definition.key === 'resume.tailwind_optimization')) {
         await bootstrapWorkflowKernel()
@@ -2415,7 +2494,7 @@ function WorkflowKernelPanel({ session }: { session: BackendSession | null }) {
         workflowKey: 'resume.tailwind_optimization',
       })
       setKernelState(result.state)
-      setMessage('Resume optimization workflow run created behind a review gate.')
+      setMessage('Resume optimization plan created behind a review gate.')
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'workflow'))
     } finally {
@@ -2431,47 +2510,47 @@ function WorkflowKernelPanel({ session }: { session: BackendSession | null }) {
     <article className="panel workflow-kernel-panel wide-panel">
       <div className="panel-title">
         <div>
-          <span>Cloudflare workflow kernel</span>
+          <span>Guided automation</span>
           <h3>Durable state before automation</h3>
         </div>
         <StatusPill tone={activeDefinitions ? 'green' : 'amber'}>
-          {activeDefinitions ? 'Kernel ready' : 'Needs activation'}
+          {activeDefinitions ? 'Ready' : 'Needs activation'}
         </StatusPill>
       </div>
       <p className="muted-line">
-        D1 stores the workflow state, consent receipts, automation policies, integration boundaries, and delivery records that every JobsFlow pillar now builds on.
+        JobsFlow records every automation plan, approval, and delivery event before any external action can happen.
       </p>
       <div className="kernel-actions">
         <button disabled={isBusy} onClick={refreshKernel} type="button">
           <RefreshCw size={16} aria-hidden="true" />
-          Refresh kernel
+          Refresh automation
         </button>
         <button disabled={isBusy || !session} onClick={activateKernel} type="button">
           <DatabaseZap size={16} aria-hidden="true" />
-          Activate kernel
+          Activate automation
         </button>
         <button disabled={isBusy || !session} onClick={startResumeWorkflow} type="button">
           <FileCheck2 size={16} aria-hidden="true" />
           Start resume workflow
         </button>
       </div>
-      <p className="runtime-message">{message}</p>
+      <p className="runtime-message">{friendlyUserMessage(message)}</p>
       <div className="kernel-metrics">
         <div>
           <strong>{kernelState?.summary.activeDefinitions ?? 0}</strong>
-          <span>active definitions</span>
+          <span>ready automations</span>
         </div>
         <div>
           <strong>{kernelState?.summary.activeRuns ?? 0}</strong>
-          <span>active runs</span>
+          <span>active plans</span>
         </div>
         <div>
           <strong>{kernelState?.summary.pendingReceipts ?? 0}</strong>
-          <span>pending receipts</span>
+          <span>pending approvals</span>
         </div>
         <div>
           <strong>{kernelState?.summary.enabledPolicies ?? 0}</strong>
-          <span>enabled policies</span>
+          <span>active safeguards</span>
         </div>
       </div>
       <div className="kernel-grid">
@@ -2482,11 +2561,11 @@ function WorkflowKernelPanel({ session }: { session: BackendSession | null }) {
               <div className="kernel-row" key={definition.id}>
                 <span>{definition.workspace}</span>
                 <p>{definition.name}</p>
-                <small>{definition.triggerEvent}</small>
+                <small>{formatProductLabel(definition.triggerEvent)}</small>
               </div>
             ))}
             {!pillarDefinitions.length ? (
-              <div className="kernel-empty">Activate the kernel to seed the ten JobsFlow pillar workflows.</div>
+              <div className="kernel-empty">Activate automation to prepare the ten JobsFlow pillar workflows.</div>
             ) : null}
           </div>
         </div>
@@ -2495,34 +2574,34 @@ function WorkflowKernelPanel({ session }: { session: BackendSession | null }) {
           <div className="kernel-list">
             {latestRun ? (
               <div className="kernel-row">
-                <StatusPill tone={workflowTone(latestRun.state)}>{latestRun.state}</StatusPill>
-                <p>{latestRun.workflowKey}</p>
-                <small>{latestRun.currentStep}</small>
+                <StatusPill tone={workflowTone(latestRun.state)}>{formatProductLabel(latestRun.state)}</StatusPill>
+                <p>{formatProductLabel(latestRun.workflowKey)}</p>
+                <small>{formatProductLabel(latestRun.currentStep)}</small>
               </div>
             ) : (
-              <div className="kernel-empty">No workflow runs yet.</div>
+              <div className="kernel-empty">No automation plans yet.</div>
             )}
             {pendingReceipts.slice(0, 3).map((receipt) => (
               <div className="kernel-row" key={receipt.id}>
-                <StatusPill tone="amber">{receipt.status}</StatusPill>
-                <p>{receipt.action}</p>
+                <StatusPill tone="amber">{formatProductLabel(receipt.status)}</StatusPill>
+                <p>{formatProductLabel(receipt.action)}</p>
                 <small>{textFromRecord(receipt.preview, 'title', 'Consent preview recorded')}</small>
               </div>
             ))}
           </div>
         </div>
         <div className="kernel-column">
-          <strong>Integration boundaries</strong>
+          <strong>Connection boundaries</strong>
           <div className="kernel-list">
             {(kernelState?.integrations ?? []).slice(0, 6).map((integration) => (
               <div className="kernel-row" key={integration.id}>
-                <span>{integration.status.replace(/_/g, ' ')}</span>
+                <span>{formatProductLabel(integration.status)}</span>
                 <p>{integration.accountLabel}</p>
-                <small>{integration.provider}</small>
+                <small>{formatProductLabel(integration.provider)}</small>
               </div>
             ))}
             {!kernelState?.integrations.length ? (
-              <div className="kernel-empty">No provider boundaries seeded yet.</div>
+              <div className="kernel-empty">No connection boundaries are ready yet.</div>
             ) : null}
           </div>
         </div>
@@ -2551,14 +2630,14 @@ function ResumeTailwindPanel({ session }: { session: BackendSession | null }) {
   const [resumeText, setResumeText] = useState(defaultResumeTailwindText)
   const [jobDescription, setJobDescription] = useState(defaultResumeTailwindJob)
   const [resumeIntelState, setResumeIntelState] = useState<ResumeIntelligenceState | null>(null)
-  const [message, setMessage] = useState('Start a workspace, then JobsFlow can run Resume Tailwind Optimization.')
+  const [message, setMessage] = useState('Start a workspace, then JobsFlow can optimize this resume for a target role.')
   const [isBusy, setIsBusy] = useState(false)
   const latestAnalysis = resumeIntelState?.analyses[0] ?? null
 
   const refreshResumeIntelligence = useCallback(async () => {
     if (!session) {
       setResumeIntelState(null)
-      setMessage('Start a candidate workspace first, then JobsFlow can load resume intelligence.')
+      setMessage('Start a candidate workspace first, then JobsFlow can load resume optimization results.')
       return
     }
 
@@ -2568,7 +2647,7 @@ function ResumeTailwindPanel({ session }: { session: BackendSession | null }) {
       setResumeIntelState(result.state)
       setMessage(
         result.state.summary.analyses
-          ? `${result.state.summary.analyses} resume analysis record${result.state.summary.analyses === 1 ? '' : 's'} ready.`
+          ? `${result.state.summary.analyses} resume optimization result${result.state.summary.analyses === 1 ? '' : 's'} ready.`
           : 'No resume analyses yet. Run the optimizer to create one.',
       )
     } catch (error) {
@@ -2580,12 +2659,12 @@ function ResumeTailwindPanel({ session }: { session: BackendSession | null }) {
 
   async function runResumeTailwind() {
     if (!session) {
-      setMessage('Start a candidate workspace before running Resume Tailwind Optimization.')
+      setMessage('Start a candidate workspace before optimizing this resume.')
       return
     }
 
     setIsBusy(true)
-    setMessage('Parsing resume facts, job requirements, semantic gaps, and vector-ready records...')
+    setMessage('Reading resume facts, role requirements, proof gaps, and match signals...')
     try {
       const result = await createResumeTailwindAnalysis({
         company,
@@ -2618,8 +2697,8 @@ function ResumeTailwindPanel({ session }: { session: BackendSession | null }) {
     <article className="panel resume-tailwind-panel wide-panel">
       <div className="panel-title">
         <div>
-          <span>Resume Tailwind Optimization</span>
-          <h3>Semantic gaps before tailored variants</h3>
+          <span>Resume optimization</span>
+          <h3>Proof gaps before tailored variants</h3>
         </div>
         <StatusPill tone={latestAnalysis ? 'green' : 'amber'}>
           {latestAnalysis ? `${latestAnalysis.readinessScore}% ready` : 'No analysis yet'}
@@ -2653,7 +2732,7 @@ function ResumeTailwindPanel({ session }: { session: BackendSession | null }) {
           Refresh analyses
         </button>
       </div>
-      <p className="runtime-message">{message}</p>
+      <p className="runtime-message">{friendlyUserMessage(message)}</p>
       {latestAnalysis ? (
         <>
           <div className="tailwind-score-grid">
@@ -2667,7 +2746,7 @@ function ResumeTailwindPanel({ session }: { session: BackendSession | null }) {
             </div>
             <div>
               <strong>{latestAnalysis.semanticOverlapScore}%</strong>
-              <span>semantic overlap</span>
+              <span>role overlap</span>
             </div>
             <div>
               <strong>{latestAnalysis.proofStrength}</strong>
@@ -2694,11 +2773,11 @@ function ResumeTailwindPanel({ session }: { session: BackendSession | null }) {
               />
             </div>
             <div className="tailwind-result-box">
-              <strong>Vector queue</strong>
+              <strong>Prepared evidence</strong>
               <EvidenceList
                 items={[
-                  `${latestAnalysis.vectorDocuments.length} vector-ready document${latestAnalysis.vectorDocuments.length === 1 ? '' : 's'}`,
-                  `${resumeIntelState?.summary.pendingVectorDocuments ?? 0} pending embedding${resumeIntelState?.summary.pendingVectorDocuments === 1 ? '' : 's'}`,
+                  `${latestAnalysis.vectorDocuments.length} evidence note${latestAnalysis.vectorDocuments.length === 1 ? '' : 's'} ready`,
+                  `${resumeIntelState?.summary.pendingVectorDocuments ?? 0} insight${resumeIntelState?.summary.pendingVectorDocuments === 1 ? '' : 's'} waiting to be prepared`,
                 ]}
               />
             </div>
@@ -2740,7 +2819,7 @@ function AntiGhostingPipelinePanel({ session }: { session: BackendSession | null
   const refreshPipeline = useCallback(async () => {
     if (!session) {
       setPipelineState(null)
-      setMessage('Start a candidate workspace first, then JobsFlow can read pipeline state.')
+      setMessage('Start a candidate workspace first, then JobsFlow can load application tracking.')
       return
     }
 
@@ -2865,7 +2944,7 @@ function AntiGhostingPipelinePanel({ session }: { session: BackendSession | null
           Refresh tracker
         </button>
       </div>
-      <p className="runtime-message">{message}</p>
+      <p className="runtime-message">{friendlyUserMessage(message)}</p>
       <div className="pipeline-summary-grid">
         <div>
           <strong>{pipelineState?.summary.activeApplications ?? 0}</strong>
@@ -2913,7 +2992,7 @@ function AntiGhostingPipelinePanel({ session }: { session: BackendSession | null
           <div className="pipeline-followup-row" key={task.id}>
             <StatusPill tone={pipelineTone(task.riskLevel)}>{task.taskType.replaceAll('_', ' ')}</StatusPill>
             <p>{task.draftText}</p>
-            <small>{task.channel} / consent required</small>
+            <small>{formatProductLabel(task.channel)} / approval required</small>
           </div>
         ))}
         {!openTasks.length ? <div className="kernel-empty">No follow-up drafts are open.</div> : null}
@@ -3016,7 +3095,7 @@ function InterviewPrepSandboxPanel({ session }: { session: BackendSession | null
       if (firstQuestion) {
         setSelectedQuestionKey(firstQuestion.key)
       }
-      setMessage('Interview prep session created. Questions and rubric are tenant-scoped and audit logged.')
+      setMessage('Interview prep session created. Questions and rubric are workspace-protected and saved to history.')
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'interview-prep'))
     } finally {
@@ -3084,7 +3163,7 @@ function InterviewPrepSandboxPanel({ session }: { session: BackendSession | null
           </button>
         </div>
       </div>
-      <p className="runtime-message">{message}</p>
+      <p className="runtime-message">{friendlyUserMessage(message)}</p>
       <div className="interview-prep-grid">
         <div className="interview-question-list">
           <strong>Question set</strong>
@@ -3254,7 +3333,7 @@ function TransparencyBlueprintPanel({ session }: { session: BackendSession | nul
           Refresh transparency
         </button>
       </div>
-      <p className="runtime-message">{message}</p>
+      <p className="runtime-message">{friendlyUserMessage(message)}</p>
       <div className="transparency-grid">
         <div className="transparency-salary-card">
           <strong>{latestReport?.targetRole ?? applicationPacket.role}</strong>
@@ -3264,7 +3343,7 @@ function TransparencyBlueprintPanel({ session }: { session: BackendSession | nul
             <b>{formatCents(latestReport?.salaryPercentiles.p50, latestReport?.salaryPercentiles.currency ?? latestSalary?.currency)}</b>
             <b>{formatCents(latestReport?.salaryPercentiles.p75 ?? latestSalary?.salaryMaxCents, latestReport?.salaryPercentiles.currency ?? latestSalary?.currency)}</b>
           </div>
-          <small>P25 / midpoint / P75, stored as anonymized tenant evidence</small>
+          <small>P25 / midpoint / P75, stored as anonymized workspace evidence</small>
         </div>
         <div className="transparency-risk-card">
           <strong>Risk flags</strong>
@@ -3363,7 +3442,7 @@ function PassiveSourcingCardsPanel({ session }: { session: BackendSession | null
     }
 
     setIsBusy(true)
-    setMessage('Queueing redacted card payload for recruiter marketplace review...')
+    setMessage('Preparing the redacted card for recruiter marketplace review...')
     try {
       const result = await broadcastPassiveSourcingCard(latestCard.id)
       setPassiveState(result.state)
@@ -3427,7 +3506,7 @@ function PassiveSourcingCardsPanel({ session }: { session: BackendSession | null
           Refresh cards
         </button>
       </div>
-      <p className="runtime-message">{message}</p>
+      <p className="runtime-message">{friendlyUserMessage(message)}</p>
       <div className="passive-grid">
         <div className="passive-card-preview">
           <span>{latestCard?.anonymousHandle ?? 'Anonymous handle pending'}</span>
@@ -3554,7 +3633,7 @@ function DynamicAchievementProfilesPanel({ session }: { session: BackendSession 
           Refresh profiles
         </button>
       </div>
-      <p className="runtime-message">{message}</p>
+      <p className="runtime-message">{friendlyUserMessage(message)}</p>
       <div className="achievement-profile-grid">
         <div className="achievement-summary-card">
           <strong>{latestProfile?.candidateAlias ?? 'Candidate alias pending'}</strong>
@@ -4009,7 +4088,7 @@ function CandidateWorkspace({
 
 function SemanticSkillMatchingPanel({ session }: { session: BackendSession | null }) {
   const [skillState, setSkillState] = useState<SkillMatchingState | null>(null)
-  const [message, setMessage] = useState('Start an employer workspace, then JobsFlow can run semantic skill matching.')
+  const [message, setMessage] = useState('Start an employer workspace, then JobsFlow can match role needs to candidate evidence.')
   const [isBusy, setIsBusy] = useState(false)
   const latestRun = skillState?.matchRuns[0] ?? null
   const latestCandidate = latestRun
@@ -4020,7 +4099,7 @@ function SemanticSkillMatchingPanel({ session }: { session: BackendSession | nul
   const refreshSkillMatching = useCallback(async () => {
     if (!session) {
       setSkillState(null)
-      setMessage('Start an employer workspace first, then JobsFlow can load semantic match runs.')
+      setMessage('Start an employer workspace first, then JobsFlow can load skill matches.')
       return
     }
 
@@ -4030,8 +4109,8 @@ function SemanticSkillMatchingPanel({ session }: { session: BackendSession | nul
       setSkillState(result.state)
       setMessage(
         result.state.summary.matchRuns
-          ? `${result.state.summary.matchRuns} semantic match run${result.state.summary.matchRuns === 1 ? '' : 's'} ready.`
-          : 'No semantic match run yet. Run the matcher for the current role.',
+          ? `${result.state.summary.matchRuns} skill match${result.state.summary.matchRuns === 1 ? '' : 'es'} ready.`
+          : 'No skill match yet. Run the matcher for the current role.',
       )
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'skill-matching'))
@@ -4042,12 +4121,12 @@ function SemanticSkillMatchingPanel({ session }: { session: BackendSession | nul
 
   async function runKoraSemanticMatch() {
     if (!session) {
-      setMessage('Start an employer workspace before running semantic skill matching.')
+      setMessage('Start an employer workspace before matching skills to the role.')
       return
     }
 
     setIsBusy(true)
-    setMessage('Creating role requirements, skill taxonomy nodes, vector-ready candidate profile, and match run...')
+    setMessage('Preparing role requirements, skill groups, candidate evidence, and match scoring...')
     try {
       const result = await runSemanticSkillMatch({
         adjacentSkills: ['Implementation operations', 'Healthtech', 'Workflow governance'],
@@ -4076,7 +4155,7 @@ function SemanticSkillMatchingPanel({ session }: { session: BackendSession | nul
         roleTitle: applicationPacket.role,
       })
       setSkillState(result.state)
-      setMessage('Semantic match complete. Adjacent evidence is separated from direct proof for reviewer control.')
+      setMessage('Skill match complete. Adjacent evidence is separated from direct proof for reviewer control.')
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'skill-matching'))
     } finally {
@@ -4092,7 +4171,7 @@ function SemanticSkillMatchingPanel({ session }: { session: BackendSession | nul
     <article className="panel semantic-match-panel wide-panel">
       <div className="panel-title">
         <div>
-          <span>Semantic Vector Skill-Matching</span>
+          <span>Skill matching</span>
           <h3>Related skills without keyword tunnel vision</h3>
         </div>
         <StatusPill tone={latestRun ? (latestRun.matchScore >= 75 ? 'green' : 'amber') : 'amber'}>
@@ -4102,14 +4181,14 @@ function SemanticSkillMatchingPanel({ session }: { session: BackendSession | nul
       <div className="kernel-actions">
         <button disabled={isBusy || !session} onClick={runKoraSemanticMatch} type="button">
           <SearchCheck size={16} aria-hidden="true" />
-          Run semantic match
+          Run skill match
         </button>
         <button disabled={isBusy || !session} onClick={refreshSkillMatching} type="button">
           <RefreshCw size={16} aria-hidden="true" />
           Refresh matches
         </button>
       </div>
-      <p className="runtime-message">{message}</p>
+      <p className="runtime-message">{friendlyUserMessage(message)}</p>
       <div className="semantic-match-grid">
         <div className="semantic-score-card">
           <strong>{latestRun?.matchScore ?? 0}%</strong>
@@ -4141,7 +4220,7 @@ function SemanticSkillMatchingPanel({ session }: { session: BackendSession | nul
 
 function JobSyndicationPanel({ session }: { session: BackendSession | null }) {
   const [syndicationState, setSyndicationState] = useState<JobSyndicationState | null>(null)
-  const [message, setMessage] = useState('Start an employer workspace, then JobsFlow can validate and queue job syndication.')
+  const [message, setMessage] = useState('Start an employer workspace, then JobsFlow can prepare jobs for publishing review.')
   const [isBusy, setIsBusy] = useState(false)
   const latestPost = syndicationState?.posts[0] ?? null
   const latestDeliveries = latestPost
@@ -4151,7 +4230,7 @@ function JobSyndicationPanel({ session }: { session: BackendSession | null }) {
   const refreshSyndication = useCallback(async () => {
     if (!session) {
       setSyndicationState(null)
-      setMessage('Start an employer workspace first, then JobsFlow can load syndication payloads.')
+      setMessage('Start an employer workspace first, then JobsFlow can load job publishing drafts.')
       return
     }
 
@@ -4161,8 +4240,8 @@ function JobSyndicationPanel({ session }: { session: BackendSession | null }) {
       setSyndicationState(result.state)
       setMessage(
         result.state.summary.syndicationPosts
-          ? `${result.state.summary.syndicationPosts} job syndication post${result.state.summary.syndicationPosts === 1 ? '' : 's'} recorded.`
-          : 'No syndication posts yet. Validate and queue the first role.',
+          ? `${result.state.summary.syndicationPosts} job publishing draft${result.state.summary.syndicationPosts === 1 ? '' : 's'} recorded.`
+          : 'No job publishing drafts yet. Validate and queue the first role.',
       )
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'job-syndication'))
@@ -4173,12 +4252,12 @@ function JobSyndicationPanel({ session }: { session: BackendSession | null }) {
 
   async function queueKoraJob() {
     if (!session) {
-      setMessage('Start an employer workspace before queueing job syndication.')
+      setMessage('Start an employer workspace before queueing a job for publishing review.')
       return
     }
 
     setIsBusy(true)
-    setMessage('Validating job content, salary band, Google markup, and partner payloads...')
+    setMessage('Validating job content, salary band, search listing details, and partner-ready drafts...')
     try {
       const result = await createJobSyndicationPost({
         company: applicationPacket.company,
@@ -4194,7 +4273,7 @@ function JobSyndicationPanel({ session }: { session: BackendSession | null }) {
         },
       })
       setSyndicationState(result.state)
-      setMessage('Syndication payloads are queued inside JobsFlow. External publishing remains review-gated.')
+      setMessage('Job publishing drafts are queued inside JobsFlow. External publishing remains review-gated.')
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'job-syndication'))
     } finally {
@@ -4210,8 +4289,8 @@ function JobSyndicationPanel({ session }: { session: BackendSession | null }) {
     <article className="panel job-syndication-panel wide-panel">
       <div className="panel-title">
         <div>
-          <span>One-Click Job Syndication Engine</span>
-          <h3>Validated payloads before external publishing</h3>
+          <span>One-click job publishing</span>
+          <h3>Validated drafts before external publishing</h3>
         </div>
         <StatusPill tone={latestPost?.status === 'queued' ? 'green' : latestPost?.status === 'blocked' ? 'red' : 'amber'}>
           {latestPost?.status ?? 'No post yet'}
@@ -4224,10 +4303,10 @@ function JobSyndicationPanel({ session }: { session: BackendSession | null }) {
         </button>
         <button disabled={isBusy || !session} onClick={refreshSyndication} type="button">
           <RefreshCw size={16} aria-hidden="true" />
-          Refresh payloads
+          Refresh drafts
         </button>
       </div>
-      <p className="runtime-message">{message}</p>
+      <p className="runtime-message">{friendlyUserMessage(message)}</p>
       <div className="syndication-grid">
         <div className="syndication-post-card">
           <strong>{latestPost?.roleTitle ?? applicationPacket.role}</strong>
@@ -4236,11 +4315,11 @@ function JobSyndicationPanel({ session }: { session: BackendSession | null }) {
             {formatCents(latestPost?.salary.minCents, latestPost?.salary.currency)} -{' '}
             {formatCents(latestPost?.salary.maxCents, latestPost?.salary.currency)}
           </p>
-          <small>{latestPost ? String(latestPost.googleJobsPayload['@type'] ?? 'JobPosting') : 'Google JobPosting payload pending'}</small>
+          <small>{latestPost ? 'Search listing draft ready' : 'Search listing draft pending'}</small>
         </div>
         <div>
           <strong>Validation</strong>
-          <EvidenceList items={latestPost?.validationErrors.length ? latestPost.validationErrors : ['Payload passes local syndication checks']} />
+          <EvidenceList items={latestPost?.validationErrors.length ? latestPost.validationErrors : ['Draft passes local publishing checks']} />
         </div>
         <div>
           <strong>Delivery records</strong>
@@ -4350,7 +4429,7 @@ function PrescreeningAgentsPanel({ session }: { session: BackendSession | null }
           Refresh sessions
         </button>
       </div>
-      <p className="runtime-message">{message}</p>
+      <p className="runtime-message">{friendlyUserMessage(message)}</p>
       <div className="prescreening-grid">
         <div className="prescreening-score-card">
           <strong>{latestSession?.score ?? 0}%</strong>
@@ -4388,7 +4467,7 @@ function PrescreeningAgentsPanel({ session }: { session: BackendSession | null }
 function AtsSynchronizersPanel({ session }: { session: BackendSession | null }) {
   const [atsState, setAtsState] = useState<AtsSyncState | null>(null)
   const [provider, setProvider] = useState<AtsProvider>('greenhouse')
-  const [message, setMessage] = useState('Start an employer workspace, then JobsFlow can configure ATS synchronizers.')
+  const [message, setMessage] = useState('Start an employer workspace, then JobsFlow can prepare hiring-system connections.')
   const [isBusy, setIsBusy] = useState(false)
   const latestRun = atsState?.runs[0] ?? null
   const latestEvents = latestRun ? (atsState?.events ?? []).filter((event) => event.syncRunId === latestRun.id).slice(0, 5) : []
@@ -4396,7 +4475,7 @@ function AtsSynchronizersPanel({ session }: { session: BackendSession | null }) 
   const refreshAtsSync = useCallback(async () => {
     if (!session) {
       setAtsState(null)
-      setMessage('Start an employer workspace first, then JobsFlow can load ATS sync state.')
+      setMessage('Start an employer workspace first, then JobsFlow can load hiring-system connections.')
       return
     }
 
@@ -4406,8 +4485,8 @@ function AtsSynchronizersPanel({ session }: { session: BackendSession | null }) 
       setAtsState(result.state)
       setMessage(
         result.state.summary.providers
-          ? `${result.state.summary.providers} ATS provider boundary${result.state.summary.providers === 1 ? '' : 'ies'} configured.`
-          : 'No ATS providers seeded yet. Add connection boundaries first.',
+          ? `${result.state.summary.providers} hiring-system connection${result.state.summary.providers === 1 ? '' : 's'} ready.`
+          : 'No hiring-system connections are ready yet.',
       )
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'ats-sync'))
@@ -4418,16 +4497,16 @@ function AtsSynchronizersPanel({ session }: { session: BackendSession | null }) 
 
   async function seedProviders() {
     if (!session) {
-      setMessage('Start an employer workspace before seeding ATS providers.')
+      setMessage('Start an employer workspace before preparing hiring-system connections.')
       return
     }
 
     setIsBusy(true)
-    setMessage('Seeding ATS OAuth boundaries and field mappings...')
+    setMessage('Preparing hiring-system connections and field maps...')
     try {
       const result = await seedAtsSyncConnections()
       setAtsState(result.state)
-      setMessage('ATS provider boundaries seeded. OAuth tokens remain disconnected and are not stored.')
+      setMessage('Hiring-system connections are ready. External sync remains off until you connect an account.')
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'ats-sync'))
     } finally {
@@ -4437,16 +4516,16 @@ function AtsSynchronizersPanel({ session }: { session: BackendSession | null }) 
 
   async function runDrySyncPlan() {
     if (!session) {
-      setMessage('Start an employer workspace before running an ATS dry sync.')
+      setMessage('Start an employer workspace before checking the hiring-system sync plan.')
       return
     }
 
     setIsBusy(true)
-    setMessage('Running ATS dry sync plan without external API calls...')
+    setMessage('Checking the sync plan without changing external hiring systems...')
     try {
       const result = await runAtsDrySync(provider)
       setAtsState(result.state)
-      setMessage('ATS dry sync recorded. Disconnected OAuth blocks external mutation by design.')
+      setMessage('Sync plan checked. External updates remain blocked until a connection is approved.')
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'ats-sync'))
     } finally {
@@ -4462,16 +4541,16 @@ function AtsSynchronizersPanel({ session }: { session: BackendSession | null }) 
     <article className="panel ats-sync-panel wide-panel">
       <div className="panel-title">
         <div>
-          <span>Two-Way Native ATS Synchronizers</span>
-          <h3>OAuth boundaries, field maps, and dry-run events</h3>
+          <span>Hiring-system connections</span>
+          <h3>Connection rules, field maps, and test events</h3>
         </div>
         <StatusPill tone={atsState?.summary.connectedProviders ? 'green' : latestRun?.status === 'blocked' ? 'amber' : 'blue'}>
-          {atsState?.summary.connectedProviders ? `${atsState.summary.connectedProviders} connected` : 'OAuth disconnected'}
+          {atsState?.summary.connectedProviders ? `${atsState.summary.connectedProviders} connected` : 'Not connected'}
         </StatusPill>
       </div>
       <div className="ats-sync-controls">
         <label>
-          <span>Provider</span>
+          <span>System</span>
           <select onChange={(event) => setProvider(event.target.value as AtsProvider)} value={provider}>
             <option value="greenhouse">Greenhouse</option>
             <option value="lever">Lever</option>
@@ -4481,7 +4560,7 @@ function AtsSynchronizersPanel({ session }: { session: BackendSession | null }) 
         <div className="kernel-actions">
           <button disabled={isBusy || !session} onClick={seedProviders} type="button">
             <DatabaseZap size={16} aria-hidden="true" />
-            Seed providers
+            Prepare connections
           </button>
           <button disabled={isBusy || !session} onClick={runDrySyncPlan} type="button">
             <RefreshCw size={16} aria-hidden="true" />
@@ -4489,26 +4568,28 @@ function AtsSynchronizersPanel({ session }: { session: BackendSession | null }) 
           </button>
           <button disabled={isBusy || !session} onClick={refreshAtsSync} type="button">
             <Clock3 size={16} aria-hidden="true" />
-            Refresh ATS
+            Refresh systems
           </button>
         </div>
       </div>
-      <p className="runtime-message">{message}</p>
+      <p className="runtime-message">{friendlyUserMessage(message)}</p>
       <div className="ats-sync-grid">
         <div>
           <strong>Connections</strong>
           {(atsState?.connections ?? []).length ? (
             atsState?.connections.map((connection) => (
               <div className="ats-connection-row" key={connection.id}>
-                <StatusPill tone={connection.oauthStatus === 'connected' ? 'green' : 'amber'}>{connection.oauthStatus.replaceAll('_', ' ')}</StatusPill>
+                <StatusPill tone={connection.oauthStatus === 'connected' ? 'green' : 'amber'}>
+                  {connection.oauthStatus === 'connected' ? 'connected' : 'not connected'}
+                </StatusPill>
                 <div>
                   <strong>{connection.accountLabel}</strong>
-                  <span>{connection.provider} / {connection.scopes.length} scopes</span>
+                  <span>{formatProductLabel(connection.provider)} / {connection.scopes.length} permission areas</span>
                 </div>
               </div>
             ))
           ) : (
-            <div className="kernel-empty">No ATS connection boundaries yet.</div>
+            <div className="kernel-empty">No hiring-system connections yet.</div>
           )}
         </div>
         <div>
@@ -4517,7 +4598,7 @@ function AtsSynchronizersPanel({ session }: { session: BackendSession | null }) 
             items={
               atsState?.mappings.length
                 ? atsState.mappings.slice(0, 5).map((mapping) => `${mapping.localEntity} -> ${mapping.remoteEntity} (${mapping.direction})`)
-                : ['Seed providers to create mapping records']
+                : ['Prepare connections to create field maps']
             }
           />
         </div>
@@ -4529,7 +4610,7 @@ function AtsSynchronizersPanel({ session }: { session: BackendSession | null }) 
                 <StatusPill tone={event.status === 'blocked' ? 'amber' : 'green'}>{event.status}</StatusPill>
                 <div>
                   <strong>{event.eventType.replaceAll('_', ' ')}</strong>
-                  <span>{event.remoteRecordRef}</span>
+                  <span>{formatProductLabel(event.remoteRecordRef)}</span>
                 </div>
               </div>
             ))
@@ -5001,8 +5082,8 @@ function TrustWorkspace({
       <article className="panel audit-panel">
         <div className="panel-title">
           <div>
-            <span>AI action audit trail</span>
-            <h3>Owner, limit, and log</h3>
+            <span>AI action history</span>
+            <h3>Owner, limit, and record</h3>
           </div>
           <DatabaseZap size={22} aria-hidden="true" />
         </div>
@@ -5057,8 +5138,8 @@ function TrustWorkspace({
       <article className="panel schema-panel wide-panel">
         <div className="panel-title">
           <div>
-            <span>Production data model</span>
-            <h3>Tenant-safe entities for the backend build</h3>
+            <span>Launch data areas</span>
+            <h3>Workspace-safe data areas for launch</h3>
           </div>
           <DatabaseZap size={22} aria-hidden="true" />
         </div>
@@ -5072,7 +5153,7 @@ function TrustWorkspace({
               <p>{entity.purpose}</p>
               <ul>
                 {entity.keyFields.map((field) => (
-                  <li key={field}>{field}</li>
+                  <li key={field}>{formatProductLabel(field)}</li>
                 ))}
               </ul>
               <small>{entity.launchNote}</small>
@@ -5084,7 +5165,7 @@ function TrustWorkspace({
       <article className="panel readiness-panel">
         <div className="panel-title">
           <div>
-            <span>Provider readiness</span>
+            <span>Service readiness</span>
             <h3>Real services without unsafe shortcuts</h3>
           </div>
           <LockKeyhole size={22} aria-hidden="true" />

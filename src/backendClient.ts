@@ -1016,11 +1016,79 @@ export class JobsFlowApiError extends Error {
   }
 }
 
+function cleanApiMessage(message: string | undefined, fallback: string, code?: string) {
+  const raw = message?.trim()
+  if (!raw) {
+    return fallback
+  }
+
+  const normalized = raw.toLowerCase()
+  const normalizedCode = code?.toLowerCase() ?? ''
+
+  if (normalizedCode === 'unauthorized') {
+    return 'Sign in to continue.'
+  }
+
+  if (
+    normalized.includes('clerk') ||
+    normalized.includes('clerkjs') ||
+    normalized.includes('sso') ||
+    normalized.includes('oauth') ||
+    normalized.includes('jwt') ||
+    normalized.includes('token') ||
+    normalized.includes('verification strategy') ||
+    normalized.includes('not supported yet')
+  ) {
+    return 'Sign-in is taking longer than expected. Try again, or continue with email.'
+  }
+
+  if (
+    normalizedCode.includes('configuration') ||
+    normalized.includes('configuration') ||
+    normalized.includes('cloudflare') ||
+    normalized.includes('d1') ||
+    normalized.includes('r2') ||
+    normalized.includes('binding') ||
+    normalized.includes('secret') ||
+    normalized.includes('runtime') ||
+    normalized.includes('migration') ||
+    normalized.includes('backend') ||
+    normalized.includes('payload') ||
+    normalized.includes('status 4') ||
+    normalized.includes('status 5')
+  ) {
+    return 'This part of JobsFlow is still being prepared. Please try again shortly.'
+  }
+
+  if (
+    normalized.includes('tenant') ||
+    normalized.includes('kernel') ||
+    normalized.includes('artifact') ||
+    normalized.includes('vector') ||
+    normalized.includes('syndication') ||
+    normalized.includes('ats') ||
+    normalized.includes('provider')
+  ) {
+    return raw
+      .replace(/\btenant-scoped\b/gi, 'workspace-protected')
+      .replace(/\btenant\b/gi, 'workspace')
+      .replace(/\bkernel\b/gi, 'workspace engine')
+      .replace(/\bartifact\b/gi, 'file')
+      .replace(/\bvector-ready\b/gi, 'ready')
+      .replace(/\bvector\b/gi, 'evidence')
+      .replace(/\bsyndication\b/gi, 'publishing')
+      .replace(/\bATS\b/g, 'hiring system')
+      .replace(/\bprovider\b/gi, 'connection')
+  }
+
+  return raw
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   const contentType = response.headers.get('content-type') ?? ''
   if (!contentType.includes('application/json')) {
     throw new JobsFlowApiError(
-      'JobsFlow needs its secure runtime for this action. Open the deployed app or the Cloudflare Pages dev server.',
+      'JobsFlow could not connect to its workspace service. Refresh the page and try again.',
       response.status,
       'runtime_unavailable',
     )
@@ -1028,8 +1096,10 @@ async function readJson<T>(response: Response): Promise<T> {
 
   const payload = (await response.json()) as T & { error?: string; message?: string }
   if (!response.ok) {
+    const fallback = 'JobsFlow could not complete that request. Please try again.'
+
     throw new JobsFlowApiError(
-      payload.message ?? `JobsFlow could not complete that request. Status ${response.status}.`,
+      cleanApiMessage(payload.message, fallback, payload.error),
       response.status,
       payload.error,
     )
@@ -1040,16 +1110,27 @@ async function readJson<T>(response: Response): Promise<T> {
 
 export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorContext) {
   if (error instanceof JobsFlowApiError) {
+    if (
+      error.code === 'sso_provider_unavailable' ||
+      error.code === 'invalid_sso_token' ||
+      error.code === 'expired_sso_token' ||
+      error.code === 'invalid_sso_origin' ||
+      error.code === 'sso_email_missing' ||
+      error.code === 'sso_not_configured'
+    ) {
+      return 'We could not confirm your sign-in right now. Refresh the page and try again.'
+    }
+
     if (error.code === 'invalid_private_beta_code') {
-      return 'That private beta code is no longer active. Nothing is broken; access was rotated after the last production check.'
+      return 'That access code is no longer active. Request a fresh invite and try again.'
     }
 
     if (error.code === 'private_beta_code_required') {
-      return 'Enter a private beta code to open a secure JobsFlow workspace.'
+      return 'Enter your invite code to open a JobsFlow workspace.'
     }
 
     if (error.code === 'private_beta_not_configured') {
-      return 'JobsFlow is protecting access because private beta access is not configured yet.'
+      return 'Workspace access is still being prepared. Please try again shortly.'
     }
 
     if (error.code === 'unauthorized') {
@@ -1058,11 +1139,11 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
       }
 
       if (context === 'ats-sync') {
-        return 'Start an employer workspace first, then JobsFlow can configure ATS synchronizers.'
+        return 'Start an employer workspace first, then JobsFlow can connect hiring systems.'
       }
 
       if (context === 'workflow') {
-        return 'Start a workspace first, then JobsFlow can activate the workflow kernel for this tenant.'
+        return 'Start a workspace first, then JobsFlow can turn on guided automation.'
       }
 
       if (context === 'packet') {
@@ -1086,11 +1167,11 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
       }
 
       if (context === 'skill-matching') {
-        return 'Start an employer workspace first, then JobsFlow can run semantic skill matching.'
+        return 'Start an employer workspace first, then JobsFlow can compare role needs with candidate evidence.'
       }
 
       if (context === 'job-syndication') {
-        return 'Start an employer workspace first, then JobsFlow can validate and queue job syndication payloads.'
+        return 'Start an employer workspace first, then JobsFlow can prepare the job for publishing review.'
       }
 
       if (context === 'prescreening') {
@@ -1098,7 +1179,7 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
       }
 
       if (context === 'resume') {
-        return 'Start a workspace first, then resume storage will unlock for this tenant.'
+        return 'Start a workspace first, then resume upload will unlock.'
       }
 
       if (context === 'resume-intelligence') {
@@ -1106,14 +1187,14 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
       }
 
       if (context === 'audit') {
-        return 'Start a workspace first, then the audit trail will show tenant-scoped activity.'
+        return 'Start a workspace first, then JobsFlow can show your activity history.'
       }
 
       if (context === 'email') {
-        return 'Start a workspace first, then JobsFlow can send a Resend test email to the signed-in address.'
+        return 'Start a workspace first, then JobsFlow can send a test email to your signed-in address.'
       }
 
-      return 'No active workspace yet. Enter your email and private beta code to begin.'
+      return 'No active workspace yet. Sign in to begin.'
     }
 
     if (error.code === 'wrong_workspace_type') {
@@ -1122,64 +1203,64 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
 
     if (error.code === 'missing_configuration') {
       if (context === 'email') {
-        return 'JobsFlow is waiting for the Resend production secret before sending outbound email.'
+        return 'Email delivery is still being prepared. Please try again shortly.'
       }
 
-      return 'JobsFlow is holding this action because a production setting is missing.'
+      return 'This feature is still being prepared. Please try again shortly.'
     }
 
     if (error.code === 'resend_unavailable') {
-      return error.message
+      return 'Email delivery is taking longer than expected. Please try again shortly.'
     }
 
     if (error.code === 'workflow_kernel_unavailable') {
-      return 'Apply the latest D1 migration before activating the workflow kernel.'
+      return 'Guided automation is being updated. Please try again shortly.'
     }
 
     if (error.code === 'resume_intelligence_unavailable') {
-      return 'Apply the latest D1 migration before running Resume Tailwind Optimization.'
+      return 'Resume optimization is being updated. Please try again shortly.'
     }
 
     if (error.code === 'pipeline_unavailable') {
-      return 'Apply the latest D1 migration before using the anti-ghosting pipeline.'
+      return 'Application tracking is being updated. Please try again shortly.'
     }
 
     if (error.code === 'interview_prep_unavailable') {
-      return 'Apply the latest D1 migration before using the interview prep sandbox.'
+      return 'Interview prep is being updated. Please try again shortly.'
     }
 
     if (error.code === 'transparency_unavailable') {
-      return 'Apply the latest D1 migration before using the transparency blueprint portal.'
+      return 'Trust insights are being updated. Please try again shortly.'
     }
 
     if (error.code === 'passive_sourcing_unavailable') {
-      return 'Apply the latest D1 migration before using passive sourcing cards.'
+      return 'Candidate visibility tools are being updated. Please try again shortly.'
     }
 
     if (error.code === 'skill_matching_unavailable') {
-      return 'Apply the latest D1 migration before using semantic skill matching.'
+      return 'Skill matching is being updated. Please try again shortly.'
     }
 
     if (error.code === 'job_syndication_unavailable') {
-      return 'Apply the latest D1 migration before using job syndication.'
+      return 'Job publishing tools are being updated. Please try again shortly.'
     }
 
     if (error.code === 'prescreening_unavailable') {
-      return 'Apply the latest D1 migration before using conversational pre-screening.'
+      return 'Pre-screening is being updated. Please try again shortly.'
     }
 
     if (error.code === 'achievement_profiles_unavailable') {
-      return 'Apply the latest D1 migration before using dynamic achievement profiles.'
+      return 'Achievement profiles are being updated. Please try again shortly.'
     }
 
     if (error.code === 'ats_sync_unavailable') {
-      return 'Apply the latest D1 migration before using ATS synchronizers.'
+      return 'Hiring-system connections are being updated. Please try again shortly.'
     }
 
-    return error.message
+    return 'JobsFlow could not complete that action. Please try again.'
   }
 
-  return error instanceof Error ? error.message : 'JobsFlow could not complete that action.'
+  return 'JobsFlow could not complete that action. Please try again.'
 }
 
 export async function getBackendHealth() {

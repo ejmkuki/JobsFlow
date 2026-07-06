@@ -1,5 +1,5 @@
 import type { RequestContext, SessionContext } from '../_shared'
-import { getSession, json, missingConfig, safeString, writeAuditEvent } from '../_shared'
+import { getSession, json, missingConfig, writeAuditEvent } from '../_shared'
 
 type AtsSyncBody = {
   action?: unknown
@@ -413,7 +413,7 @@ async function seedConnections(env: RequestContext['env'], session: SessionConte
     userId: session.userId,
     eventType: 'ats_sync.connections.seeded',
     actorType: 'system',
-    action: 'Seeded ATS OAuth connection boundaries and field mappings',
+    action: 'Prepared hiring-system connections and field mappings',
     riskLevel: 'low',
     metadata: {
       providers: providerConfigs.map((config) => config.provider),
@@ -459,7 +459,7 @@ async function runDrySync(env: RequestContext['env'], session: SessionContext, b
   }
 
   if (!connection) {
-    return json({ ok: false, error: 'ats_connection_not_found', message: 'JobsFlow could not create the ATS connection boundary.' }, 404)
+    return json({ ok: false, error: 'ats_connection_not_found', message: 'JobsFlow could not prepare that hiring-system connection.' }, 404)
   }
 
   const blocked = connection.oauthStatus !== 'connected'
@@ -467,7 +467,7 @@ async function runDrySync(env: RequestContext['env'], session: SessionContext, b
   const summary = {
     externalMutation: false,
     provider,
-    reason: blocked ? 'OAuth is not connected. Sync is blocked before external API calls.' : 'Dry run only.',
+    reason: blocked ? 'The external account is not connected yet. No outside system was changed.' : 'Preview only.',
     recordsPlanned: 3,
   }
 
@@ -546,7 +546,7 @@ async function runDrySync(env: RequestContext['env'], session: SessionContext, b
     userId: session.userId,
     eventType: 'ats_sync.dry_run.completed',
     actorType: 'system',
-    action: blocked ? 'Blocked ATS dry-run because OAuth is disconnected' : 'Completed ATS dry-run mapping plan',
+    action: blocked ? 'Kept hiring-system preview blocked until an account is connected' : 'Completed hiring-system preview plan',
     riskLevel: blocked ? 'medium' : 'low',
     metadata: {
       provider,
@@ -565,7 +565,7 @@ export async function onRequestGet({ request, env }: RequestContext) {
 
   const session = await getSession(request, env)
   if (!session) {
-    return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading ATS sync state.' }, 401)
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading hiring-system connections.' }, 401)
   }
 
   try {
@@ -573,13 +573,12 @@ export async function onRequestGet({ request, env }: RequestContext) {
       ok: true,
       state: await fetchAtsSyncState(env, session),
     })
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'ats_sync_unavailable',
-        message: 'ATS sync tables are not ready yet. Apply the latest D1 migration.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
+        message: 'Hiring-system connections are being updated. Please try again shortly.',
       },
       503,
     )
@@ -593,7 +592,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const session = await getSession(request, env)
   if (!session) {
-    return json({ ok: false, error: 'unauthorized', message: 'Sign in before changing ATS sync state.' }, 401)
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in before changing hiring-system connections.' }, 401)
   }
 
   if (session.tenantType !== 'employer') {
@@ -601,7 +600,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'wrong_workspace_type',
-        message: 'ATS synchronizers are scoped to employer workspaces.',
+        message: 'Hiring-system connections are available in employer workspaces.',
       },
       403,
     )
@@ -609,7 +608,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const body = await readBody(request)
   if (!body) {
-    return json({ ok: false, error: 'payload_too_large', message: 'ATS sync payload is limited to 32 KB.' }, 413)
+    return json({ ok: false, error: 'payload_too_large', message: 'That hiring-system request is too large.' }, 413)
   }
 
   const action = cleanAction(body.action, 'seed_connections')
@@ -626,17 +625,16 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'unsupported_ats_sync_action',
-        message: 'ATS sync action must be seed_connections or run_dry_sync.',
+        message: 'Choose a supported hiring-system action.',
       },
       400,
     )
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'ats_sync_error',
-        message: 'JobsFlow could not complete the ATS sync action.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
+        message: 'JobsFlow could not complete the hiring-system action.',
       },
       500,
     )

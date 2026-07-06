@@ -43,13 +43,8 @@ function cleanTag(value: string) {
   return cleaned || 'unknown'
 }
 
-function resendErrorMessage(payload: unknown) {
-  if (payload && typeof payload === 'object') {
-    const response = payload as ResendResponse
-    return response.message ?? response.error ?? response.name ?? 'Resend rejected the request.'
-  }
-
-  return 'Resend rejected the request.'
+function resendErrorMessage() {
+  return 'Email delivery did not complete.'
 }
 
 export function isOutboundEmailConfigured(env: Env) {
@@ -58,7 +53,7 @@ export function isOutboundEmailConfigured(env: Env) {
 
 export async function sendJobsFlowEmail(env: Env, input: SendJobsFlowEmailInput) {
   if (!env.RESEND_API_KEY) {
-    throw new Error('RESEND_API_KEY is not configured.')
+    throw new Error('Email delivery is still being prepared.')
   }
 
   const headers = new Headers({
@@ -93,12 +88,12 @@ export async function sendJobsFlowEmail(env: Env, input: SendJobsFlowEmailInput)
   }
 
   if (!response.ok) {
-    throw new Error(`Resend send failed (${response.status}): ${resendErrorMessage(payload)}`)
+    throw new Error(resendErrorMessage())
   }
 
   const emailId = payload && typeof payload === 'object' ? (payload as ResendResponse).id : null
   if (!emailId) {
-    throw new Error('Resend accepted the request without returning an email id.')
+    throw new Error('Email delivery is taking longer than expected.')
   }
 
   return { id: emailId }
@@ -111,9 +106,8 @@ export async function sendWorkspaceTestEmail(env: Env, session: SessionContext) 
     <div style="font-family:Arial,sans-serif;line-height:1.55;color:#172033;max-width:620px">
       <h1 style="font-size:22px;margin:0 0 12px">JobsFlow AI outbound email is ready</h1>
       <p>Hi ${displayName},</p>
-      <p>This confirms that JobsFlow AI can send production transactional email through Resend from <strong>send.jobsflowai.ai</strong>.</p>
-      <p>Replies come back to <strong>${jobsFlowReplyTo}</strong>, which is routed through Cloudflare Email Routing.</p>
-      <p style="color:#64748b;font-size:13px">Workspace tenant: ${escapeHtml(session.tenantId.slice(0, 8))}</p>
+      <p>This confirms that JobsFlow AI can send workspace email from <strong>send.jobsflowai.ai</strong>.</p>
+      <p>Replies come back to <strong>${jobsFlowReplyTo}</strong>.</p>
     </div>
   `.trim()
   const text = [
@@ -121,10 +115,9 @@ export async function sendWorkspaceTestEmail(env: Env, session: SessionContext) 
     '',
     `Hi ${session.displayName || 'there'},`,
     '',
-    'This confirms that JobsFlow AI can send production transactional email through Resend from send.jobsflowai.ai.',
-    `Replies come back to ${jobsFlowReplyTo}, which is routed through Cloudflare Email Routing.`,
+    'This confirms that JobsFlow AI can send workspace email from send.jobsflowai.ai.',
+    `Replies come back to ${jobsFlowReplyTo}.`,
     '',
-    `Workspace tenant: ${session.tenantId.slice(0, 8)}`,
   ].join('\n')
 
   return sendJobsFlowEmail(env, {

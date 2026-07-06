@@ -1,5 +1,5 @@
 import type { RequestContext, SessionContext } from '../_shared'
-import { getSession, json, missingConfig, safeString, sha256Hex, writeAuditEvent } from '../_shared'
+import { getSession, json, missingConfig, sha256Hex, writeAuditEvent } from '../_shared'
 
 type PassiveSourcingBody = {
   action?: unknown
@@ -368,7 +368,7 @@ async function broadcastCard(env: RequestContext['env'], session: SessionContext
     .first<Pick<PassiveCardRow, 'anonymousHandle' | 'headline' | 'id' | 'maskedAchievementsJson' | 'maskedSkillsJson' | 'targetRolesJson'>>()
 
   if (!card) {
-    return json({ ok: false, error: 'passive_card_not_found', message: 'JobsFlow could not find that tenant-scoped sourcing card.' }, 404)
+    return json({ ok: false, error: 'passive_card_not_found', message: 'JobsFlow could not find that sourcing card.' }, 404)
   }
 
   const payload = {
@@ -508,13 +508,12 @@ export async function onRequestGet({ request, env }: RequestContext) {
       ok: true,
       state: await fetchPassiveSourcingState(env, session),
     })
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'passive_sourcing_unavailable',
-        message: 'Passive sourcing tables are not ready yet. Apply the latest D1 migration.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
+        message: 'Candidate visibility tools are being updated. Please try again shortly.',
       },
       503,
     )
@@ -536,7 +535,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'wrong_workspace_type',
-        message: 'Passive sourcing cards are scoped to candidate workspaces.',
+        message: 'Passive sourcing cards are available in candidate workspaces.',
       },
       403,
     )
@@ -544,7 +543,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const body = await readBody(request)
   if (!body) {
-    return json({ ok: false, error: 'payload_too_large', message: 'Passive sourcing payload is limited to 64 KB.' }, 413)
+    return json({ ok: false, error: 'payload_too_large', message: 'That passive sourcing request is too large.' }, 413)
   }
 
   const action = cleanKey(body.action, 'create_card')
@@ -565,17 +564,16 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'unsupported_passive_sourcing_action',
-        message: 'Passive sourcing action must be create_card, broadcast_card, or request_contact_release.',
+        message: 'Choose a supported passive sourcing action.',
       },
       400,
     )
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'passive_sourcing_error',
         message: 'JobsFlow could not complete the passive sourcing action.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
       },
       500,
     )

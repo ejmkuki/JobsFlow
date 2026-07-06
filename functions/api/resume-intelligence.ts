@@ -1,5 +1,5 @@
 import type { RequestContext, SessionContext } from '../_shared'
-import { getSession, json, missingConfig, safeString, sha256Hex, writeAuditEvent } from '../_shared'
+import { getSession, json, missingConfig, sha256Hex, writeAuditEvent } from '../_shared'
 
 type ResumeIntelligenceBody = {
   company?: unknown
@@ -803,7 +803,7 @@ export async function onRequestGet({ request, env }: RequestContext) {
 
   const session = await getSession(request, env)
   if (!session) {
-    return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading resume intelligence.' }, 401)
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading resume optimization results.' }, 401)
   }
 
   try {
@@ -811,13 +811,12 @@ export async function onRequestGet({ request, env }: RequestContext) {
       ok: true,
       state: await fetchResumeIntelligenceState(env, session),
     })
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'resume_intelligence_unavailable',
-        message: 'Resume intelligence tables are not ready yet. Apply the latest D1 migration.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
+        message: 'Resume optimization is being updated. Please try again shortly.',
       },
       503,
     )
@@ -831,7 +830,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const session = await getSession(request, env)
   if (!session) {
-    return json({ ok: false, error: 'unauthorized', message: 'Sign in before running resume intelligence.' }, 401)
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in before running resume optimization.' }, 401)
   }
 
   if (session.tenantType !== 'candidate') {
@@ -839,7 +838,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'wrong_workspace_type',
-        message: 'Resume Tailwind Optimization is scoped to candidate workspaces.',
+        message: 'Resume optimization is available in candidate workspaces.',
       },
       403,
     )
@@ -847,7 +846,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const body = await readBody(request)
   if (!body) {
-    return json({ ok: false, error: 'payload_too_large', message: 'Resume intelligence payload is limited to 128 KB.' }, 413)
+    return json({ ok: false, error: 'payload_too_large', message: 'That resume optimization request is too large.' }, 413)
   }
 
   const targetRole = cleanText(body.targetRole)
@@ -861,7 +860,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'missing_target_job',
-        message: 'Provide targetRole, company, and jobDescription before running resume optimization.',
+        message: 'Add the role, company, and job description before running resume optimization.',
       },
       400,
     )
@@ -872,7 +871,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'missing_resume_source',
-        message: 'Provide resumeText or resumeArtifactId before running resume optimization.',
+        message: 'Add resume text or choose an uploaded resume before running optimization.',
       },
       400,
     )
@@ -884,7 +883,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'resume_artifact_not_found',
-        message: 'JobsFlow could not find that tenant-scoped resume artifact.',
+        message: 'JobsFlow could not find that resume file.',
       },
       404,
     )
@@ -898,7 +897,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
   const metrics = extractMetrics(sourceText)
   const warnings = resumeText
     ? []
-    : ['Full text extraction is pending. This analysis used resume artifact metadata only.']
+    : ['Full text review is still being prepared. This review used uploaded resume details only.']
   const requiredSkills = inferRequiredSkills(`${targetRole} ${jobDescription}`, cleanList(body.requiredSkills))
   const responsibilities = extractResponsibilities(jobDescription)
   const senioritySignals = inferSenioritySignals(`${targetRole} ${jobDescription}`)
@@ -1123,7 +1122,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
     userId: session.userId,
     eventType: 'resume.tailwind.reviewed',
     actorType: 'system',
-    action: 'Parsed resume facts, compared target job, and created vector-ready optimization records',
+    action: 'Prepared resume facts, compared the target job, and saved optimization guidance',
     riskLevel: missingSkills.length ? 'medium' : 'low',
     metadata: {
       analysisId,

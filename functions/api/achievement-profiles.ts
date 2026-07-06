@@ -1,5 +1,5 @@
 import type { RequestContext, SessionContext } from '../_shared'
-import { getSession, json, missingConfig, safeString, sha256Hex, writeAuditEvent } from '../_shared'
+import { getSession, json, missingConfig, sha256Hex, writeAuditEvent } from '../_shared'
 
 type AchievementProfileBody = {
   action?: unknown
@@ -442,13 +442,12 @@ export async function onRequestGet({ request, env }: RequestContext) {
       ok: true,
       state: await fetchAchievementProfileState(env, session),
     })
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'achievement_profiles_unavailable',
-        message: 'Achievement profile tables are not ready yet. Apply the latest D1 migration.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
+        message: 'Achievement profiles are being updated. Please try again shortly.',
       },
       503,
     )
@@ -470,7 +469,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'wrong_workspace_type',
-        message: 'Achievement profiles are scoped to candidate workspaces.',
+        message: 'Achievement profiles are available in candidate workspaces.',
       },
       403,
     )
@@ -478,7 +477,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const body = await readBody(request)
   if (!body) {
-    return json({ ok: false, error: 'payload_too_large', message: 'Achievement profile payload is limited to 128 KB.' }, 413)
+    return json({ ok: false, error: 'payload_too_large', message: 'That achievement profile request is too large.' }, 413)
   }
 
   const action = cleanAction(body.action, 'create_profile')
@@ -491,17 +490,16 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'unsupported_achievement_profile_action',
-        message: 'Achievement profile action must be create_profile.',
+        message: 'Choose a supported achievement profile action.',
       },
       400,
     )
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'achievement_profile_error',
         message: 'JobsFlow could not complete the achievement profile action.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
       },
       500,
     )

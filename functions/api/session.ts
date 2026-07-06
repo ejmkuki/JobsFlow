@@ -238,7 +238,7 @@ async function getSessionAccess(request: Request, env: RequestContext['env']): P
       return {
         allowed: false,
         error: 'sso_not_configured',
-        message: 'SSO is not connected to JobsFlow yet. Private beta access is still active.',
+        message: 'Sign-in is still being prepared. Please try again shortly.',
       }
     }
 
@@ -259,8 +259,8 @@ async function getSessionAccess(request: Request, env: RequestContext['env']): P
         error: message,
         message:
           message === 'sso_provider_unavailable'
-            ? 'SSO provider is temporarily unavailable. Try again in a moment.'
-            : 'SSO could not verify this sign-in. Please try again.',
+            ? 'We could not confirm your sign-in right now. Please try again.'
+            : 'We could not confirm your sign-in. Please try again.',
       }
     }
   }
@@ -283,7 +283,7 @@ async function getSessionAccess(request: Request, env: RequestContext['env']): P
     return {
       allowed: false as const,
       error: 'private_beta_not_configured',
-      message: 'Private beta access is not configured yet. Check the Cloudflare Pages bootstrap secret.',
+      message: 'Workspace access is still being prepared. Please try again shortly.',
     }
   }
 
@@ -291,14 +291,14 @@ async function getSessionAccess(request: Request, env: RequestContext['env']): P
     return {
       allowed: false as const,
       error: 'invalid_private_beta_code',
-      message: 'Private beta code is invalid or expired. Use the latest private beta code.',
+      message: 'That invite code is invalid or expired. Use the latest invite code.',
     }
   }
 
   return {
     allowed: false as const,
     error: 'private_beta_code_required',
-    message: 'Enter a private beta code to start a JobsFlow workspace.',
+    message: 'Enter your invite code to start a JobsFlow workspace.',
   }
 }
 

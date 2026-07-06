@@ -213,34 +213,13 @@ function ClerkBridge({ children }: { children: ReactNode }) {
     markAuthReturnPending()
     delete document.documentElement.dataset.jobsflowClerkMode
     if (!isSignInLoaded || !signIn) {
-      throw new Error('Secure provider sign-in is still loading. Try again in a moment.')
+      throw new Error('Sign-in is still getting ready. Please try again in a moment.')
     }
 
     const strategy = oauthStrategyByProvider[provider as keyof typeof oauthStrategyByProvider]
-    const futureSignIn = getFutureSignIn(signIn)
-    let futureSsoError: unknown = null
-    if (futureSignIn?.sso) {
-      try {
-        const result = await futureSignIn.sso({
-          redirectCallbackUrl: redirectUrl,
-          redirectUrl: redirectUrlComplete,
-          strategy,
-        })
-        if (result.error) {
-          throw result.error
-        }
-        return
-      } catch (error) {
-        futureSsoError = error
-      }
-    }
-
     const redirectSignIn = (signIn as ClerkSignInWithFuture).authenticateWithRedirect
     if (!redirectSignIn) {
-      if (futureSsoError) {
-        throw futureSsoError
-      }
-      throw new Error('Secure provider sign-in is unavailable. Refresh the page and try again.')
+      throw new Error('We could not start sign-in. Refresh the page and try again.')
     }
 
     await redirectSignIn({
@@ -254,12 +233,12 @@ function ClerkBridge({ children }: { children: ReactNode }) {
 
   async function prepareEmailSignIn(identifier: string): Promise<JobsFlowEmailSignInOptions> {
     if (!isSignInLoaded || !signIn) {
-      throw new Error('Secure sign-in is still loading. Try again in a moment.')
+      throw new Error('Sign-in is still getting ready. Please try again in a moment.')
     }
 
     const attempt = await (signIn as ClerkSignInWithFuture).create?.({ identifier })
     if (!attempt) {
-      throw new Error('Secure sign-in could not initialize. Try again in a moment.')
+      throw new Error('We could not start sign-in. Please try again.')
     }
 
     emailSignInAttempt.current = attempt
@@ -291,7 +270,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
 
   async function signInWithEmailCode(code: string) {
     if (!isSignInLoaded || !signIn || !setActive) {
-      throw new Error('Secure sign-in is still loading. Try again in a moment.')
+      throw new Error('Sign-in is still getting ready. Please try again in a moment.')
     }
 
     markAuthReturnPending()
@@ -310,7 +289,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
 
   async function signInWithPassword(identifier: string, password: string) {
     if (!isSignInLoaded || !signIn || !setActive) {
-      throw new Error('Secure sign-in is still loading. Try again in a moment.')
+      throw new Error('Sign-in is still getting ready. Please try again in a moment.')
     }
 
     markAuthReturnPending()
@@ -323,7 +302,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
       })
 
       if (!result || result.status !== 'complete' || !result.createdSessionId) {
-        throw new Error('JobsFlow needs another verification step before this session can open.')
+        throw new Error('We need one more quick check before opening your workspace.')
       }
 
       await setActive({ session: result.createdSessionId })
@@ -350,7 +329,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
     })
 
     if (!result || result.status !== 'complete' || !result.createdSessionId) {
-      throw new Error('JobsFlow needs another verification step before this session can open.')
+      throw new Error('We need one more quick check before opening your workspace.')
     }
 
     await setActive({ session: result.createdSessionId })

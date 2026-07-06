@@ -1,5 +1,5 @@
 import type { RequestContext, SessionContext } from '../_shared'
-import { getSession, json, missingConfig, safeString, writeAuditEvent } from '../_shared'
+import { getSession, json, missingConfig, writeAuditEvent } from '../_shared'
 
 type PipelineState =
   | 'applied'
@@ -762,7 +762,7 @@ async function advancePipelineItem(env: RequestContext['env'], session: SessionC
       {
         ok: false,
         error: 'pipeline_item_not_found',
-        message: 'JobsFlow could not find that tenant-scoped pipeline item.',
+        message: 'JobsFlow could not find that application tracker item.',
       },
       404,
     )
@@ -937,7 +937,7 @@ export async function onRequestGet({ request, env }: RequestContext) {
 
   const session = await getSession(request, env)
   if (!session) {
-    return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading pipeline state.' }, 401)
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading application tracking.' }, 401)
   }
 
   try {
@@ -945,13 +945,12 @@ export async function onRequestGet({ request, env }: RequestContext) {
       ok: true,
       state: await fetchPipelineState(env, session),
     })
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'pipeline_unavailable',
-        message: 'Anti-ghosting pipeline tables are not ready yet. Apply the latest D1 migration.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
+        message: 'Application tracking is being updated. Please try again shortly.',
       },
       503,
     )
@@ -965,7 +964,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const session = await getSession(request, env)
   if (!session) {
-    return json({ ok: false, error: 'unauthorized', message: 'Sign in before changing pipeline state.' }, 401)
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in before changing application tracking.' }, 401)
   }
 
   if (session.tenantType !== 'candidate') {
@@ -973,7 +972,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'wrong_workspace_type',
-        message: 'Anti-ghosting pipeline tracking is scoped to candidate workspaces.',
+        message: 'Application tracking is available in candidate workspaces.',
       },
       403,
     )
@@ -981,7 +980,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const body = await readBody(request)
   if (!body) {
-    return json({ ok: false, error: 'payload_too_large', message: 'Pipeline payload is limited to 64 KB.' }, 413)
+    return json({ ok: false, error: 'payload_too_large', message: 'That application tracking request is too large.' }, 413)
   }
 
   const action = cleanKey(body.action, 'create_item')
@@ -1004,17 +1003,16 @@ export async function onRequestPost({ request, env }: RequestContext) {
       {
         ok: false,
         error: 'unsupported_pipeline_action',
-        message: 'Pipeline action must be create_item, advance_stage, or run_stale_check.',
+        message: 'Choose a supported application tracking action.',
       },
       400,
     )
-  } catch (error) {
+  } catch {
     return json(
       {
         ok: false,
         error: 'pipeline_error',
-        message: 'JobsFlow could not complete the anti-ghosting pipeline action.',
-        detail: error instanceof Error ? safeString(error.message, 'unknown_error') : 'unknown_error',
+        message: 'JobsFlow could not complete the application tracking action.',
       },
       500,
     )
