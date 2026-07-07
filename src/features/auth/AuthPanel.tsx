@@ -303,8 +303,10 @@ export function AuthPanel({
         emailCode={emailCode}
         emailStep={emailStep}
         emailMode={emailMode}
+        accountType={accountType}
         message={message}
         isBusy={isBusy}
+        onAccountTypeChange={setAccountType}
         onEmailChange={setEmail}
         onCodeChange={setEmailCode}
         onSubmit={handleEmailSubmit}

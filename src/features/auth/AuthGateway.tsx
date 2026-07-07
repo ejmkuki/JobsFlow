@@ -11,8 +11,10 @@ type AuthGatewayProps = {
   emailCode: string
   emailStep: 'email' | 'code'
   emailMode: 'sign_in' | 'sign_up'
+  accountType: 'candidate' | 'employer'
   message: string
   isBusy: boolean
+  onAccountTypeChange: (value: 'candidate' | 'employer') => void
   onEmailChange: (value: string) => void
   onCodeChange: (value: string) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
@@ -27,8 +29,10 @@ export function AuthGateway({
   emailCode,
   emailStep,
   emailMode,
+  accountType,
   message,
   isBusy,
+  onAccountTypeChange,
   onEmailChange,
   onCodeChange,
   onSubmit,
@@ -68,6 +72,23 @@ export function AuthGateway({
               to JobsFlow's <a href="#workspace">Terms</a>. You also acknowledge our{' '}
               <a href="#workspace">Cookie</a> and <a href="#workspace">Privacy</a> policies.
             </p>
+          </div>
+
+          <div className="auth-account-type" role="group" aria-label="Choose account type">
+            <button
+              className={accountType === 'candidate' ? 'active' : ''}
+              onClick={() => onAccountTypeChange('candidate')}
+              type="button"
+            >
+              I'm a candidate
+            </button>
+            <button
+              className={accountType === 'employer' ? 'active' : ''}
+              onClick={() => onAccountTypeChange('employer')}
+              type="button"
+            >
+              I'm hiring
+            </button>
           </div>
 
           <div className="auth-gateway-oauth" aria-label="Continue with a sign-in option">
