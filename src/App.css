@@ -3932,3 +3932,226 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
     width: 100%;
   }
 }
+
+/* --- Core loop: jobs and applications ------------------------------------- */
+.job-post-form,
+.job-apply,
+.job-search {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.job-post-form label,
+.job-post-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: #334155;
+}
+.job-post-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 10px;
+}
+.job-post-form input,
+.job-post-form textarea,
+.job-search input,
+.job-apply input {
+  border: 1px solid var(--line, #dbeafe);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font: inherit;
+  background: #f8fbff;
+  color: #0f172a;
+}
+.job-post-form input:focus,
+.job-post-form textarea:focus,
+.job-search input:focus,
+.job-apply input:focus {
+  outline: 2px solid #38bdf8;
+  outline-offset: 1px;
+}
+.job-post-form > button,
+.job-search button,
+.job-apply button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #0284c7;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.job-post-form > button:disabled,
+.job-search button:disabled,
+.job-apply button:disabled {
+  background: #9bbcec;
+  cursor: not-allowed;
+}
+.job-search {
+  flex-direction: row;
+}
+.job-search input {
+  flex: 1;
+}
+.job-list,
+.job-board,
+.my-applications {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+.job-card {
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.job-card-active {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 1px #38bdf8;
+}
+.job-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.job-card-head strong {
+  display: block;
+  font-size: 1.02rem;
+  color: #0f172a;
+}
+.job-card-head span {
+  color: #64748b;
+  font-size: 0.86rem;
+}
+.job-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.job-skills span {
+  background: #eef8ff;
+  color: #0369a1;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+.job-description {
+  color: #475569;
+  font-size: 0.9rem;
+  margin: 0;
+}
+.job-apply {
+  flex-direction: row;
+  align-items: center;
+}
+.job-apply input {
+  flex: 1;
+}
+.job-applicants-toggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  color: #0284c7;
+  font-weight: 650;
+  cursor: pointer;
+  padding: 0;
+}
+.applicant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid var(--line, #e2e8f0);
+  padding-top: 10px;
+}
+.applicant-row {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.applicant-head,
+.application-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.applicant-head strong,
+.application-row strong {
+  display: block;
+  color: #0f172a;
+}
+.applicant-head span,
+.application-row span {
+  color: #64748b;
+  font-size: 0.84rem;
+}
+.applicant-meta {
+  font-size: 0.85rem;
+  color: #475569;
+}
+.applicant-meta p {
+  margin: 4px 0 0;
+}
+.applicant-actions,
+.application-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.applicant-actions button,
+.application-status button {
+  border: 1px solid var(--line, #cbd5e1);
+  background: #fff;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: #334155;
+  cursor: pointer;
+}
+.applicant-actions button:disabled,
+.application-status button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.my-applications h4 {
+  margin: 18px 0 0;
+}
+.muted {
+  color: #94a3b8;
+  font-size: 0.88rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+@media (max-width: 640px) {
+  .job-post-row {
+    grid-template-columns: 1fr;
+  }
+  .job-apply,
+  .job-search {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

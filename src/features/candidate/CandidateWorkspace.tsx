@@ -2,6 +2,7 @@ import type { BackendSession } from '../../backendClient'
 import { CommandCenter, EvidenceList, MetricTile, SectionHeader, StatusPill } from '../../components/ui'
 import { applicationPacket, applications, automationModes, candidateCommandCenter, candidateEvidenceReviews, candidateGuardrails, candidateMarketPlays, candidateMetrics, candidateProfile, jobMatches, prepItems, resumeSignals, savedResponses } from '../../data/candidate'
 import { AntiGhostingPipelinePanel } from './AntiGhostingPipelinePanel'
+import { JobBoardPanel } from './JobBoardPanel'
 import { PacketReviewGate } from './PacketReviewGate'
 import { DynamicAchievementProfilesPanel } from './DynamicAchievementProfilesPanel'
 import { InterviewPrepSandboxPanel } from './InterviewPrepSandboxPanel'
@@ -46,6 +47,8 @@ export function CandidateWorkspace({
           <MetricTile key={metric.label} metric={metric} />
         ))}
       </div>
+
+      <JobBoardPanel session={session} />
 
       <article className="panel profile-panel">
         <div className="panel-title">

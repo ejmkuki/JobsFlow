@@ -4,6 +4,8 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { AuthPanel } from '../src/features/auth/AuthPanel'
 import { AuthGateway } from '../src/features/auth/AuthGateway'
 import { CandidateWorkspace } from '../src/features/candidate/CandidateWorkspace'
+import { EmployerJobsPanel } from '../src/features/employer/EmployerJobsPanel'
+import { JobBoardPanel } from '../src/features/candidate/JobBoardPanel'
 import { disabledSso } from '../src/jobsFlowSsoContext'
 
 const readySso = { ...disabledSso, configured: true, isLoaded: true }
@@ -48,6 +50,20 @@ describe('AuthGateway email flow', () => {
     expect(screen.getByText('Verify and continue')).toBeTruthy()
     expect(screen.getByText('Resend code')).toBeTruthy()
     expect(screen.getByText('Use a different email')).toBeTruthy()
+  })
+})
+
+describe('core loop panels', () => {
+  it('EmployerJobsPanel renders the post-a-role form', () => {
+    render(<EmployerJobsPanel session={null} />)
+    expect(screen.getByText('Post roles and review real applicants')).toBeTruthy()
+    expect(screen.getByText('Publish role')).toBeTruthy()
+  })
+
+  it('JobBoardPanel renders the job board', () => {
+    render(<JobBoardPanel session={null} />)
+    expect(screen.getByText('Find and apply to real roles')).toBeTruthy()
+    expect(screen.getByText('Your applications')).toBeTruthy()
   })
 })
 

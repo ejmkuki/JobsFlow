@@ -2,6 +2,7 @@ import type { BackendSession } from '../../backendClient'
 import { CommandCenter, EvidenceList, MetricTile, SectionHeader, StatusPill } from '../../components/ui'
 import { candidateShortlist, collaborationNotes, employerCommandCenter, employerCompany, employerEvidenceReviews, employerMarketPlays, employerMetrics, employerPipeline, employerPriorities, fairnessChecks, interviewCoordination, outreachTasks, scorecardCriteria } from '../../data/employer'
 import { AtsSynchronizersPanel } from './AtsSynchronizersPanel'
+import { EmployerJobsPanel } from './EmployerJobsPanel'
 import { JobSyndicationPanel } from './JobSyndicationPanel'
 import { PrescreeningAgentsPanel } from './PrescreeningAgentsPanel'
 import { SemanticSkillMatchingPanel } from './SemanticSkillMatchingPanel'
@@ -35,6 +36,8 @@ export function EmployerWorkspace({ session }: { session: BackendSession | null 
           <MetricTile key={metric.label} metric={metric} />
         ))}
       </div>
+
+      <EmployerJobsPanel session={session} />
 
       <article className="panel role-panel">
         <div className="panel-title">

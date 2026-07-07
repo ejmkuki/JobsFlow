@@ -1738,3 +1738,114 @@ export async function runAtsDrySync(provider: AtsProvider = 'greenhouse') {
     }),
   )
 }
+
+// --- Core loop: jobs and applications ---------------------------------------
+
+export type Job = {
+  id: string
+  company: string
+  title: string
+  location: string
+  employmentType: string
+  workplaceType: string
+  description: string
+  requiredSkills: string[]
+  salaryMinCents: number | null
+  salaryMaxCents: number | null
+  salaryCurrency: string
+  status: string
+  applicantCount: number
+  createdAt: string
+}
+
+export type JobDraft = {
+  title: string
+  company?: string
+  location?: string
+  employmentType?: string
+  workplaceType?: string
+  description?: string
+  requiredSkills?: string[]
+  salaryMinCents?: number | null
+  salaryMaxCents?: number | null
+  salaryCurrency?: string
+  status?: 'open' | 'draft'
+}
+
+export type CandidateApplication = {
+  id: string
+  jobId: string
+  status: string
+  readinessScore: number
+  coverNote: string
+  createdAt: string
+  lastStatusChangeAt: string
+  jobTitle: string
+  company: string
+  location: string
+}
+
+export type JobApplicant = {
+  id: string
+  status: string
+  candidateName: string
+  candidateEmail: string
+  readinessScore: number
+  coverNote: string
+  resumeArtifactId: string | null
+  employerSlaDueAt: string | null
+  createdAt: string
+  lastStatusChangeAt: string
+}
+
+const jsonPost = (body: unknown): RequestInit => ({
+  body: JSON.stringify(body),
+  headers: { 'content-type': 'application/json' },
+  method: 'POST',
+})
+
+export async function listOpenJobs(query = '') {
+  const url = query ? `/api/jobs?q=${encodeURIComponent(query)}` : '/api/jobs'
+  return readJson<{ ok: boolean; jobs: Job[] }>(await fetch(url))
+}
+
+export async function listMyJobs() {
+  return readJson<{ ok: boolean; jobs: Job[] }>(await fetch('/api/jobs?scope=mine'))
+}
+
+export async function createJob(input: JobDraft) {
+  return readJson<{ ok: boolean; job: Job }>(await fetch('/api/jobs', jsonPost(input)))
+}
+
+export async function listMyApplications() {
+  return readJson<{ ok: boolean; applications: CandidateApplication[] }>(await fetch('/api/job-applications'))
+}
+
+export async function listJobApplicants(jobId: string) {
+  return readJson<{ ok: boolean; applicants: JobApplicant[] }>(
+    await fetch(`/api/job-applications?jobId=${encodeURIComponent(jobId)}`),
+  )
+}
+
+export async function applyToJob(input: {
+  jobId: string
+  coverNote?: string
+  resumeArtifactId?: string
+  readinessScore?: number
+}) {
+  return readJson<{ applicationId: string; ok: boolean; status: string }>(
+    await fetch('/api/job-applications', jsonPost({ action: 'apply', ...input })),
+  )
+}
+
+export async function advanceApplication(input: { applicationId: string; status: string; note?: string }) {
+  return readJson<{ applicationId: string; ok: boolean; status: string }>(
+    await fetch('/api/job-applications', jsonPost({ action: 'advance', ...input })),
+  )
+}
+
+export async function withdrawApplication(applicationId: string) {
+  return readJson<{ applicationId: string; ok: boolean; status: string }>(
+    await fetch('/api/job-applications', jsonPost({ action: 'withdraw', applicationId })),
+  )
+}
