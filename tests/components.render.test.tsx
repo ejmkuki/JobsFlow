@@ -2,7 +2,26 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { AuthPanel } from '../src/features/auth/AuthPanel'
+import { AuthGateway } from '../src/features/auth/AuthGateway'
 import { CandidateWorkspace } from '../src/features/candidate/CandidateWorkspace'
+import { disabledSso } from '../src/jobsFlowSsoContext'
+
+const readySso = { ...disabledSso, configured: true, isLoaded: true }
+const noop = () => undefined
+const gatewayProps = {
+  sso: readySso,
+  email: '',
+  emailCode: '',
+  emailMode: 'sign_in' as const,
+  message: '',
+  isBusy: false,
+  onEmailChange: noop,
+  onCodeChange: noop,
+  onSubmit: (event: { preventDefault: () => void }) => event.preventDefault(),
+  onResend: noop,
+  onChangeEmail: noop,
+  onProviderSignIn: noop,
+}
 
 // Backend calls fire on mount; stub fetch so panels fail closed and still
 // render their static shell. These are structural guards for the upcoming
@@ -14,6 +33,22 @@ vi.stubGlobal(
 
 afterEach(() => {
   cleanup()
+})
+
+describe('AuthGateway email flow', () => {
+  it('email step shows the email field and a Continue button', () => {
+    render(<AuthGateway {...gatewayProps} emailStep="email" />)
+    expect(screen.getByText('Continue')).toBeTruthy()
+    expect(screen.getByText(/one-time code/i)).toBeTruthy()
+    expect(screen.queryByText('Resend code')).toBeNull()
+  })
+
+  it('code step shows the code field, resend, and change-email controls', () => {
+    render(<AuthGateway {...gatewayProps} emailStep="code" email="me@example.com" />)
+    expect(screen.getByText('Verify and continue')).toBeTruthy()
+    expect(screen.getByText('Resend code')).toBeTruthy()
+    expect(screen.getByText('Use a different email')).toBeTruthy()
+  })
 })
 
 describe('AuthPanel', () => {

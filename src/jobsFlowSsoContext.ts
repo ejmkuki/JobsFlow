@@ -10,13 +10,7 @@ export type JobsFlowSsoProviderKey =
   | 'microsoft'
   | 'x'
 
-export type JobsFlowEmailSignInMethod = 'password' | 'email_code' | 'oauth_only'
-
-export type JobsFlowEmailSignInOptions = {
-  method: JobsFlowEmailSignInMethod
-  provider?: JobsFlowSsoProviderKey
-  safeIdentifier?: string
-}
+export type JobsFlowEmailCodeMode = 'sign_in' | 'sign_up'
 
 export type JobsFlowSsoContextValue = {
   configured: boolean
@@ -29,9 +23,12 @@ export type JobsFlowSsoContextValue = {
   openSignIn: () => void
   openSignUp: (initialEmail?: string) => void
   openProviderSignIn: (provider: JobsFlowSsoProviderKey) => Promise<void>
-  prepareEmailSignIn: (email: string) => Promise<JobsFlowEmailSignInOptions>
-  signInWithEmailCode: (code: string) => Promise<void>
-  signInWithPassword: (email: string, password: string) => Promise<void>
+  // Passwordless email: request a one-time code (creates the account if the
+  // email is new), verify it, and resend it. Same entry point signs in and
+  // signs up.
+  startEmailCode: (email: string) => Promise<{ mode: JobsFlowEmailCodeMode }>
+  verifyEmailCode: (code: string) => Promise<void>
+  resendEmailCode: () => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -46,9 +43,9 @@ export const disabledSso: JobsFlowSsoContextValue = {
   openSignIn: () => undefined,
   openSignUp: () => undefined,
   openProviderSignIn: async () => undefined,
-  prepareEmailSignIn: async () => ({ method: 'password' }),
-  signInWithEmailCode: async () => undefined,
-  signInWithPassword: async () => undefined,
+  startEmailCode: async () => ({ mode: 'sign_in' }),
+  verifyEmailCode: async () => undefined,
+  resendEmailCode: async () => undefined,
   signOut: async () => undefined,
 }
 

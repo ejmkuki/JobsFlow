@@ -779,6 +779,34 @@
   border-color: #9bbcec;
 }
 
+.auth-code-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  margin: 4px 0 0;
+}
+
+.auth-code-actions button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #0284c7;
+  font-weight: 650;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.auth-code-actions button:hover:not(:disabled),
+.auth-code-actions button:focus-visible {
+  text-decoration: underline;
+}
+
+.auth-code-actions button:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
 .auth-inline-signup {
   display: flex;
   flex-wrap: wrap;

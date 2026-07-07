@@ -1,9 +1,10 @@
-import { AuthenticateWithRedirectCallback, ClerkProvider, useAuth, useClerk, useSignIn, useUser } from '@clerk/clerk-react'
+import { AuthenticateWithRedirectCallback, ClerkProvider, useAuth, useClerk, useSignIn, useSignUp, useUser } from '@clerk/clerk-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { isMissingEmailAccountError } from './lib/ssoErrors'
 import {
   disabledSso,
   JobsFlowSsoContext,
-  type JobsFlowEmailSignInOptions,
+  type JobsFlowEmailCodeMode,
   type JobsFlowSsoProviderKey,
 } from './jobsFlowSsoContext'
 
@@ -121,15 +122,6 @@ type ClerkSignInWithFuture = ClerkAttemptResult & {
   create?: (params: Record<string, unknown>) => Promise<ClerkAttemptResult>
 }
 
-function getFutureSignIn(signIn: unknown) {
-  return (signIn as ClerkSignInWithFuture | null | undefined)?.__internal_future
-}
-
-function providerFromStrategy(strategy: string): JobsFlowSsoProviderKey | undefined {
-  return (Object.entries(oauthStrategyByProvider).find(([, value]) => value === strategy)?.[0] ??
-    undefined) as JobsFlowSsoProviderKey | undefined
-}
-
 const authReturnStorageKey = 'jobsflow.auth.return.pending'
 
 function markAuthReturnPending() {
@@ -143,10 +135,12 @@ function markAuthReturnPending() {
 function ClerkBridge({ children }: { children: ReactNode }) {
   const { getToken, isLoaded, isSignedIn } = useAuth()
   const { openSignIn, openSignUp, signOut } = useClerk()
-  const { isLoaded: isSignInLoaded, setActive, signIn } = useSignIn()
+  const { isLoaded: isSignInLoaded, setActive: setActiveSignIn, signIn } = useSignIn()
+  const { isLoaded: isSignUpLoaded, setActive: setActiveSignUp, signUp } = useSignUp()
   const { user } = useUser()
   const [loadTimedOut, setLoadTimedOut] = useState(false)
-  const emailSignInAttempt = useRef<ClerkAttemptResult | null>(null)
+  const emailFlowMode = useRef<JobsFlowEmailCodeMode | null>(null)
+  const emailFlowAddressId = useRef<string | null>(null)
 
   useEffect(() => {
     if (isLoaded) {
@@ -231,108 +225,76 @@ function ClerkBridge({ children }: { children: ReactNode }) {
     })
   }
 
-  async function prepareEmailSignIn(identifier: string): Promise<JobsFlowEmailSignInOptions> {
-    if (!isSignInLoaded || !signIn) {
-      throw new Error('Sign-in is still getting ready. Please try again in a moment.')
-    }
-
-    const attempt = await (signIn as ClerkSignInWithFuture).create?.({ identifier })
-    if (!attempt) {
-      throw new Error('We could not start sign-in. Please try again.')
-    }
-
-    emailSignInAttempt.current = attempt
-    const firstFactors = attempt.supportedFirstFactors ?? []
-    if (firstFactors.some((factor) => factor.strategy === 'password')) {
-      return { method: 'password' }
-    }
-
-    const emailCodeFactor = firstFactors.find(
-      (factor) => factor.strategy === 'email_code' && factor.emailAddressId,
-    )
-    if (emailCodeFactor?.emailAddressId) {
-      await attempt.prepareFirstFactor?.({
-        emailAddressId: emailCodeFactor.emailAddressId,
-        strategy: 'email_code',
-      })
-      return {
-        method: 'email_code',
-        safeIdentifier: emailCodeFactor.safeIdentifier,
-      }
-    }
-
-    const oauthFactor = firstFactors.find((factor) => factor.strategy.startsWith('oauth_'))
-    return {
-      method: 'oauth_only',
-      provider: oauthFactor ? providerFromStrategy(oauthFactor.strategy) : undefined,
-    }
-  }
-
-  async function signInWithEmailCode(code: string) {
-    if (!isSignInLoaded || !signIn || !setActive) {
+  // Passwordless email: one entry point that signs in an existing account or
+  // creates a new one, always by emailing a one-time code.
+  async function startEmailCode(rawEmail: string): Promise<{ mode: JobsFlowEmailCodeMode }> {
+    if (!isSignInLoaded || !signIn || !isSignUpLoaded || !signUp) {
       throw new Error('Sign-in is still getting ready. Please try again in a moment.')
     }
 
     markAuthReturnPending()
-    const attempt = emailSignInAttempt.current ?? (signIn as ClerkAttemptResult)
-    const result = await attempt.attemptFirstFactor?.({
-      code,
-      strategy: 'email_code',
-    })
+    const emailAddress = rawEmail.trim().toLowerCase()
 
-    if (!result || result.status !== 'complete' || !result.createdSessionId) {
-      throw new Error('That code could not complete sign-in. Check the code and try again.')
+    try {
+      const attempt = await signIn.create({ identifier: emailAddress })
+      const factor = attempt.supportedFirstFactors?.find((candidate) => candidate.strategy === 'email_code')
+      if (factor && 'emailAddressId' in factor && factor.emailAddressId) {
+        await signIn.prepareFirstFactor({ strategy: 'email_code', emailAddressId: factor.emailAddressId })
+        emailFlowMode.current = 'sign_in'
+        emailFlowAddressId.current = factor.emailAddressId
+        return { mode: 'sign_in' }
+      }
+      throw new Error('This email is linked to a social account. Use Google or Apple above.')
+    } catch (error) {
+      if (isMissingEmailAccountError(error)) {
+        await signUp.create({ emailAddress })
+        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
+        emailFlowMode.current = 'sign_up'
+        emailFlowAddressId.current = null
+        return { mode: 'sign_up' }
+      }
+      throw error
     }
-
-    await setActive({ session: result.createdSessionId })
   }
 
-  async function signInWithPassword(identifier: string, password: string) {
-    if (!isSignInLoaded || !signIn || !setActive) {
+  async function verifyEmailCode(code: string) {
+    const trimmed = code.trim()
+
+    if (emailFlowMode.current === 'sign_up') {
+      if (!signUp || !setActiveSignUp) {
+        throw new Error('Sign-up is still getting ready. Please try again in a moment.')
+      }
+      const result = await signUp.attemptEmailAddressVerification({ code: trimmed })
+      if (result.status !== 'complete' || !result.createdSessionId) {
+        throw new Error('That code did not complete sign-up. Check the code and try again.')
+      }
+      await setActiveSignUp({ session: result.createdSessionId })
+      return
+    }
+
+    if (!signIn || !setActiveSignIn) {
       throw new Error('Sign-in is still getting ready. Please try again in a moment.')
     }
+    const result = await signIn.attemptFirstFactor({ strategy: 'email_code', code: trimmed })
+    if (result.status !== 'complete' || !result.createdSessionId) {
+      throw new Error('That code did not complete sign-in. Check the code and try again.')
+    }
+    await setActiveSignIn({ session: result.createdSessionId })
+  }
 
-    markAuthReturnPending()
-
-    const currentAttempt = emailSignInAttempt.current
-    if (currentAttempt?.attemptFirstFactor) {
-      const result = await currentAttempt.attemptFirstFactor({
-        password,
-        strategy: 'password',
-      })
-
-      if (!result || result.status !== 'complete' || !result.createdSessionId) {
-        throw new Error('We need one more quick check before opening your workspace.')
+  async function resendEmailCode() {
+    if (emailFlowMode.current === 'sign_up') {
+      if (!signUp) {
+        throw new Error('Start again to resend a code.')
       }
-
-      await setActive({ session: result.createdSessionId })
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
       return
     }
 
-    const futureSignIn = getFutureSignIn(signIn)
-    if (futureSignIn?.password && futureSignIn.finalize) {
-      const passwordResult = await futureSignIn.password({ identifier, password })
-      if (passwordResult.error) {
-        throw passwordResult.error
-      }
-      const finalizeResult = await futureSignIn.finalize()
-      if (finalizeResult.error) {
-        throw finalizeResult.error
-      }
-      return
+    if (!signIn || !emailFlowAddressId.current) {
+      throw new Error('Start again to resend a code.')
     }
-
-    const result = await (signIn as ClerkSignInWithFuture).create?.({
-      identifier,
-      strategy: 'password',
-      password,
-    })
-
-    if (!result || result.status !== 'complete' || !result.createdSessionId) {
-      throw new Error('We need one more quick check before opening your workspace.')
-    }
-
-    await setActive({ session: result.createdSessionId })
+    await signIn.prepareFirstFactor({ strategy: 'email_code', emailAddressId: emailFlowAddressId.current })
   }
 
   return (
@@ -369,9 +331,9 @@ function ClerkBridge({ children }: { children: ReactNode }) {
             signInFallbackRedirectUrl: redirectUrlComplete,
           })
         },
-        prepareEmailSignIn,
-        signInWithEmailCode,
-        signInWithPassword,
+        startEmailCode,
+        verifyEmailCode,
+        resendEmailCode,
         signOut: () => signOut(),
       }}
     >

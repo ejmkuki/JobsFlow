@@ -8,45 +8,41 @@ import { productionOauthProviderKeys, ssoProviderActions, ssoProviderIconText } 
 type AuthGatewayProps = {
   sso: JobsFlowSsoContextValue
   email: string
-  password: string
   emailCode: string
-  emailSignInStep: 'email' | 'password' | 'code'
-  showInlineSignUp: boolean
+  emailStep: 'email' | 'code'
+  emailMode: 'sign_in' | 'sign_up'
   message: string
   isBusy: boolean
   onEmailChange: (value: string) => void
-  onPasswordChange: (value: string) => void
   onCodeChange: (value: string) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  onResend: () => void
+  onChangeEmail: () => void
   onProviderSignIn: (provider: JobsFlowSsoProviderKey) => void
-  onInlineSignUp: () => void
 }
 
 export function AuthGateway({
   sso,
   email,
-  password,
   emailCode,
-  emailSignInStep,
-  showInlineSignUp,
+  emailStep,
+  emailMode,
   message,
   isBusy,
   onEmailChange,
-  onPasswordChange,
   onCodeChange,
   onSubmit,
+  onResend,
+  onChangeEmail,
   onProviderSignIn,
-  onInlineSignUp,
 }: AuthGatewayProps) {
   const oauthProviders = ssoProviderActions.filter(
     (provider) => provider.key !== 'email' && productionOauthProviderKeys.has(provider.key),
   )
   const emailSubmitDisabled =
     !sso.configured ||
-    !email.trim() ||
     isBusy ||
-    (emailSignInStep === 'password' && !password) ||
-    (emailSignInStep === 'code' && !emailCode.trim())
+    (emailStep === 'email' ? !email.trim() : emailCode.trim().length < 6)
   const gatewayStatus = !sso.configured
     ? 'Sign-in is being prepared. Please try again shortly.'
     : !sso.isLoaded
@@ -98,58 +94,51 @@ export function AuthGateway({
           </div>
 
           <form className="auth-gateway-email-form" onSubmit={onSubmit}>
-            <label>
-              <span>All fields marked with * are required.</span>
-              <strong>Email address *</strong>
-              <input
-                autoComplete="email"
-                onChange={(event) => onEmailChange(event.target.value)}
-                required
-                type="email"
-                value={email}
-              />
-            </label>
-            {emailSignInStep === 'password' ? (
+            {emailStep === 'email' ? (
               <label>
-                <strong>Password *</strong>
+                <span>Sign in or create an account with a one-time code.</span>
+                <strong>Email address *</strong>
                 <input
-                  autoComplete="current-password"
-                  autoFocus
-                  onChange={(event) => onPasswordChange(event.target.value)}
+                  autoComplete="email"
+                  onChange={(event) => onEmailChange(event.target.value)}
                   required
-                  type="password"
-                  value={password}
+                  type="email"
+                  value={email}
                 />
               </label>
-            ) : null}
-            {emailSignInStep === 'code' ? (
+            ) : (
               <label>
+                <span>
+                  {emailMode === 'sign_up'
+                    ? `Creating your account. Enter the 6-digit code we emailed to ${email}.`
+                    : `Enter the 6-digit code we emailed to ${email}.`}
+                </span>
                 <strong>Verification code *</strong>
                 <input
                   autoComplete="one-time-code"
                   autoFocus
                   inputMode="numeric"
-                  onChange={(event) => onCodeChange(event.target.value)}
+                  maxLength={6}
+                  onChange={(event) => onCodeChange(event.target.value.replace(/\D/g, ''))}
                   required
                   type="text"
                   value={emailCode}
                 />
               </label>
-            ) : null}
-            <button
-              disabled={emailSubmitDisabled}
-              type="submit"
-            >
-              {emailSignInStep === 'email' ? 'Continue' : 'Sign in'}
+            )}
+            <button disabled={emailSubmitDisabled} type="submit">
+              {emailStep === 'email' ? 'Continue' : 'Verify and continue'}
               <ArrowRight size={24} aria-hidden="true" />
             </button>
           </form>
 
-          {showInlineSignUp ? (
-            <div className="auth-inline-signup" role="note">
-              <span>No JobsFlow account exists for this email yet.</span>
-              <button type="button" onClick={onInlineSignUp}>
-                Sign up with this email
+          {emailStep === 'code' ? (
+            <div className="auth-code-actions" role="group" aria-label="Code options">
+              <button disabled={isBusy} onClick={onResend} type="button">
+                Resend code
+              </button>
+              <button disabled={isBusy} onClick={onChangeEmail} type="button">
+                Use a different email
               </button>
             </div>
           ) : null}
