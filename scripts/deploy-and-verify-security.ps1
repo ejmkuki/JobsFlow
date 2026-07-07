@@ -24,6 +24,11 @@
 
 .NOTES
   Requires PowerShell 7+ (uses -SkipHttpErrorCheck). Run from the repo root.
+
+  IMPORTANT: Cloudflare Pages binds environment variables and secrets to a
+  deployment at deploy time. Changing a secret with `wrangler pages secret put`
+  does NOT affect the already-live deployment — you must redeploy (run this
+  script, or `npm run cf:deploy`) for the new value to take effect.
 #>
 [CmdletBinding()]
 param(

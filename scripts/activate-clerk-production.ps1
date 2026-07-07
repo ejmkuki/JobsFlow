@@ -4,7 +4,7 @@ param(
   [string]$JwksUrl = "",
   [string]$SecretKey = "",
   [SecureString]$SecretKeySecure,
-  [string]$AuthorizedParties = "https://jobsflow.workflowfy.ai",
+  [string]$AuthorizedParties = "https://jobsflowai.ai,https://www.jobsflowai.ai,https://jobsflow.workflowfy.ai",
   [string]$ProjectName = "workflowfy-jobsflow",
   [string]$CustomDomain = "https://jobsflow.workflowfy.ai",
   [switch]$SkipDeploy
