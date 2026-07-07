@@ -181,7 +181,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
 
   const email = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses[0]?.emailAddress ?? null
   const displayName = user?.fullName ?? user?.username ?? email
-  const redirectUrlComplete = `${window.location.origin}/#workspace`
+  const redirectUrlComplete = `${window.location.origin}/auth`
   const redirectUrl = `${window.location.origin}/sso-callback`
 
   async function openProviderSignIn(provider: JobsFlowSsoProviderKey) {
@@ -391,12 +391,12 @@ export function JobsFlowSsoProvider({ children }: { children: ReactNode }) {
     <ClerkProvider afterSignOutUrl="/" appearance={jobsFlowClerkAppearance} publishableKey={publishableKey}>
       {window.location.pathname === '/sso-callback' ? (
         <AuthenticateWithRedirectCallback
-          signInFallbackRedirectUrl="/#workspace"
-          signInForceRedirectUrl="/#workspace"
-          signInUrl="/#signin"
-          signUpFallbackRedirectUrl="/#workspace"
-          signUpForceRedirectUrl="/#workspace"
-          signUpUrl="/#signin"
+          signInFallbackRedirectUrl="/auth"
+          signInForceRedirectUrl="/auth"
+          signInUrl="/auth"
+          signUpFallbackRedirectUrl="/auth"
+          signUpForceRedirectUrl="/auth"
+          signUpUrl="/auth"
         />
       ) : (
         <ClerkBridge>{children}</ClerkBridge>
