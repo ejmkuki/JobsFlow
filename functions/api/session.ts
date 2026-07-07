@@ -419,7 +419,9 @@ export async function onRequestPost({ request, env }: RequestContext) {
   const email = normalizeEmail(sessionAccess.identity.email)
   const displayName = safeString(sessionAccess.identity.displayName, email.split('@')[0] ?? 'JobsFlow User')
   const accountType = body.accountType === 'employer' ? 'employer' : 'candidate'
-  const role = isAllowedRole(safeString(body.role, accountType)) ? safeString(body.role, accountType) : accountType
+  const requestedRole = safeString(body.role, '')
+  const defaultRole = accountType === 'employer' ? 'recruiter' : 'candidate'
+  const role = isAllowedRole(requestedRole) ? requestedRole : defaultRole
   const tenantName = safeString(
     body.tenantName,
     accountType === 'employer' ? `${displayName} Hiring Team` : `${displayName} Career Workspace`,
