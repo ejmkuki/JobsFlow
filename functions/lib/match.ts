@@ -138,16 +138,29 @@ async function aiMatch(resumeText: string, job: JobForMatch, env: Env): Promise<
       }),
       signal: controller.signal,
     })
-    if (!res.ok) return null
+    if (!res.ok) {
+      const errorBody = await res.text().catch(() => '')
+      console.error(`[match] anthropic ${res.status} ${res.statusText}: ${errorBody.slice(0, 500)}`)
+      return null
+    }
     const data = (await res.json()) as { content?: Array<{ type: string; text?: string }>; stop_reason?: string }
-    if (data.stop_reason === 'refusal') return null
+    if (data.stop_reason === 'refusal') {
+      console.error('[match] anthropic refused the request')
+      return null
+    }
     const text = (data.content ?? []).find((b) => b.type === 'text')?.text
-    if (!text) return null
+    if (!text) {
+      console.error(`[match] no text block in response: ${JSON.stringify(data).slice(0, 500)}`)
+      return null
+    }
 
     // The model may wrap JSON in prose or fences; extract the first object.
     const start = text.indexOf('{')
     const end = text.lastIndexOf('}')
-    if (start === -1 || end === -1 || end <= start) return null
+    if (start === -1 || end === -1 || end <= start) {
+      console.error(`[match] no JSON object found in model text: ${text.slice(0, 300)}`)
+      return null
+    }
     const parsed = JSON.parse(text.slice(start, end + 1)) as AiRaw
 
     const summary = typeof parsed.summary === 'string' ? parsed.summary.slice(0, 200) : 'AI-assessed match.'
@@ -158,7 +171,8 @@ async function aiMatch(resumeText: string, job: JobForMatch, env: Env): Promise<
       gaps: toStringArray(parsed.gaps),
       summary,
     }
-  } catch {
+  } catch (error) {
+    console.error(`[match] ai tier threw: ${error instanceof Error ? error.message : String(error)}`)
     return null
   } finally {
     clearTimeout(timer)
