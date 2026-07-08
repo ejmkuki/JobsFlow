@@ -1,28 +1,38 @@
 import type { MouseEvent } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import type { BackendSession } from './backendClient'
 import { deleteBackendSession, getBackendSession } from './backendClient'
 import { JobsFlowLogoMark, StatusPill, WorkspaceButton } from './components/ui'
-import { automationModes } from './data/candidate'
 import { workspaces } from './data/workspaces'
 import { AuthPanel } from './features/auth/AuthPanel'
-import { CandidateWorkspace } from './features/candidate/CandidateWorkspace'
-import { EmployerWorkspace } from './features/employer/EmployerWorkspace'
 import { ProductOnboarding, SignalOperationsLayer } from './features/landing'
 import { LandingHero } from './features/landing'
 import { TrustWorkspace } from './features/trust/TrustWorkspace'
-import { AppTopNav } from './features/dashboard/AppTopNav'
-import { CandidateHomePage } from './features/dashboard/CandidateHomePage'
-import { CandidateJobsPage } from './features/dashboard/CandidateJobsPage'
-import { CandidateApplicationsPage } from './features/dashboard/CandidateApplicationsPage'
-import { EmployerPipelinePage } from './features/dashboard/EmployerPipelinePage'
-import { EmployerJobsPage } from './features/dashboard/EmployerJobsPage'
 import { useJobsFlowSso } from './jobsFlowSsoContext'
 import { writeAuthReturnPending } from './lib/appView'
 import { onboardingSteps } from './productModel'
 import type { LandingSearchIntent, Workspace } from './types'
 import './App.css'
+
+// The candidate and employer dashboards are the bulk of the app; lazy-load
+// them so the landing page and sign-in ship a much smaller initial bundle.
+const AppTopNav = lazy(() => import('./features/dashboard/AppTopNav').then((m) => ({ default: m.AppTopNav })))
+const CandidateHomePage = lazy(() =>
+  import('./features/dashboard/CandidateHomePage').then((m) => ({ default: m.CandidateHomePage })),
+)
+const CandidateJobsPage = lazy(() =>
+  import('./features/dashboard/CandidateJobsPage').then((m) => ({ default: m.CandidateJobsPage })),
+)
+const CandidateApplicationsPage = lazy(() =>
+  import('./features/dashboard/CandidateApplicationsPage').then((m) => ({ default: m.CandidateApplicationsPage })),
+)
+const EmployerPipelinePage = lazy(() =>
+  import('./features/dashboard/EmployerPipelinePage').then((m) => ({ default: m.EmployerPipelinePage })),
+)
+const EmployerJobsPage = lazy(() =>
+  import('./features/dashboard/EmployerJobsPage').then((m) => ({ default: m.EmployerJobsPage })),
+)
 
 const workspaceIds: Workspace[] = ['candidate', 'employer', 'trust']
 
@@ -46,7 +56,6 @@ function AppShell() {
   const navigate = useNavigate()
   const location = useLocation()
   const sso = useJobsFlowSso()
-  const [automationMode, setAutomationMode] = useState(automationModes[1].name)
   const [activeOnboardingStep, setActiveOnboardingStep] = useState(onboardingSteps[0].key)
   const [session, setSession] = useState<BackendSession | null>(null)
   const [searchIntent, setSearchIntent] = useState<LandingSearchIntent | null>(null)
@@ -182,6 +191,7 @@ function AppShell() {
       ) : null}
 
       <main className={isDashboard ? 'app-main-bleed' : `app-main app-main-${viewClass}`}>
+        <Suspense fallback={null}>
         <Routes>
           <Route
             path="/"
@@ -220,8 +230,6 @@ function AppShell() {
                 <WorkspacePane
                   activeWorkspace="trust"
                   session={session}
-                  automationMode={automationMode}
-                  onModeChange={setAutomationMode}
                   activeOnboardingStep={activeOnboardingStep}
                   onStepChange={setActiveOnboardingStep}
                   searchIntentCopy={searchIntentCopy}
@@ -235,6 +243,7 @@ function AppShell() {
           />
           <Route path="*" element={<Navigate replace to="/" />} />
         </Routes>
+        </Suspense>
       </main>
     </div>
   )
@@ -243,8 +252,6 @@ function AppShell() {
 type WorkspacePaneProps = {
   activeWorkspace: Workspace
   session: BackendSession
-  automationMode: string
-  onModeChange: (mode: string) => void
   activeOnboardingStep: string
   onStepChange: (step: string) => void
   searchIntentCopy: string | null
@@ -252,11 +259,10 @@ type WorkspacePaneProps = {
   onSessionChange: (session: BackendSession | null) => void
 }
 
+// Trust & compliance page, rendered under the classic header chrome.
 function WorkspacePane({
   activeWorkspace,
   session,
-  automationMode,
-  onModeChange,
   activeOnboardingStep,
   onStepChange,
   searchIntentCopy,
@@ -291,13 +297,7 @@ function WorkspacePane({
 
       <SignalOperationsLayer activeWorkspace={activeWorkspace} onWorkspaceChange={onWorkspaceChange} />
 
-      {activeWorkspace === 'candidate' ? (
-        <CandidateWorkspace automationMode={automationMode} onModeChange={onModeChange} session={session} />
-      ) : null}
-      {activeWorkspace === 'employer' ? <EmployerWorkspace session={session} /> : null}
-      {activeWorkspace === 'trust' ? (
-        <TrustWorkspace session={session} onSessionChange={onSessionChange} />
-      ) : null}
+      <TrustWorkspace session={session} onSessionChange={onSessionChange} />
     </>
   )
 }

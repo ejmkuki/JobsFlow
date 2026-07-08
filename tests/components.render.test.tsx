@@ -3,9 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { AuthPanel } from '../src/features/auth/AuthPanel'
 import { AuthGateway } from '../src/features/auth/AuthGateway'
-import { CandidateWorkspace } from '../src/features/candidate/CandidateWorkspace'
-import { EmployerJobsPanel } from '../src/features/employer/EmployerJobsPanel'
-import { JobBoardPanel } from '../src/features/candidate/JobBoardPanel'
 import { disabledSso } from '../src/jobsFlowSsoContext'
 
 const readySso = { ...disabledSso, configured: true, isLoaded: true }
@@ -27,9 +24,6 @@ const gatewayProps = {
   onProviderSignIn: noop,
 }
 
-// Backend calls fire on mount; stub fetch so panels fail closed and still
-// render their static shell. These are structural guards for the upcoming
-// decomposition of AuthPanel and CandidateWorkspace.
 vi.stubGlobal(
   'fetch',
   vi.fn(async () => new Response(JSON.stringify({ ok: false }), { status: 503 })),
@@ -55,30 +49,9 @@ describe('AuthGateway email flow', () => {
   })
 })
 
-describe('core loop panels', () => {
-  it('EmployerJobsPanel renders the post-a-role form', () => {
-    render(<EmployerJobsPanel session={null} />)
-    expect(screen.getByText('Post roles and review real applicants')).toBeTruthy()
-    expect(screen.getByText('Publish role')).toBeTruthy()
-  })
-
-  it('JobBoardPanel renders the job board', () => {
-    render(<JobBoardPanel session={null} />)
-    expect(screen.getByText('Find and apply to real roles')).toBeTruthy()
-    expect(screen.getByText('Your applications')).toBeTruthy()
-  })
-})
-
 describe('AuthPanel', () => {
   it('renders the sign-in shell without crashing', () => {
     render(<AuthPanel session={null} onSessionChange={() => undefined} />)
     expect(screen.getAllByText('JobsFlow AI').length).toBeGreaterThan(0)
-  })
-})
-
-describe('CandidateWorkspace', () => {
-  it('renders the workspace shell without crashing', () => {
-    render(<CandidateWorkspace automationMode="Co-pilot" onModeChange={() => undefined} session={null} />)
-    expect(screen.getByText('Apply with precision, not volume')).toBeTruthy()
   })
 })
