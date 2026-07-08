@@ -2,7 +2,7 @@ import type { MouseEvent } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import type { BackendSession } from './backendClient'
-import { deleteBackendSession } from './backendClient'
+import { deleteBackendSession, getBackendSession } from './backendClient'
 import { JobsFlowLogoMark, StatusPill, WorkspaceButton } from './components/ui'
 import { automationModes } from './data/candidate'
 import { workspaces } from './data/workspaces'
@@ -12,6 +12,9 @@ import { EmployerWorkspace } from './features/employer/EmployerWorkspace'
 import { ProductOnboarding, SignalOperationsLayer } from './features/landing'
 import { LandingHero } from './features/landing'
 import { TrustWorkspace } from './features/trust/TrustWorkspace'
+import { DashboardShell } from './features/dashboard/DashboardShell'
+import { EmployerPipelinePage } from './features/dashboard/EmployerPipelinePage'
+import { EmployerJobsPage } from './features/dashboard/EmployerJobsPage'
 import { useJobsFlowSso } from './jobsFlowSsoContext'
 import { writeAuthReturnPending } from './lib/appView'
 import { onboardingSteps } from './productModel'
@@ -49,6 +52,7 @@ function AppShell() {
   const pathId = location.pathname.slice(1)
   const activeWorkspace: Workspace = isWorkspaceId(pathId) ? pathId : 'candidate'
   const viewClass = location.pathname === '/' ? 'landing' : location.pathname === '/auth' ? 'auth' : 'workspace'
+  const isEmployerDashboard = location.pathname.startsWith('/employer')
 
   function handleHeaderWorkspaceChange(workspace: Workspace) {
     navigate(session ? `/${workspace}` : '/')
@@ -101,18 +105,38 @@ function AppShell() {
         .join(' / ')
     : null
 
-  // After a session is established, land the user in their role workspace.
+  // Restore an existing signed session on load, so deep links to the workspace
+  // or dashboard work without bouncing through the sign-in screen.
+  useEffect(() => {
+    let cancelled = false
+    getBackendSession()
+      .then((result) => {
+        if (!cancelled) {
+          setSession(result.session)
+        }
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // After a session is established from a public page, land the user in their
+  // role workspace. Deep links into a workspace/dashboard are left in place.
   useEffect(() => {
     if (!session) {
       return
     }
 
     writeAuthReturnPending(false)
-    navigate(`/${roleWorkspace(session)}`, { replace: true })
-  }, [session, navigate])
+    if (location.pathname === '/' || location.pathname === '/auth') {
+      navigate(`/${roleWorkspace(session)}`, { replace: true })
+    }
+  }, [session, navigate, location.pathname])
 
   return (
     <div className="app-root">
+      {!isEmployerDashboard ? (
       <header className="app-shell-header">
         <a className="brand" href="/" aria-label="JobsFlow AI home" onClick={handleBrandClick}>
           <JobsFlowLogoMark />
@@ -152,8 +176,9 @@ function AppShell() {
           )}
         </div>
       </header>
+      ) : null}
 
-      <main className={`app-main app-main-${viewClass}`}>
+      <main className={isEmployerDashboard ? 'app-main-bleed' : `app-main app-main-${viewClass}`}>
         <Routes>
           <Route
             path="/"
@@ -167,7 +192,26 @@ function AppShell() {
               </div>
             }
           />
-          {workspaceIds.map((workspace) => (
+          <Route
+            path="/employer"
+            element={
+              !session ? (
+                <Navigate replace to="/auth" />
+              ) : session.role === 'candidate' ? (
+                <Navigate replace to="/candidate" />
+              ) : (
+                <DashboardShell session={session} onSignOut={handleSignOut} />
+              )
+            }
+          >
+            <Route index element={<Navigate replace to="candidates" />} />
+            <Route path="candidates" element={<EmployerPipelinePage session={session} />} />
+            <Route path="jobs" element={<EmployerJobsPage session={session} />} />
+            <Route path="*" element={<Navigate replace to="/employer/candidates" />} />
+          </Route>
+          {workspaceIds
+            .filter((workspace) => workspace !== 'employer')
+            .map((workspace) => (
             <Route
               key={workspace}
               path={`/${workspace}`}
