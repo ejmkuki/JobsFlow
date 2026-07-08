@@ -104,7 +104,7 @@ describe('core loop: post job -> browse -> apply -> employer sees -> advance', (
     expect(selfApply.status).toBe(400) // own job
   })
 
-  it('rejects non-employer job posting', async () => {
+  it('lets any signed-in account post a role (one login, both modes)', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
     const candidate = await createSession(world.env, 'c3@me.com', 'candidate')
     const res = await callHandler(jobsPost, {
@@ -112,9 +112,9 @@ describe('core loop: post job -> browse -> apply -> employer sees -> advance', (
       method: 'POST',
       url: `${base}/api/jobs`,
       headers: { ...jsonHeaders, cookie: candidate },
-      body: JSON.stringify({ title: 'Sneaky job' }),
+      body: JSON.stringify({ title: 'Contract role' }),
     })
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(201)
   })
 })
 

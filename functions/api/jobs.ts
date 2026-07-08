@@ -54,10 +54,6 @@ async function readBody(request: Request): Promise<JobBody> {
   }
 }
 
-function isEmployerSession(tenantType: string, role: string) {
-  return tenantType === 'employer' || role === 'recruiter' || role === 'hiring_manager'
-}
-
 function normalizeSkills(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return []
@@ -168,16 +164,12 @@ export async function onRequestPost({ request, env }: RequestContext) {
     return missingConfig('DB')
   }
 
+  // Any signed-in account can post a role. JobsFlow is one login with a Find
+  // Work / Hire switch, so the applicant and hiring sides are not separate
+  // account types.
   const session = await getSession(request, env)
   if (!session) {
     return json({ ok: false, error: 'unauthorized', message: 'Sign in to post a job.' }, 401)
-  }
-
-  if (!isEmployerSession(session.tenantType, session.role)) {
-    return json(
-      { ok: false, error: 'employer_required', message: 'Switch to an employer workspace to post a job.' },
-      403,
-    )
   }
 
   const rate = await enforceRateLimit(env, `job-post:${session.tenantId}`, 30, 60)

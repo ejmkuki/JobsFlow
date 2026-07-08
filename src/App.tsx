@@ -12,7 +12,10 @@ import { EmployerWorkspace } from './features/employer/EmployerWorkspace'
 import { ProductOnboarding, SignalOperationsLayer } from './features/landing'
 import { LandingHero } from './features/landing'
 import { TrustWorkspace } from './features/trust/TrustWorkspace'
-import { DashboardShell } from './features/dashboard/DashboardShell'
+import { AppTopNav } from './features/dashboard/AppTopNav'
+import { CandidateHomePage } from './features/dashboard/CandidateHomePage'
+import { CandidateJobsPage } from './features/dashboard/CandidateJobsPage'
+import { CandidateApplicationsPage } from './features/dashboard/CandidateApplicationsPage'
 import { EmployerPipelinePage } from './features/dashboard/EmployerPipelinePage'
 import { EmployerJobsPage } from './features/dashboard/EmployerJobsPage'
 import { useJobsFlowSso } from './jobsFlowSsoContext'
@@ -52,7 +55,7 @@ function AppShell() {
   const pathId = location.pathname.slice(1)
   const activeWorkspace: Workspace = isWorkspaceId(pathId) ? pathId : 'candidate'
   const viewClass = location.pathname === '/' ? 'landing' : location.pathname === '/auth' ? 'auth' : 'workspace'
-  const isEmployerDashboard = location.pathname.startsWith('/employer')
+  const isDashboard = location.pathname.startsWith('/employer') || location.pathname.startsWith('/candidate')
 
   function handleHeaderWorkspaceChange(workspace: Workspace) {
     navigate(session ? `/${workspace}` : '/')
@@ -136,7 +139,7 @@ function AppShell() {
 
   return (
     <div className="app-root">
-      {!isEmployerDashboard ? (
+      {!isDashboard ? (
       <header className="app-shell-header">
         <a className="brand" href="/" aria-label="JobsFlow AI home" onClick={handleBrandClick}>
           <JobsFlowLogoMark />
@@ -178,7 +181,7 @@ function AppShell() {
       </header>
       ) : null}
 
-      <main className={isEmployerDashboard ? 'app-main-bleed' : `app-main app-main-${viewClass}`}>
+      <main className={isDashboard ? 'app-main-bleed' : `app-main app-main-${viewClass}`}>
         <Routes>
           <Route
             path="/"
@@ -193,47 +196,43 @@ function AppShell() {
             }
           />
           <Route
+            path="/candidate"
+            element={session ? <AppTopNav session={session} onSignOut={handleSignOut} /> : <Navigate replace to="/auth" />}
+          >
+            <Route index element={<CandidateHomePage session={session} />} />
+            <Route path="jobs" element={<CandidateJobsPage session={session} />} />
+            <Route path="applications" element={<CandidateApplicationsPage session={session} />} />
+            <Route path="*" element={<Navigate replace to="/candidate" />} />
+          </Route>
+          <Route
             path="/employer"
-            element={
-              !session ? (
-                <Navigate replace to="/auth" />
-              ) : session.role === 'candidate' ? (
-                <Navigate replace to="/candidate" />
-              ) : (
-                <DashboardShell session={session} onSignOut={handleSignOut} />
-              )
-            }
+            element={session ? <AppTopNav session={session} onSignOut={handleSignOut} /> : <Navigate replace to="/auth" />}
           >
             <Route index element={<Navigate replace to="candidates" />} />
             <Route path="candidates" element={<EmployerPipelinePage session={session} />} />
             <Route path="jobs" element={<EmployerJobsPage session={session} />} />
             <Route path="*" element={<Navigate replace to="/employer/candidates" />} />
           </Route>
-          {workspaceIds
-            .filter((workspace) => workspace !== 'employer')
-            .map((workspace) => (
-            <Route
-              key={workspace}
-              path={`/${workspace}`}
-              element={
-                session ? (
-                  <WorkspacePane
-                    activeWorkspace={workspace}
-                    session={session}
-                    automationMode={automationMode}
-                    onModeChange={setAutomationMode}
-                    activeOnboardingStep={activeOnboardingStep}
-                    onStepChange={setActiveOnboardingStep}
-                    searchIntentCopy={searchIntentCopy}
-                    onWorkspaceChange={handleHeaderWorkspaceChange}
-                    onSessionChange={setSession}
-                  />
-                ) : (
-                  <Navigate replace to="/auth" />
-                )
-              }
-            />
-          ))}
+          <Route
+            path="/trust"
+            element={
+              session ? (
+                <WorkspacePane
+                  activeWorkspace="trust"
+                  session={session}
+                  automationMode={automationMode}
+                  onModeChange={setAutomationMode}
+                  activeOnboardingStep={activeOnboardingStep}
+                  onStepChange={setActiveOnboardingStep}
+                  searchIntentCopy={searchIntentCopy}
+                  onWorkspaceChange={handleHeaderWorkspaceChange}
+                  onSessionChange={setSession}
+                />
+              ) : (
+                <Navigate replace to="/auth" />
+              )
+            }
+          />
           <Route path="*" element={<Navigate replace to="/" />} />
         </Routes>
       </main>
