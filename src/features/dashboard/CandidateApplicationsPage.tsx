@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { BackendSession, CandidateApplication } from '../../backendClient'
+import type { BackendSession, CandidateApplication, MatchMethod } from '../../backendClient'
 import { humanizeJobsFlowError, listMyApplications, withdrawApplication } from '../../backendClient'
+
+function methodLabel(method: MatchMethod) {
+  if (method === 'ai') return 'AI match'
+  if (method === 'keyword') return 'Keyword match'
+  return 'Not scored'
+}
 
 const statusLabels: Record<string, string> = {
   submitted: 'Submitted',
@@ -74,6 +80,12 @@ export function CandidateApplicationsPage({ session }: { session: BackendSession
                   <span className={`jf-status ${statusTone(application.status)}`}>
                     {statusLabels[application.status] ?? application.status}
                   </span>
+                </div>
+                <div className="jf-chips">
+                  <span className="jf-chip">
+                    {application.matchMethod === 'unscored' ? 'Not scored' : `${application.readinessScore}% match`}
+                  </span>
+                  <span className="jf-chip jf-evi">{methodLabel(application.matchMethod)}</span>
                 </div>
                 {application.status !== 'withdrawn' && application.status !== 'rejected' ? (
                   <div className="jf-item-actions" style={{ justifyContent: 'flex-end' }}>

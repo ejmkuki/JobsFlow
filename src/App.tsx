@@ -27,6 +27,9 @@ const CandidateJobsPage = lazy(() =>
 const CandidateApplicationsPage = lazy(() =>
   import('./features/dashboard/CandidateApplicationsPage').then((m) => ({ default: m.CandidateApplicationsPage })),
 )
+const CandidateProfilePage = lazy(() =>
+  import('./features/dashboard/CandidateProfilePage').then((m) => ({ default: m.CandidateProfilePage })),
+)
 const EmployerPipelinePage = lazy(() =>
   import('./features/dashboard/EmployerPipelinePage').then((m) => ({ default: m.EmployerPipelinePage })),
 )
@@ -212,6 +215,7 @@ function AppShell() {
             <Route index element={<CandidateHomePage session={session} />} />
             <Route path="jobs" element={<CandidateJobsPage session={session} />} />
             <Route path="applications" element={<CandidateApplicationsPage session={session} />} />
+            <Route path="profile" element={<CandidateProfilePage session={session} />} />
             <Route path="*" element={<Navigate replace to="/candidate" />} />
           </Route>
           <Route

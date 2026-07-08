@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search, SendHorizontal } from 'lucide-react'
-import type { BackendSession, CandidateApplication, Job } from '../../backendClient'
-import { applyToJob, humanizeJobsFlowError, listMyApplications, listOpenJobs } from '../../backendClient'
+import type { BackendSession, CandidateApplication, Job, MatchResult } from '../../backendClient'
+import { applyToJob, humanizeJobsFlowError, listMyApplications, listOpenJobs, previewMatch } from '../../backendClient'
 import { formatCents } from '../../lib/format'
+
+function methodLabel(method: MatchResult['method']) {
+  if (method === 'ai') return 'AI match'
+  if (method === 'keyword') return 'Keyword match'
+  return 'Not scored'
+}
 
 function salaryLabel(job: Job) {
   if (job.salaryMinCents == null && job.salaryMaxCents == null) return 'Compensation on request'
@@ -18,6 +24,7 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
   const [jobs, setJobs] = useState<Job[]>([])
   const [applications, setApplications] = useState<CandidateApplication[]>([])
   const [notes, setNotes] = useState<Record<string, string>>({})
+  const [fits, setFits] = useState<Record<string, MatchResult | 'loading'>>({})
   const [message, setMessage] = useState('')
   const [isBusy, setIsBusy] = useState(false)
 
@@ -43,12 +50,28 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
     setSearchParams(query.trim() ? { q: query.trim() } : {})
   }
 
+  async function handleCheckFit(job: Job) {
+    setFits((current) => ({ ...current, [job.id]: 'loading' }))
+    try {
+      const result = await previewMatch(job.id)
+      setFits((current) => ({ ...current, [job.id]: result.match }))
+    } catch (error) {
+      setFits((current) => {
+        const next = { ...current }
+        delete next[job.id]
+        return next
+      })
+      setMessage(humanizeJobsFlowError(error, 'backend'))
+    }
+  }
+
   async function handleApply(job: Job) {
     setIsBusy(true)
     setMessage(`Applying to ${job.title}…`)
     try {
-      await applyToJob({ jobId: job.id, coverNote: notes[job.id]?.trim() ?? '' })
-      setMessage(`Applied to ${job.title} at ${job.company}.`)
+      const result = await applyToJob({ jobId: job.id, coverNote: notes[job.id]?.trim() ?? '' })
+      setFits((current) => ({ ...current, [job.id]: result.match }))
+      setMessage(`Applied to ${job.title} at ${job.company} — ${result.match.score}% match.`)
       await load(searchParams.get('q') ?? '')
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'backend'))
@@ -95,6 +118,25 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
                 </div>
               ) : null}
               {job.description ? <p className="jf-msg" style={{ margin: 0 }}>{job.description}</p> : null}
+              {(() => {
+                const fit = fits[job.id]
+                if (!fit) return null
+                if (fit === 'loading') return <p className="jf-msg">Checking your fit…</p>
+                return (
+                  <div className="jf-fitcard">
+                    <div className="jf-fit-head">
+                      <b>{fit.score}% fit</b>
+                      <span className="jf-chip">{methodLabel(fit.method)}</span>
+                    </div>
+                    {fit.summary ? <p className="jf-msg" style={{ margin: 0 }}>{fit.summary}</p> : null}
+                    {fit.gaps.length ? (
+                      <div className="jf-item-skills">
+                        {fit.gaps.slice(0, 6).map((gap) => <span className="jf-gap" key={gap}>Missing: {gap}</span>)}
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })()}
               {!applied ? (
                 <div className="jf-item-actions">
                   <input
@@ -103,6 +145,9 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
                     placeholder="Optional note to the hiring team"
                     value={notes[job.id] ?? ''}
                   />
+                  <button className="jf-btn jf-btn-ghost" disabled={fits[job.id] === 'loading'} onClick={() => void handleCheckFit(job)} type="button">
+                    Check fit
+                  </button>
                   <button className="jf-btn jf-btn-primary" disabled={isBusy} onClick={() => void handleApply(job)} type="button">
                     <SendHorizontal size={15} aria-hidden="true" /> Apply
                   </button>

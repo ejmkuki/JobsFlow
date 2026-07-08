@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import type { BackendSession, Job, JobApplicant } from '../../backendClient'
-import { advanceApplication, humanizeJobsFlowError, listJobApplicants, listMyJobs } from '../../backendClient'
+import type { BackendSession, Job, JobApplicant, MatchMethod } from '../../backendClient'
+import { advanceApplication, humanizeJobsFlowError, listJobApplicants, listMyJobs, parseMatchRationale } from '../../backendClient'
+
+function methodLabel(method: MatchMethod) {
+  if (method === 'ai') return 'AI match'
+  if (method === 'keyword') return 'Keyword match'
+  return 'Not scored'
+}
 
 type Column = { status: string; label: string; color: string; extra?: string[] }
 
@@ -31,12 +37,6 @@ function initials(name: string) {
       .map((part) => part[0]?.toUpperCase() ?? '')
       .join('') || '?'
   )
-}
-
-function readinessChip(score: number) {
-  if (score >= 85) return 'Strong proof'
-  if (score >= 70) return 'Solid fit'
-  return 'Emerging'
 }
 
 type Sla = { klass: string; label: string } | null
@@ -183,12 +183,16 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
                             <span>{applicant.candidateEmail}</span>
                           </div>
                           <div className="jf-fit">
-                            <b>{applicant.readinessScore}%</b>
-                            <small>Readiness</small>
+                            <b>{applicant.matchMethod === 'unscored' ? '—' : `${applicant.readinessScore}%`}</b>
+                            <small>Match</small>
                           </div>
                         </div>
                         <div className="jf-chips">
-                          <span className="jf-chip">{readinessChip(applicant.readinessScore)}</span>
+                          <span className="jf-chip">{methodLabel(applicant.matchMethod)}</span>
+                          {(() => {
+                            const gap = parseMatchRationale(applicant.matchRationale).gaps[0]
+                            return gap ? <span className="jf-chip jf-gap">Missing: {gap}</span> : null
+                          })()}
                           {applicant.coverNote ? <span className="jf-chip jf-evi">Note</span> : null}
                           {applicant.resumeArtifactId ? <span className="jf-chip jf-evi">Resume</span> : null}
                         </div>
@@ -231,7 +235,8 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
       )}
 
       <p className="jf-msg">
-        <strong style={{ color: 'var(--jf-teal)' }}>Readiness</strong> is the JobsFlow evidence-fit score for {activeJob?.title ?? 'this role'} — not a black box.
+        <strong style={{ color: 'var(--jf-teal)' }}>Match</strong> is computed from each candidate's resume against {activeJob?.title ?? 'this role'} —
+        AI-scored when available, keyword-scored otherwise. Not a black box.
       </p>
     </main>
   )

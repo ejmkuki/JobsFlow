@@ -1772,11 +1772,29 @@ export type JobDraft = {
   status?: 'open' | 'draft' | 'paused' | 'closed'
 }
 
+export type MatchMethod = 'ai' | 'keyword' | 'unscored'
+
+export type MatchResult = {
+  score: number
+  method: MatchMethod
+  matched: string[]
+  gaps: string[]
+  summary: string
+}
+
+export type CandidateProfile = {
+  headline: string
+  resumeText: string
+  updatedAt: string | null
+}
+
 export type CandidateApplication = {
   id: string
   jobId: string
   status: string
   readinessScore: number
+  matchMethod: MatchMethod
+  matchRationale: string
   coverNote: string
   createdAt: string
   lastStatusChangeAt: string
@@ -1791,11 +1809,27 @@ export type JobApplicant = {
   candidateName: string
   candidateEmail: string
   readinessScore: number
+  matchMethod: MatchMethod
+  matchRationale: string
   coverNote: string
   resumeArtifactId: string | null
   employerSlaDueAt: string | null
   createdAt: string
   lastStatusChangeAt: string
+}
+
+// Parse the stored match rationale JSON safely for UI use.
+export function parseMatchRationale(raw: string): { matched: string[]; gaps: string[]; summary: string } {
+  try {
+    const parsed = JSON.parse(raw || '{}') as { matched?: string[]; gaps?: string[]; summary?: string }
+    return {
+      matched: Array.isArray(parsed.matched) ? parsed.matched : [],
+      gaps: Array.isArray(parsed.gaps) ? parsed.gaps : [],
+      summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+    }
+  } catch {
+    return { matched: [], gaps: [], summary: '' }
+  }
 }
 
 const jsonPost = (body: unknown): RequestInit => ({
@@ -1837,15 +1871,24 @@ export async function listJobApplicants(jobId: string) {
   )
 }
 
-export async function applyToJob(input: {
-  jobId: string
-  coverNote?: string
-  resumeArtifactId?: string
-  readinessScore?: number
-}) {
-  return readJson<{ applicationId: string; ok: boolean; status: string }>(
+export async function applyToJob(input: { jobId: string; coverNote?: string; resumeArtifactId?: string }) {
+  return readJson<{ applicationId: string; ok: boolean; status: string; match: MatchResult }>(
     await fetch('/api/job-applications', jsonPost({ action: 'apply', ...input })),
   )
+}
+
+export async function getProfile() {
+  return readJson<{ ok: boolean; profile: CandidateProfile }>(await fetch('/api/profile'))
+}
+
+export async function saveProfile(input: { resumeText: string; headline?: string }) {
+  return readJson<{ ok: boolean; profile: { headline: string; resumeText: string } }>(
+    await fetch('/api/profile', { ...jsonPost(input), method: 'PUT' }),
+  )
+}
+
+export async function previewMatch(jobId: string) {
+  return readJson<{ ok: boolean; match: MatchResult }>(await fetch('/api/match-preview', jsonPost({ jobId })))
 }
 
 export async function advanceApplication(input: { applicationId: string; status: string; note?: string }) {

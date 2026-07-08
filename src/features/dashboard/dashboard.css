@@ -71,6 +71,19 @@
 .jf-post select { border: 1px solid var(--jf-line-strong); border-radius: 10px; padding: 10px 12px; font: inherit; background: var(--jf-surface-2); color: var(--jf-ink); }
 .jf-post select:focus { outline: 2px solid #38bdf8; outline-offset: 1px; }
 
+/* Match / fit surfaces (Phase 3) */
+.jf-fitcard { border: 1px solid var(--jf-line); border-radius: 12px; padding: 12px 14px; background: var(--jf-surface-2); display: flex; flex-direction: column; gap: 8px; }
+.jf-fit-head { display: flex; align-items: center; gap: 10px; }
+.jf-fit-head b { font-size: 18px; color: var(--jf-teal); }
+.jf-gap { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+
+.jf-profile { display: flex; flex-direction: column; gap: 16px; }
+.jf-profile label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 650; color: var(--jf-ink-2); }
+.jf-profile input, .jf-profile textarea { border: 1px solid var(--jf-line-strong); border-radius: 10px; padding: 10px 12px; font: inherit; background: var(--jf-surface); color: var(--jf-ink); }
+.jf-profile textarea { resize: vertical; min-height: 220px; line-height: 1.5; }
+.jf-profile input:focus, .jf-profile textarea:focus { outline: 2px solid #38bdf8; outline-offset: 1px; }
+.jf-profile-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
 /* Panels / cards */
 .jf-panel { background: var(--jf-surface); border: 1px solid var(--jf-line); border-radius: var(--jf-radius); padding: 22px; box-shadow: var(--jf-shadow); }
 .jf-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }

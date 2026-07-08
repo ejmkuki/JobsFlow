@@ -37,6 +37,8 @@ export type Env = {
   CLERK_JWKS_URL?: string
   CLERK_SECRET_KEY?: string
   RESEND_API_KEY?: string
+  ANTHROPIC_API_KEY?: string
+  ANTHROPIC_MODEL?: string
 }
 
 export type RequestContext = {

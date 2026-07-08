@@ -9,6 +9,7 @@ import {
   tooManyRequests,
   writeAuditEvent,
 } from '../_shared'
+import { computeMatch, type JobForMatch } from '../lib/match'
 
 type ApplyBody = {
   action?: unknown
@@ -26,6 +27,8 @@ type CandidateApplicationRow = {
   jobId: string
   status: string
   readinessScore: number
+  matchMethod: string
+  matchRationale: string
   coverNote: string
   createdAt: string
   lastStatusChangeAt: string
@@ -40,6 +43,8 @@ type EmployerApplicantRow = {
   candidateName: string
   candidateEmail: string
   readinessScore: number
+  matchMethod: string
+  matchRationale: string
   coverNote: string
   resumeArtifactId: string | null
   employerSlaDueAt: string | null
@@ -57,13 +62,6 @@ async function readBody(request: Request): Promise<ApplyBody> {
   } catch {
     return {}
   }
-}
-
-function clampReadiness(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return 0
-  }
-  return Math.max(0, Math.min(100, Math.floor(value)))
 }
 
 async function writeApplicationEvent(
@@ -94,9 +92,21 @@ async function handleApply(request: Request, env: RequestContext['env'], session
   }
 
   const job = await env.DB!
-    .prepare('SELECT id, employer_tenant_id AS employerTenantId, status FROM jobs WHERE id = ? LIMIT 1')
+    .prepare(
+      `SELECT id, employer_tenant_id AS employerTenantId, status, title, company, description,
+              required_skills AS requiredSkills
+       FROM jobs WHERE id = ? LIMIT 1`,
+    )
     .bind(jobId)
-    .first<{ id: string; employerTenantId: string; status: string }>()
+    .first<{
+      id: string
+      employerTenantId: string
+      status: string
+      title: string
+      company: string
+      description: string
+      requiredSkills: string
+    }>()
 
   if (!job || job.status !== 'open') {
     return json({ ok: false, error: 'job_unavailable', message: 'That job is no longer accepting applications.' }, 404)
@@ -120,7 +130,21 @@ async function handleApply(request: Request, env: RequestContext['env'], session
 
   const applicationId = crypto.randomUUID()
   const coverNote = safeString(body.coverNote, '').slice(0, maxCoverNote)
-  const readinessScore = clampReadiness(body.readinessScore)
+
+  // Score is computed server-side from the candidate's resume vs the job — never
+  // taken from the client. body.readinessScore is intentionally ignored.
+  const profile = await env.DB!
+    .prepare('SELECT resume_text AS resumeText FROM candidate_resume_profiles WHERE tenant_id = ? LIMIT 1')
+    .bind(session.tenantId)
+    .first<{ resumeText: string }>()
+  const jobForMatch: JobForMatch = {
+    title: job.title,
+    company: job.company,
+    description: job.description,
+    requiredSkills: JSON.parse(job.requiredSkills || '[]') as string[],
+  }
+  const match = await computeMatch(profile?.resumeText ?? '', jobForMatch, env)
+  const matchRationale = JSON.stringify({ matched: match.matched, gaps: match.gaps, summary: match.summary })
 
   try {
     await env.DB!
@@ -128,8 +152,8 @@ async function handleApply(request: Request, env: RequestContext['env'], session
         `INSERT INTO job_applications (
           id, job_id, employer_tenant_id, candidate_tenant_id, candidate_user_id,
           candidate_name, candidate_email, resume_artifact_id, cover_note, readiness_score,
-          status, employer_sla_due_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', datetime('now', ?))`,
+          match_method, match_rationale, status, employer_sla_due_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', datetime('now', ?))`,
       )
       .bind(
         applicationId,
@@ -141,7 +165,9 @@ async function handleApply(request: Request, env: RequestContext['env'], session
         session.email,
         resumeArtifactId || null,
         coverNote,
-        readinessScore,
+        match.score,
+        match.method,
+        matchRationale,
         `+${slaDays} days`,
       )
       .run()
@@ -162,7 +188,7 @@ async function handleApply(request: Request, env: RequestContext['env'], session
     metadata: { jobId, applicationId },
   })
 
-  return json({ ok: true, applicationId, status: 'submitted' }, 201)
+  return json({ ok: true, applicationId, status: 'submitted', match }, 201)
 }
 
 async function handleAdvance(env: RequestContext['env'], session: SessionContext, body: ApplyBody) {
@@ -301,6 +327,8 @@ export async function onRequestGet({ request, env }: RequestContext) {
           candidate_name AS candidateName,
           candidate_email AS candidateEmail,
           readiness_score AS readinessScore,
+          match_method AS matchMethod,
+          match_rationale AS matchRationale,
           cover_note AS coverNote,
           resume_artifact_id AS resumeArtifactId,
           employer_sla_due_at AS employerSlaDueAt,
@@ -325,6 +353,8 @@ export async function onRequestGet({ request, env }: RequestContext) {
         a.job_id AS jobId,
         a.status AS status,
         a.readiness_score AS readinessScore,
+        a.match_method AS matchMethod,
+        a.match_rationale AS matchRationale,
         a.cover_note AS coverNote,
         a.created_at AS createdAt,
         a.last_status_change_at AS lastStatusChangeAt,

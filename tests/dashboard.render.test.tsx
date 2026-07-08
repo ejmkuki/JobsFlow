@@ -6,6 +6,7 @@ import { AppTopNav } from '../src/features/dashboard/AppTopNav'
 import { CandidateHomePage } from '../src/features/dashboard/CandidateHomePage'
 import { CandidateJobsPage } from '../src/features/dashboard/CandidateJobsPage'
 import { CandidateApplicationsPage } from '../src/features/dashboard/CandidateApplicationsPage'
+import { CandidateProfilePage } from '../src/features/dashboard/CandidateProfilePage'
 import { EmployerPipelinePage } from '../src/features/dashboard/EmployerPipelinePage'
 import { EmployerJobsPage } from '../src/features/dashboard/EmployerJobsPage'
 
@@ -45,6 +46,12 @@ describe('unified shell + candidate dashboard', () => {
   it('CandidateApplicationsPage renders the applications heading', () => {
     wrap(<CandidateApplicationsPage session={null} />, '/candidate/applications')
     expect(screen.getByRole('heading', { name: 'Applications' })).toBeTruthy()
+  })
+
+  it('CandidateProfilePage renders the resume form', () => {
+    wrap(<CandidateProfilePage session={null} />, '/candidate/profile')
+    expect(screen.getByRole('heading', { name: 'Profile' })).toBeTruthy()
+    expect(screen.getByText('Resume text')).toBeTruthy()
   })
 })
 

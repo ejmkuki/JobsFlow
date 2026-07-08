@@ -19,6 +19,7 @@ const candidateTabs = [
   { to: '/candidate', label: 'Home', end: true },
   { to: '/candidate/jobs', label: 'Jobs', end: false },
   { to: '/candidate/applications', label: 'Applications', end: false },
+  { to: '/candidate/profile', label: 'Profile', end: false },
 ]
 const employerTabs = [
   { to: '/employer/candidates', label: 'Candidates', end: false },
