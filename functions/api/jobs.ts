@@ -61,7 +61,7 @@ function normalizeSkills(value: unknown): string[] {
   return value
     .filter((item): item is string => typeof item === 'string')
     .map((item) => item.trim())
-    .filter(Boolean)
+    .filter((item) => item.length > 0 && item.length <= 48)
     .slice(0, maxSkills)
 }
 

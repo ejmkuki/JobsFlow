@@ -184,3 +184,5 @@
   .jf-nav-inner { gap: 14px; }
   .jf-tabs { overflow-x: auto; }
 }
+
+.jf-desc { color: var(--jf-ink-2); font-size: 13.5px; line-height: 1.55; margin: 0; white-space: pre-wrap; }

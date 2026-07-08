@@ -5,10 +5,25 @@ import { createJob, humanizeJobsFlowError, listMyJobs } from '../../backendClien
 import { formatCents } from '../../lib/format'
 
 function salaryLabel(job: Job) {
-  if (job.salaryMinCents == null && job.salaryMaxCents == null) return '—'
+  if (job.salaryMinCents == null && job.salaryMaxCents == null) return 'Compensation on request'
   const min = job.salaryMinCents == null ? '' : formatCents(job.salaryMinCents, job.salaryCurrency)
   const max = job.salaryMaxCents == null ? '' : formatCents(job.salaryMaxCents, job.salaryCurrency)
   return [min, max].filter(Boolean).join(' – ')
+}
+
+const workplaceLabels: Record<string, string> = { remote: 'Remote', hybrid: 'Hybrid', onsite: 'On-site' }
+const employmentLabels: Record<string, string> = {
+  full_time: 'Full-time',
+  part_time: 'Part-time',
+  contract: 'Contract',
+  internship: 'Internship',
+}
+
+function postedWhen(createdAt: string) {
+  const then = new Date(`${createdAt.replace(' ', 'T')}Z`).getTime()
+  const days = Math.floor((Date.now() - then) / 86_400_000)
+  if (days <= 0) return 'today'
+  return `${days}d ago`
 }
 
 export function EmployerJobsPage({ session }: { session: BackendSession | null }) {
@@ -75,34 +90,42 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
       {message ? <p className="jf-msg">{message}</p> : null}
 
       <div className="jf-page-grid">
-        <div className="jf-board-wrap">
-          <table className="jf-table">
-            <thead>
-              <tr>
-                <th>Role</th>
-                <th>Location</th>
-                <th>Compensation</th>
-                <th>Applicants</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {jobs.map((job) => (
-                <tr key={job.id} onClick={() => navigate(`../candidates?job=${job.id}`)}>
-                  <td><strong>{job.title}</strong></td>
-                  <td>{job.location}</td>
-                  <td>{salaryLabel(job)}</td>
-                  <td>{job.applicantCount}</td>
-                  <td><span className={`jf-pill ${job.status === 'open' ? 'jf-open' : 'jf-draft'}`}>{job.status}</span></td>
-                </tr>
-              ))}
-              {jobs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={{ color: 'var(--jf-muted)' }}>No roles yet. Publish your first role on the right.</td>
-                </tr>
+        <div className="jf-list">
+          {jobs.map((job) => (
+            <div className="jf-item" key={job.id}>
+              <div className="jf-item-head">
+                <div className="jf-logo-sq">{(job.title[0] ?? 'J').toUpperCase()}</div>
+                <div className="jf-meta">
+                  <strong>{job.title}</strong>
+                  <span>
+                    {job.company} · {job.location} · {salaryLabel(job)} ·{' '}
+                    {workplaceLabels[job.workplaceType] ?? job.workplaceType} ·{' '}
+                    {employmentLabels[job.employmentType] ?? job.employmentType}
+                  </span>
+                </div>
+                <span className={`jf-pill ${job.status === 'open' ? 'jf-open' : 'jf-draft'}`}>{job.status}</span>
+              </div>
+              {job.requiredSkills.length ? (
+                <div className="jf-item-skills">
+                  {job.requiredSkills.map((skill) => <span key={skill}>{skill}</span>)}
+                </div>
               ) : null}
-            </tbody>
-          </table>
+              {job.description ? (
+                <p className="jf-desc">{job.description}</p>
+              ) : (
+                <p className="jf-empty">No description added.</p>
+              )}
+              <div className="jf-item-actions" style={{ justifyContent: 'space-between' }}>
+                <span className="jf-msg">
+                  {job.applicantCount} applicant{job.applicantCount === 1 ? '' : 's'} · posted {postedWhen(job.createdAt)}
+                </span>
+                <button className="jf-btn jf-btn-ghost" onClick={() => navigate(`../candidates?job=${job.id}`)} type="button">
+                  Review applicants
+                </button>
+              </div>
+            </div>
+          ))}
+          {jobs.length === 0 ? <p className="jf-empty">No roles yet. Publish your first role on the right.</p> : null}
         </div>
 
         <form className="jf-post" onSubmit={handlePost}>
