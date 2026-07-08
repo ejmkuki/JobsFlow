@@ -60,7 +60,16 @@
 .jf-btn-primary:hover:not(:disabled) { filter: brightness(1.05); }
 .jf-btn-ghost { background: var(--jf-surface); border-color: var(--jf-line-strong); color: var(--jf-ink-2); }
 .jf-btn-ghost:hover:not(:disabled) { background: var(--jf-surface-2); }
+.jf-btn-danger { background: var(--jf-surface); border-color: var(--jf-line-strong); color: #dc2626; }
+.jf-btn-danger:hover:not(:disabled) { background: #fef2f2; border-color: #fca5a5; }
+.jf-btn-sm { height: 34px; padding: 0 12px; font-size: 13px; }
 .jf-msg { font-size: 13px; color: var(--jf-muted); }
+.jf-item-btns { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.jf-item-editing { outline: 2px solid var(--jf-sky); outline-offset: 2px; }
+.jf-post-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.jf-post-head h3 { margin: 0; }
+.jf-post select { border: 1px solid var(--jf-line-strong); border-radius: 10px; padding: 10px 12px; font: inherit; background: var(--jf-surface-2); color: var(--jf-ink); }
+.jf-post select:focus { outline: 2px solid #38bdf8; outline-offset: 1px; }
 
 /* Panels / cards */
 .jf-panel { background: var(--jf-surface); border: 1px solid var(--jf-line); border-radius: var(--jf-radius); padding: 22px; box-shadow: var(--jf-shadow); }

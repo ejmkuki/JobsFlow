@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { BackendSession, Job } from '../../backendClient'
-import { createJob, humanizeJobsFlowError, listMyJobs } from '../../backendClient'
+import { createJob, deleteJob, humanizeJobsFlowError, listMyJobs, updateJob } from '../../backendClient'
 import { formatCents } from '../../lib/format'
 
 function salaryLabel(job: Job) {
@@ -26,17 +26,29 @@ function postedWhen(createdAt: string) {
   return `${days}d ago`
 }
 
+const emptyForm = {
+  title: '',
+  location: 'Remote',
+  salaryMin: '',
+  salaryMax: '',
+  skills: '',
+  description: '',
+  employmentType: 'full_time',
+  workplaceType: 'remote',
+  status: 'open' as 'open' | 'paused' | 'closed' | 'draft',
+}
+
 export function EmployerJobsPage({ session }: { session: BackendSession | null }) {
   const navigate = useNavigate()
   const [jobs, setJobs] = useState<Job[]>([])
-  const [title, setTitle] = useState('')
-  const [location, setLocation] = useState('Remote')
-  const [salaryMin, setSalaryMin] = useState('')
-  const [salaryMax, setSalaryMax] = useState('')
-  const [skills, setSkills] = useState('')
-  const [description, setDescription] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState(emptyForm)
   const [message, setMessage] = useState('')
   const [isBusy, setIsBusy] = useState(false)
+
+  function set<K extends keyof typeof emptyForm>(key: K, value: (typeof emptyForm)[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }))
+  }
 
   function refresh() {
     if (!session) return
@@ -47,29 +59,74 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
 
   useEffect(refresh, [session])
 
-  async function handlePost(event: FormEvent<HTMLFormElement>) {
+  function resetForm() {
+    setEditingId(null)
+    setForm(emptyForm)
+  }
+
+  function loadForEdit(job: Job) {
+    setEditingId(job.id)
+    setForm({
+      title: job.title,
+      location: job.location,
+      salaryMin: job.salaryMinCents == null ? '' : String(Math.round(job.salaryMinCents / 100)),
+      salaryMax: job.salaryMaxCents == null ? '' : String(Math.round(job.salaryMaxCents / 100)),
+      skills: job.requiredSkills.join(', '),
+      description: job.description,
+      employmentType: job.employmentType,
+      workplaceType: job.workplaceType,
+      status: (job.status as typeof emptyForm.status) ?? 'open',
+    })
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!title.trim()) {
-      setMessage('Give the role a title before posting.')
+    if (!form.title.trim()) {
+      setMessage('Give the role a title before saving.')
       return
     }
     setIsBusy(true)
-    setMessage('Publishing…')
+    setMessage(editingId ? 'Saving…' : 'Publishing…')
+    const payload = {
+      title: form.title.trim(),
+      location: form.location.trim() || 'Remote',
+      description: form.description.trim(),
+      requiredSkills: form.skills.split(',').map((skill) => skill.trim()).filter(Boolean),
+      salaryMinCents: form.salaryMin ? Math.round(Number(form.salaryMin) * 100) : null,
+      salaryMaxCents: form.salaryMax ? Math.round(Number(form.salaryMax) * 100) : null,
+      employmentType: form.employmentType,
+      workplaceType: form.workplaceType,
+      status: form.status,
+    }
     try {
-      await createJob({
-        title: title.trim(),
-        location: location.trim() || 'Remote',
-        description: description.trim(),
-        requiredSkills: skills.split(',').map((skill) => skill.trim()).filter(Boolean),
-        salaryMinCents: salaryMin ? Math.round(Number(salaryMin) * 100) : null,
-        salaryMaxCents: salaryMax ? Math.round(Number(salaryMax) * 100) : null,
-      })
-      setTitle('')
-      setSalaryMin('')
-      setSalaryMax('')
-      setSkills('')
-      setDescription('')
-      setMessage('Role published. Candidates can find and apply to it now.')
+      if (editingId) {
+        await updateJob(editingId, payload)
+        setMessage('Changes saved.')
+      } else {
+        await createJob(payload)
+        setMessage('Role published. Candidates can find and apply to it now.')
+      }
+      resetForm()
+      refresh()
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'backend'))
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  async function handleDelete(job: Job) {
+    const hasApplicants = job.applicantCount > 0
+    const warning = hasApplicants
+      ? `Delete "${job.title}"? This also removes its ${job.applicantCount} applicant${job.applicantCount === 1 ? '' : 's'} and cannot be undone.`
+      : `Delete "${job.title}"? This cannot be undone.`
+    if (typeof window !== 'undefined' && !window.confirm(warning)) return
+    setIsBusy(true)
+    try {
+      await deleteJob(job.id)
+      if (editingId === job.id) resetForm()
+      setMessage('Role deleted.')
       refresh()
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'backend'))
@@ -92,7 +149,7 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
       <div className="jf-page-grid">
         <div className="jf-list">
           {jobs.map((job) => (
-            <div className="jf-item" key={job.id}>
+            <div className={`jf-item${editingId === job.id ? ' jf-item-editing' : ''}`} key={job.id}>
               <div className="jf-item-head">
                 <div className="jf-logo-sq">{(job.title[0] ?? 'J').toUpperCase()}</div>
                 <div className="jf-meta">
@@ -119,45 +176,88 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
                 <span className="jf-msg">
                   {job.applicantCount} applicant{job.applicantCount === 1 ? '' : 's'} · posted {postedWhen(job.createdAt)}
                 </span>
-                <button className="jf-btn jf-btn-ghost" onClick={() => navigate(`../candidates?job=${job.id}`)} type="button">
-                  Review applicants
-                </button>
+                <span className="jf-item-btns">
+                  <button className="jf-btn jf-btn-sm jf-btn-ghost" onClick={() => navigate(`../candidates?job=${job.id}`)} type="button">
+                    Review applicants
+                  </button>
+                  <button className="jf-btn jf-btn-sm jf-btn-ghost" disabled={isBusy} onClick={() => loadForEdit(job)} type="button">
+                    Edit
+                  </button>
+                  <button className="jf-btn jf-btn-sm jf-btn-danger" disabled={isBusy} onClick={() => handleDelete(job)} type="button">
+                    Delete
+                  </button>
+                </span>
               </div>
             </div>
           ))}
           {jobs.length === 0 ? <p className="jf-empty">No roles yet. Publish your first role on the right.</p> : null}
         </div>
 
-        <form className="jf-post" onSubmit={handlePost}>
-          <h3>Post a role</h3>
+        <form className="jf-post" onSubmit={handleSubmit}>
+          <div className="jf-post-head">
+            <h3>{editingId ? 'Edit role' : 'Post a role'}</h3>
+            {editingId ? (
+              <button className="jf-btn jf-btn-ghost" onClick={resetForm} type="button">
+                Cancel
+              </button>
+            ) : null}
+          </div>
           <label>
             Role title *
-            <input onChange={(event) => setTitle(event.target.value)} placeholder="Product Operations Manager" value={title} />
+            <input onChange={(event) => set('title', event.target.value)} placeholder="Product Operations Manager" value={form.title} />
           </label>
           <div className="jf-post-row">
             <label>
               Location
-              <input onChange={(event) => setLocation(event.target.value)} value={location} />
+              <input onChange={(event) => set('location', event.target.value)} value={form.location} />
             </label>
             <label>
               Min ($)
-              <input inputMode="numeric" onChange={(event) => setSalaryMin(event.target.value.replace(/\D/g, ''))} value={salaryMin} />
+              <input inputMode="numeric" onChange={(event) => set('salaryMin', event.target.value.replace(/\D/g, ''))} value={form.salaryMin} />
             </label>
             <label>
               Max ($)
-              <input inputMode="numeric" onChange={(event) => setSalaryMax(event.target.value.replace(/\D/g, ''))} value={salaryMax} />
+              <input inputMode="numeric" onChange={(event) => set('salaryMax', event.target.value.replace(/\D/g, ''))} value={form.salaryMax} />
+            </label>
+          </div>
+          <div className="jf-post-row">
+            <label>
+              Workplace
+              <select onChange={(event) => set('workplaceType', event.target.value)} value={form.workplaceType}>
+                <option value="remote">Remote</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="onsite">On-site</option>
+              </select>
+            </label>
+            <label>
+              Employment
+              <select onChange={(event) => set('employmentType', event.target.value)} value={form.employmentType}>
+                <option value="full_time">Full-time</option>
+                <option value="part_time">Part-time</option>
+                <option value="contract">Contract</option>
+                <option value="internship">Internship</option>
+              </select>
+            </label>
+            <label>
+              Status
+              <select onChange={(event) => set('status', event.target.value as typeof emptyForm.status)} value={form.status}>
+                <option value="open">Open</option>
+                <option value="paused">Paused</option>
+                <option value="closed">Closed</option>
+                <option value="draft">Draft</option>
+              </select>
             </label>
           </div>
           <label>
             Must-have skills (comma separated)
-            <input onChange={(event) => setSkills(event.target.value)} placeholder="Product operations, Healthcare SaaS" value={skills} />
+            <input onChange={(event) => set('skills', event.target.value)} placeholder="Product operations, Healthcare SaaS" value={form.skills} />
           </label>
           <label>
             Description
-            <textarea onChange={(event) => setDescription(event.target.value)} rows={3} value={description} />
+            <textarea onChange={(event) => set('description', event.target.value)} rows={editingId ? 6 : 3} value={form.description} />
           </label>
-          <button className="jf-btn jf-btn-primary" disabled={isBusy || !title.trim()} type="submit" style={{ alignSelf: 'flex-start' }}>
-            Publish role
+          <button className="jf-btn jf-btn-primary" disabled={isBusy || !form.title.trim()} type="submit" style={{ alignSelf: 'flex-start' }}>
+            {editingId ? 'Save changes' : 'Publish role'}
           </button>
         </form>
       </div>

@@ -1769,7 +1769,7 @@ export type JobDraft = {
   salaryMinCents?: number | null
   salaryMaxCents?: number | null
   salaryCurrency?: string
-  status?: 'open' | 'draft'
+  status?: 'open' | 'draft' | 'paused' | 'closed'
 }
 
 export type CandidateApplication = {
@@ -1815,6 +1815,16 @@ export async function listMyJobs() {
 
 export async function createJob(input: JobDraft) {
   return readJson<{ ok: boolean; job: Job }>(await fetch('/api/jobs', jsonPost(input)))
+}
+
+export async function updateJob(id: string, input: JobDraft) {
+  return readJson<{ ok: boolean; job: Job }>(
+    await fetch('/api/jobs', { ...jsonPost({ ...input, id }), method: 'PUT' }),
+  )
+}
+
+export async function deleteJob(id: string) {
+  return readJson<{ ok: boolean }>(await fetch(`/api/jobs?id=${encodeURIComponent(id)}`, { method: 'DELETE' }))
 }
 
 export async function listMyApplications() {

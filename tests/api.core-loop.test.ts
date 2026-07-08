@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 import type { Env } from '../functions/_shared'
 import { callHandler, createTestWorld, extractSessionCookie } from './helpers/worker'
 import { onRequestPost as sessionPost } from '../functions/api/session'
-import { onRequestGet as jobsGet, onRequestPost as jobsPost } from '../functions/api/jobs'
+import {
+  onRequestDelete as jobsDelete,
+  onRequestGet as jobsGet,
+  onRequestPost as jobsPost,
+  onRequestPut as jobsPut,
+} from '../functions/api/jobs'
 import { onRequestGet as appsGet, onRequestPost as appsPost } from '../functions/api/job-applications'
 
 const jsonHeaders = { 'content-type': 'application/json' }
@@ -115,6 +120,77 @@ describe('core loop: post job -> browse -> apply -> employer sees -> advance', (
       body: JSON.stringify({ title: 'Contract role' }),
     })
     expect(res.status).toBe(201)
+  })
+})
+
+describe('job edit + delete', () => {
+  it('owner can edit their role; a non-owner cannot', async () => {
+    const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
+    const owner = await createSession(world.env, 'owner@co.com', 'employer')
+    const other = await createSession(world.env, 'other@co.com', 'employer')
+    const { jobId } = await postJob(world.env, owner, 'Old title')
+
+    const edit = await callHandler(jobsPut, {
+      env: world.env,
+      method: 'PUT',
+      url: `${base}/api/jobs`,
+      headers: { ...jsonHeaders, cookie: owner },
+      body: JSON.stringify({ id: jobId, title: 'New title', status: 'paused', requiredSkills: ['Ops'] }),
+    })
+    expect(edit.status).toBe(200)
+    expect(((await edit.json()) as { job: { title: string; status: string } }).job.title).toBe('New title')
+
+    const hijack = await callHandler(jobsPut, {
+      env: world.env,
+      method: 'PUT',
+      url: `${base}/api/jobs`,
+      headers: { ...jsonHeaders, cookie: other },
+      body: JSON.stringify({ id: jobId, title: 'Hacked' }),
+    })
+    expect(hijack.status).toBe(404)
+  })
+
+  it('deletes a role and cascades its applications', async () => {
+    const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
+    const owner = await createSession(world.env, 'del@co.com', 'employer')
+    const candidate = await createSession(world.env, 'delcand@me.com', 'candidate')
+    const { jobId } = await postJob(world.env, owner, 'To be deleted')
+    await apply(world.env, candidate, jobId!)
+
+    const del = await callHandler(jobsDelete, {
+      env: world.env,
+      method: 'DELETE',
+      url: `${base}/api/jobs?id=${jobId}`,
+      headers: { cookie: owner },
+    })
+    expect(del.status).toBe(200)
+
+    // Job is gone from the owner's list.
+    const mine = await callHandler(jobsGet, { env: world.env, url: `${base}/api/jobs?scope=mine`, headers: { cookie: owner } })
+    expect(((await mine.json()) as { jobs: Array<{ id: string }> }).jobs.map((j) => j.id)).not.toContain(jobId)
+
+    // Candidate's application is gone too (FK cascade).
+    const apps = await callHandler(appsGet, { env: world.env, url: `${base}/api/job-applications`, headers: { cookie: candidate } })
+    expect(((await apps.json()) as { applications: unknown[] }).applications.length).toBe(0)
+  })
+
+  it('a non-owner cannot delete a role', async () => {
+    const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
+    const owner = await createSession(world.env, 'own2@co.com', 'employer')
+    const other = await createSession(world.env, 'oth2@co.com', 'employer')
+    const { jobId } = await postJob(world.env, owner, 'Guarded')
+
+    const del = await callHandler(jobsDelete, {
+      env: world.env,
+      method: 'DELETE',
+      url: `${base}/api/jobs?id=${jobId}`,
+      headers: { cookie: other },
+    })
+    expect(del.status).toBe(404)
+
+    // Still there for the owner.
+    const mine = await callHandler(jobsGet, { env: world.env, url: `${base}/api/jobs?scope=mine`, headers: { cookie: owner } })
+    expect(((await mine.json()) as { jobs: Array<{ id: string }> }).jobs.map((j) => j.id)).toContain(jobId)
   })
 })
 

@@ -66,6 +66,7 @@ export type TestWorld = {
 
 export function createTestWorld(overrides: Partial<Env> = {}): TestWorld {
   const db = new DatabaseSync(':memory:')
+  db.exec('PRAGMA foreign_keys = ON')
   applyMigrations(db)
   const r2 = makeR2()
   const env = {
