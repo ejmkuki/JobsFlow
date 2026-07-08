@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Sparkles } from 'lucide-react'
 import type { BackendSession, CandidateApplication } from '../../backendClient'
-import { humanizeJobsFlowError, listMyApplications, listResumes } from '../../backendClient'
+import { getProfile, humanizeJobsFlowError, listMyApplications, listResumes } from '../../backendClient'
 
 const statusLabels: Record<string, string> = {
   submitted: 'Submitted',
@@ -31,10 +31,10 @@ export function CandidateHomePage({ session }: { session: BackendSession | null 
 
   useEffect(() => {
     if (!session) return
-    Promise.all([listMyApplications(), listResumes()])
-      .then(([apps, resumes]) => {
+    Promise.all([listMyApplications(), listResumes(), getProfile()])
+      .then(([apps, resumes, profile]) => {
         setApplications(apps.applications)
-        setHasResume(resumes.resumes.length > 0)
+        setHasResume(resumes.resumes.length > 0 || profile.profile.resumeText.trim().length > 0)
       })
       .catch((error) => setMessage(humanizeJobsFlowError(error, 'backend')))
   }, [session])
@@ -123,7 +123,13 @@ export function CandidateHomePage({ session }: { session: BackendSession | null 
                 <span>{check.detail}</span>
               </div>
               {!check.done ? (
-                <button className="jf-edit" onClick={() => navigate('/candidate/jobs')} type="button">Add</button>
+                <button
+                  className="jf-edit"
+                  onClick={() => navigate(check.label === 'Upload a resume' ? '/candidate/profile' : '/candidate/jobs')}
+                  type="button"
+                >
+                  Add
+                </button>
               ) : null}
             </div>
           ))}

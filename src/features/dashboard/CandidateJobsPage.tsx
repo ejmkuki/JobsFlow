@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search, SendHorizontal } from 'lucide-react'
-import type { BackendSession, CandidateApplication, Job, MatchResult } from '../../backendClient'
-import { applyToJob, humanizeJobsFlowError, listMyApplications, listOpenJobs, previewMatch } from '../../backendClient'
+import type { BackendSession, CandidateApplication, Job, MatchResult, ResumeArtifact } from '../../backendClient'
+import { applyToJob, humanizeJobsFlowError, listMyApplications, listOpenJobs, listResumes, previewMatch } from '../../backendClient'
 import { formatCents } from '../../lib/format'
 
 function methodLabel(method: MatchResult['method']) {
@@ -25,6 +25,8 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
   const [applications, setApplications] = useState<CandidateApplication[]>([])
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [fits, setFits] = useState<Record<string, MatchResult | 'loading'>>({})
+  const [resumeFiles, setResumeFiles] = useState<ResumeArtifact[]>([])
+  const [selectedResumeId, setSelectedResumeId] = useState('')
   const [message, setMessage] = useState('')
   const [isBusy, setIsBusy] = useState(false)
 
@@ -33,9 +35,10 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
   const load = useCallback(async (search: string) => {
     if (!session) return
     try {
-      const [jobsResult, appsResult] = await Promise.all([listOpenJobs(search), listMyApplications()])
+      const [jobsResult, appsResult, resumesResult] = await Promise.all([listOpenJobs(search), listMyApplications(), listResumes()])
       setJobs(jobsResult.jobs)
       setApplications(appsResult.applications)
+      setResumeFiles(resumesResult.resumes)
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'backend'))
     }
@@ -69,7 +72,11 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
     setIsBusy(true)
     setMessage(`Applying to ${job.title}…`)
     try {
-      const result = await applyToJob({ jobId: job.id, coverNote: notes[job.id]?.trim() ?? '' })
+      const result = await applyToJob({
+        jobId: job.id,
+        coverNote: notes[job.id]?.trim() ?? '',
+        resumeArtifactId: selectedResumeId || undefined,
+      })
       setFits((current) => ({ ...current, [job.id]: result.match }))
       setMessage(`Applied to ${job.title} at ${job.company} — ${result.match.score}% match.`)
       await load(searchParams.get('q') ?? '')
@@ -142,9 +149,22 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
                   <input
                     className="jf-item-note"
                     onChange={(event) => setNotes((current) => ({ ...current, [job.id]: event.target.value }))}
-                    placeholder="Optional note to the hiring team"
+                    placeholder="Cover letter (optional)"
                     value={notes[job.id] ?? ''}
                   />
+                  {resumeFiles.length ? (
+                    <select
+                      aria-label="Attach resume file"
+                      className="jf-select"
+                      onChange={(event) => setSelectedResumeId(event.target.value)}
+                      value={selectedResumeId}
+                    >
+                      <option value="">No file attached</option>
+                      {resumeFiles.map((file) => (
+                        <option key={file.id} value={file.id}>{file.filename}</option>
+                      ))}
+                    </select>
+                  ) : null}
                   <button className="jf-btn jf-btn-ghost" disabled={fits[job.id] === 'loading'} onClick={() => void handleCheckFit(job)} type="button">
                     Check fit
                   </button>
