@@ -1257,7 +1257,10 @@ export function humanizeJobsFlowError(error: unknown, context: JobsFlowErrorCont
       return 'Hiring-system connections are being updated. Please try again shortly.'
     }
 
-    return 'JobsFlow could not complete that action. Please try again.'
+    // No legacy-panel case matched (jobs, applications, profile, matching, and
+    // any future endpoint) — use the specific message the server sent rather
+    // than a canned string that discards it.
+    return error.message || 'JobsFlow could not complete that action. Please try again.'
   }
 
   return 'JobsFlow could not complete that action. Please try again.'
