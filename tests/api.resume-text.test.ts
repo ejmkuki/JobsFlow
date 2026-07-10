@@ -88,6 +88,23 @@ async function uploadFile(env: Env, cookie: string, file: File) {
   return res
 }
 
+// Hand-builds a minimal PDF with one FlateDecode content-stream object.
+// No xref/trailer/page-tree — the extractor scans for `N G obj ... stream
+// ... endstream` blocks directly, so this loose file exercises it exactly
+// like a real one would.
+async function buildPdfFile(...lines: string[]): Promise<File> {
+  const content = lines.map((line, i) => (i === 0 ? `BT 72 720 Td (${line}) Tj` : `0 -14 Td (${line}) Tj`)).join(' ') + ' ET'
+  const compressedStream = new Blob([new TextEncoder().encode(content)]).stream().pipeThrough(new CompressionStream('deflate'))
+  const compressed = new Uint8Array(await new Response(compressedStream).arrayBuffer())
+  const prefix = new TextEncoder().encode('%PDF-1.4\n1 0 obj\n<< /Length 1 /Filter /FlateDecode >>\nstream\n')
+  const suffix = new TextEncoder().encode('\nendstream\nendobj\n')
+  const bytes = new Uint8Array(prefix.length + compressed.length + suffix.length)
+  bytes.set(prefix, 0)
+  bytes.set(compressed, prefix.length)
+  bytes.set(suffix, prefix.length + compressed.length)
+  return new File([bytes], 'resume.pdf', { type: 'application/pdf' })
+}
+
 describe('per-file resume text extraction and selection', () => {
   it('extracts text from an uploaded docx at upload time and exposes hasText', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
@@ -104,7 +121,7 @@ describe('per-file resume text extraction and selection', () => {
     expect(listBody.resumes[0].hasText).toBe(true)
   })
 
-  it('leaves hasText false for a PDF (no server-side extraction yet)', async () => {
+  it('leaves hasText false for a file that is not actually a readable PDF', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
     const candidate = await createSession(world.env, 'pdf1@me.com', 'candidate')
     const pdf = new File([new Uint8Array([1, 2, 3, 4])], 'resume.pdf', { type: 'application/pdf' })
@@ -112,6 +129,29 @@ describe('per-file resume text extraction and selection', () => {
     const uploadRes = await uploadFile(world.env, candidate, pdf)
     const uploadBody = (await uploadRes.json()) as { resume: { hasText: boolean } }
     expect(uploadBody.resume.hasText).toBe(false)
+  })
+
+  it('extracts text from a real PDF at upload time and scores it via Check Fit', async () => {
+    const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
+    const employer = await createSession(world.env, 'pdfemp1@co.com', 'employer')
+    const candidate = await createSession(world.env, 'pdf2@me.com', 'candidate')
+    const jobId = await postJob(world.env, employer, 'DBA', ['Oracle', 'RMAN'])
+    const pdf = await buildPdfFile('Ten years of Oracle administration and RMAN backups.')
+
+    const uploadRes = await uploadFile(world.env, candidate, pdf)
+    const uploadBody = (await uploadRes.json()) as { resume: { id: string; hasText: boolean } }
+    expect(uploadBody.resume.hasText).toBe(true)
+
+    const fit = await callHandler(previewPost, {
+      env: world.env,
+      method: 'POST',
+      url: `${base}/api/match-preview`,
+      headers: { ...jsonHeaders, cookie: candidate },
+      body: JSON.stringify({ jobId, resumeArtifactId: uploadBody.resume.id }),
+    })
+    const fitBody = (await fit.json()) as { match: { score: number; method: string } }
+    expect(fitBody.match.method).toBe('keyword')
+    expect(fitBody.match.score).toBe(100)
   })
 
   it('Check Fit scores against the selected resume file, not always the profile text', async () => {

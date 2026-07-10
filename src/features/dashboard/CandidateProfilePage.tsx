@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } fr
 import type { BackendSession, ResumeArtifact } from '../../backendClient'
 import { getProfile, humanizeJobsFlowError, listResumes, saveProfile, uploadResume } from '../../backendClient'
 import { extractDocxText } from '../../lib/docx'
+import { extractPdfText } from '../../lib/pdf'
 
 export function CandidateProfilePage({ session }: { session: BackendSession | null }) {
   const [headline, setHeadline] = useState('')
@@ -63,12 +64,14 @@ export function CandidateProfilePage({ session }: { session: BackendSession | nu
       await uploadResume(file)
       setSelectedFile(null)
 
-      // .docx is a readable zip — extract its text automatically so matching
+      // Both .docx and PDF get their text read automatically so matching
       // works without a separate paste step. Never overwrite text the
-      // candidate already saved.
+      // candidate already saved. PDF extraction is best-effort — some files
+      // (embedded/subset fonts) honestly can't be read; the message says so.
       const isDocx = file.name.toLowerCase().endsWith('.docx')
-      if (isDocx && !resumeText.trim()) {
-        const extracted = await extractDocxText(file)
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+      if ((isDocx || isPdf) && !resumeText.trim()) {
+        const extracted = isDocx ? await extractDocxText(file) : await extractPdfText(file)
         if (extracted) {
           await saveProfile({ resumeText: extracted, headline: headline.trim() })
           await load()
@@ -81,7 +84,7 @@ export function CandidateProfilePage({ session }: { session: BackendSession | nu
       }
 
       await load()
-      setFileMessage(isDocx ? 'Uploaded.' : 'Uploaded. PDF text extraction is not automatic yet — paste your resume text above so matching works.')
+      setFileMessage('Uploaded.')
     } catch (error) {
       setFileMessage(humanizeJobsFlowError(error, 'resume'))
     } finally {
@@ -132,8 +135,8 @@ export function CandidateProfilePage({ session }: { session: BackendSession | nu
       <div className="jf-panel jf-profile">
         <h3 style={{ margin: 0 }}>Resume file</h3>
         <p className="jf-msg" style={{ margin: 0 }}>
-          Attach a PDF/DOCX so employers can download it. Upload a .docx and JobsFlow reads its text automatically if the field above
-          is empty; PDFs still need to be pasted in manually for now.
+          Attach a PDF/DOCX so employers can download it. JobsFlow reads its text automatically if the field above is empty —
+          most PDFs work; a few with unusual embedded fonts may need a manual paste.
         </p>
         <div className="jf-item-actions" style={{ justifyContent: 'flex-start' }}>
           <input accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleFileChange} type="file" />

@@ -10,6 +10,7 @@ import {
   writeAuditEvent,
 } from '../_shared'
 import { extractDocxText } from '../lib/docx'
+import { extractPdfText } from '../lib/pdf'
 
 type ResumeRow = {
   approvalStatus: string
@@ -189,13 +190,16 @@ export async function onRequestPost({ request, env }: RequestContext) {
   const filename = sanitizeFilename(resume.name || 'resume')
   const objectKey = `tenants/${session.tenantId}/resumes/${artifactId}-${filename}`
 
-  // .docx is a readable zip — extract its text now so this specific file can
-  // be scored on its own via Check Fit, independent of the candidate's
-  // single profile resume text. PDFs aren't extracted yet.
-  const extractedText =
-    resume.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      ? ((await extractDocxText(new Uint8Array(bytes))) ?? '')
-      : ''
+  // Extract text now so this specific file can be scored on its own via
+  // Check Fit, independent of the candidate's single profile resume text.
+  // PDF extraction is best-effort (see lib/pdf.ts) and honestly returns
+  // nothing rather than garbled text for files it can't confidently read.
+  let extractedText = ''
+  if (resume.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    extractedText = (await extractDocxText(new Uint8Array(bytes))) ?? ''
+  } else if (resume.type === 'application/pdf') {
+    extractedText = (await extractPdfText(new Uint8Array(bytes))) ?? ''
+  }
 
   await env.RESUME_BUCKET.put(objectKey, bytes, {
     httpMetadata: {
