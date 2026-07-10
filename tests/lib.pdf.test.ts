@@ -74,4 +74,53 @@ describe('extractPdfText', () => {
     const text = await extractPdfText(toFile(bytes))
     expect(text).toBeNull()
   })
+
+  // Word/Google Docs/most browser "export to PDF" pipelines subset their
+  // fonts as Type0/Identity-H, encoding every glyph as a 2-byte CID with no
+  // literal space character — word gaps are oversized negative TJ kerning
+  // offsets instead. This is the dominant real-world case, not an edge case.
+  it('decodes a CID/Identity-H font via its ToUnicode CMap and recovers word spacing from TJ gaps', async () => {
+    const cmapStream =
+      '/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n' +
+      '1 beginbfchar\n<0001> <0048>\n<0002> <0069>\n<0003> <0021>\n<0004> <0042>\nendbfchar\n' +
+      'endcmap\nend\nend'
+
+    const pdf =
+      '%PDF-1.4\n' +
+      '1 0 obj\n<< /Type /Page /Contents 2 0 R /Resources << /Font << /F1 3 0 R >> >> >>\nendobj\n' +
+      '2 0 obj\n<< /Length 1 >>\nstream\n' +
+      'BT /F1 12 Tf 0 0 Td [<0001><0002><0003>-300<0004><0002><0003>]TJ ET\n' +
+      'endstream\nendobj\n' +
+      '3 0 obj\n<< /Type /Font /Subtype /Type0 /Encoding /Identity-H /ToUnicode 4 0 R >>\nendobj\n' +
+      `4 0 obj\n<< /Length 1 >>\nstream\n${cmapStream}\nendstream\nendobj\n`
+
+    const bytes = new TextEncoder().encode(pdf)
+    const text = await extractPdfText(toFile(bytes))
+    expect(text).toBe('Hi! Bi!')
+  })
+
+  it('resolves font resource names per-page instead of a document-wide union', async () => {
+    // Two pages both use resource name /F1, but each page's /Resources maps
+    // it to a *different* CID font — a real pattern in multi-page PDFs
+    // (e.g. a bold heading font on page 1, body font as /F1 on page 2).
+    // Decoding must use each content stream's own page's font map, not
+    // whichever page happened to be parsed last.
+    const cmapA = '/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n1 beginbfchar\n<0001> <0041>\nendbfchar\nendcmap\nend\nend'
+    const cmapB = '/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n1 beginbfchar\n<0001> <005A>\nendbfchar\nendcmap\nend\nend'
+
+    const pdf =
+      '%PDF-1.4\n' +
+      '1 0 obj\n<< /Type /Page /Contents 2 0 R /Resources << /Font << /F1 10 0 R >> >> >>\nendobj\n' +
+      '2 0 obj\n<< /Length 1 >>\nstream\nBT /F1 12 Tf 0 0 Td [<0001>]TJ ET\nendstream\nendobj\n' +
+      '3 0 obj\n<< /Type /Page /Contents 4 0 R /Resources << /Font << /F1 11 0 R >> >> >>\nendobj\n' +
+      '4 0 obj\n<< /Length 1 >>\nstream\nBT /F1 12 Tf 0 0 Td [<0001>]TJ ET\nendstream\nendobj\n' +
+      '10 0 obj\n<< /Type /Font /Subtype /Type0 /Encoding /Identity-H /ToUnicode 12 0 R >>\nendobj\n' +
+      '11 0 obj\n<< /Type /Font /Subtype /Type0 /Encoding /Identity-H /ToUnicode 13 0 R >>\nendobj\n' +
+      `12 0 obj\n<< /Length 1 >>\nstream\n${cmapA}\nendstream\nendobj\n` +
+      `13 0 obj\n<< /Length 1 >>\nstream\n${cmapB}\nendstream\nendobj\n`
+
+    const bytes = new TextEncoder().encode(pdf)
+    const text = await extractPdfText(toFile(bytes))
+    expect(text).toBe('A\nZ')
+  })
 })
