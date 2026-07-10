@@ -2,7 +2,7 @@ import type { RequestContext } from '../_shared'
 import { enforceRateLimit, getSession, json, missingConfig, safeString, tooManyRequests } from '../_shared'
 import { computeMatch, type JobForMatch } from '../lib/match'
 
-type PreviewBody = { jobId?: unknown }
+type PreviewBody = { jobId?: unknown; resumeArtifactId?: unknown }
 
 type JobRow = {
   employerTenantId: string
@@ -59,10 +59,27 @@ export async function onRequestPost({ request, env }: RequestContext) {
     return json({ ok: false, error: 'own_job', message: 'This is your own posting.' }, 400)
   }
 
-  const profile = await env.DB
-    .prepare('SELECT resume_text AS resumeText FROM candidate_resume_profiles WHERE tenant_id = ? LIMIT 1')
-    .bind(session.tenantId)
-    .first<{ resumeText: string }>()
+  // A specific resume file can be checked instead of the profile text, so a
+  // candidate with multiple resume variants can see which one fits best.
+  const resumeArtifactId = safeString(body.resumeArtifactId, '')
+  let resumeText: string
+
+  if (resumeArtifactId) {
+    const artifact = await env.DB
+      .prepare('SELECT extracted_text AS extractedText FROM resume_artifacts WHERE id = ? AND tenant_id = ? LIMIT 1')
+      .bind(resumeArtifactId, session.tenantId)
+      .first<{ extractedText: string }>()
+    if (!artifact) {
+      return json({ ok: false, error: 'resume_not_found', message: 'That resume is not in your workspace.' }, 400)
+    }
+    resumeText = artifact.extractedText
+  } else {
+    const profile = await env.DB
+      .prepare('SELECT resume_text AS resumeText FROM candidate_resume_profiles WHERE tenant_id = ? LIMIT 1')
+      .bind(session.tenantId)
+      .first<{ resumeText: string }>()
+    resumeText = profile?.resumeText ?? ''
+  }
 
   const jobForMatch: JobForMatch = {
     title: job.title,
@@ -71,6 +88,6 @@ export async function onRequestPost({ request, env }: RequestContext) {
     requiredSkills: JSON.parse(job.requiredSkills || '[]') as string[],
   }
 
-  const match = await computeMatch(profile?.resumeText ?? '', jobForMatch, env)
+  const match = await computeMatch(resumeText, jobForMatch, env)
   return json({ ok: true, match })
 }

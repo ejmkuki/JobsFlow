@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { BackendSession, Job, JobApplicant, MatchMethod } from '../../backendClient'
 import { advanceApplication, humanizeJobsFlowError, listJobApplicants, listMyJobs, parseMatchRationale } from '../../backendClient'
 import { formatCents } from '../../lib/format'
@@ -78,6 +78,7 @@ function relativeDay(createdAt: string) {
 }
 
 export function EmployerPipelinePage({ session }: { session: BackendSession | null }) {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const jobParam = searchParams.get('job')
   const [jobs, setJobs] = useState<Job[]>([])
@@ -159,6 +160,9 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
               ))}
             </select>
           ) : null}
+          <button className="jf-btn jf-btn-primary" onClick={() => navigate('../jobs')} type="button">
+            + New role
+          </button>
         </div>
       </div>
 

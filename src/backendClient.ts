@@ -80,6 +80,7 @@ export type ResumeArtifact = {
   id: string
   sizeBytes: number
   sourceHash: string
+  hasText: boolean
 }
 
 export type PacketReviewState = 'approved' | 'blocked' | 'candidate_approval_required'
@@ -1915,8 +1916,10 @@ export async function saveProfile(input: { resumeText: string; headline?: string
   )
 }
 
-export async function previewMatch(jobId: string) {
-  return readJson<{ ok: boolean; match: MatchResult }>(await fetch('/api/match-preview', jsonPost({ jobId })))
+export async function previewMatch(jobId: string, resumeArtifactId?: string) {
+  return readJson<{ ok: boolean; match: MatchResult }>(
+    await fetch('/api/match-preview', jsonPost({ jobId, resumeArtifactId })),
+  )
 }
 
 export async function advanceApplication(input: { applicationId: string; status: string; note?: string }) {

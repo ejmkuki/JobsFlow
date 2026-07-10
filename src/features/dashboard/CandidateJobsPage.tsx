@@ -24,7 +24,7 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
   const [jobs, setJobs] = useState<Job[]>([])
   const [applications, setApplications] = useState<CandidateApplication[]>([])
   const [notes, setNotes] = useState<Record<string, string>>({})
-  const [fits, setFits] = useState<Record<string, MatchResult | 'loading'>>({})
+  const [fits, setFits] = useState<Record<string, { match: MatchResult; resumeLabel: string } | 'loading'>>({})
   const [resumeFiles, setResumeFiles] = useState<ResumeArtifact[]>([])
   const [selectedResumeId, setSelectedResumeId] = useState('')
   const [message, setMessage] = useState('')
@@ -54,10 +54,13 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
   }
 
   async function handleCheckFit(job: Job) {
+    const resumeLabel = selectedResumeId
+      ? resumeFiles.find((file) => file.id === selectedResumeId)?.filename ?? 'selected resume'
+      : 'your profile resume'
     setFits((current) => ({ ...current, [job.id]: 'loading' }))
     try {
-      const result = await previewMatch(job.id)
-      setFits((current) => ({ ...current, [job.id]: result.match }))
+      const result = await previewMatch(job.id, selectedResumeId || undefined)
+      setFits((current) => ({ ...current, [job.id]: { match: result.match, resumeLabel } }))
     } catch (error) {
       setFits((current) => {
         const next = { ...current }
@@ -69,6 +72,9 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
   }
 
   async function handleApply(job: Job) {
+    const resumeLabel = selectedResumeId
+      ? resumeFiles.find((file) => file.id === selectedResumeId)?.filename ?? 'selected resume'
+      : 'your profile resume'
     setIsBusy(true)
     setMessage(`Applying to ${job.title}…`)
     try {
@@ -77,7 +83,7 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
         coverNote: notes[job.id]?.trim() ?? '',
         resumeArtifactId: selectedResumeId || undefined,
       })
-      setFits((current) => ({ ...current, [job.id]: result.match }))
+      setFits((current) => ({ ...current, [job.id]: { match: result.match, resumeLabel } }))
       setMessage(`Applied to ${job.title} at ${job.company} — ${result.match.score}% match.`)
       await load(searchParams.get('q') ?? '')
     } catch (error) {
@@ -132,13 +138,14 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
                 return (
                   <div className="jf-fitcard">
                     <div className="jf-fit-head">
-                      <b>{fit.score}% fit</b>
-                      <span className="jf-chip">{methodLabel(fit.method)}</span>
+                      <b>{fit.match.score}% fit</b>
+                      <span className="jf-chip">{methodLabel(fit.match.method)}</span>
+                      <span className="jf-msg">Scored against {fit.resumeLabel}</span>
                     </div>
-                    {fit.summary ? <p className="jf-msg" style={{ margin: 0 }}>{fit.summary}</p> : null}
-                    {fit.gaps.length ? (
+                    {fit.match.summary ? <p className="jf-msg" style={{ margin: 0 }}>{fit.match.summary}</p> : null}
+                    {fit.match.gaps.length ? (
                       <div className="jf-item-skills">
-                        {fit.gaps.slice(0, 6).map((gap) => <span className="jf-gap" key={gap}>Missing: {gap}</span>)}
+                        {fit.match.gaps.slice(0, 6).map((gap) => <span className="jf-gap" key={gap}>Missing: {gap}</span>)}
                       </div>
                     ) : null}
                   </div>
@@ -159,9 +166,11 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
                       onChange={(event) => setSelectedResumeId(event.target.value)}
                       value={selectedResumeId}
                     >
-                      <option value="">No file attached</option>
+                      <option value="">No file attached (score from profile)</option>
                       {resumeFiles.map((file) => (
-                        <option key={file.id} value={file.id}>{file.filename}</option>
+                        <option key={file.id} value={file.id}>
+                          {file.filename}{file.hasText ? '' : ' (text not read yet)'}
+                        </option>
                       ))}
                     </select>
                   ) : null}

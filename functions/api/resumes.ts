@@ -9,6 +9,7 @@ import {
   tooManyRequests,
   writeAuditEvent,
 } from '../_shared'
+import { extractDocxText } from '../lib/docx'
 
 type ResumeRow = {
   approvalStatus: string
@@ -18,6 +19,7 @@ type ResumeRow = {
   id: string
   sizeBytes: number
   sourceHash: string
+  hasText: number
 }
 
 type ResumeArtifactRow = {
@@ -61,7 +63,8 @@ export async function onRequestGet({ request, env }: RequestContext) {
         size_bytes AS sizeBytes,
         source_hash AS sourceHash,
         approval_status AS approvalStatus,
-        created_at AS createdAt
+        created_at AS createdAt,
+        LENGTH(extracted_text) > 0 AS hasText
       FROM resume_artifacts
       WHERE tenant_id = ?
       ORDER BY created_at DESC
@@ -73,7 +76,7 @@ export async function onRequestGet({ request, env }: RequestContext) {
 
   return json({
     ok: true,
-    resumes: resumes.results ?? [],
+    resumes: (resumes.results ?? []).map((row) => ({ ...row, hasText: Boolean(row.hasText) })),
   })
 }
 
@@ -186,6 +189,14 @@ export async function onRequestPost({ request, env }: RequestContext) {
   const filename = sanitizeFilename(resume.name || 'resume')
   const objectKey = `tenants/${session.tenantId}/resumes/${artifactId}-${filename}`
 
+  // .docx is a readable zip — extract its text now so this specific file can
+  // be scored on its own via Check Fit, independent of the candidate's
+  // single profile resume text. PDFs aren't extracted yet.
+  const extractedText =
+    resume.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ? ((await extractDocxText(new Uint8Array(bytes))) ?? '')
+      : ''
+
   await env.RESUME_BUCKET.put(objectKey, bytes, {
     httpMetadata: {
       contentType: resume.type,
@@ -202,9 +213,9 @@ export async function onRequestPost({ request, env }: RequestContext) {
     .prepare(
       `
       INSERT INTO resume_artifacts (
-        id, tenant_id, user_id, object_key, filename, content_type, size_bytes, source_hash
+        id, tenant_id, user_id, object_key, filename, content_type, size_bytes, source_hash, extracted_text
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
     )
     .bind(
@@ -216,6 +227,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       resume.type,
       resume.size,
       sourceHash,
+      extractedText,
     )
     .run()
 
@@ -244,6 +256,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
         sizeBytes: resume.size,
         sourceHash,
         approvalStatus: 'uploaded',
+        hasText: extractedText.length > 0,
       },
     },
     201,

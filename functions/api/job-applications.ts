@@ -116,16 +116,27 @@ async function handleApply(request: Request, env: RequestContext['env'], session
     return json({ ok: false, error: 'own_job', message: 'You cannot apply to your own posting.' }, 400)
   }
 
-  // Verify any attached resume belongs to the applying candidate.
+  // Verify any attached resume belongs to the applying candidate, and use
+  // that specific file's text for scoring — the score should match whichever
+  // resume the candidate actually chose to attach, not always the profile
+  // default.
   const resumeArtifactId = safeString(body.resumeArtifactId, '')
+  let resumeText: string
   if (resumeArtifactId) {
     const resume = await env.DB!
-      .prepare('SELECT id FROM resume_artifacts WHERE id = ? AND tenant_id = ? LIMIT 1')
+      .prepare('SELECT extracted_text AS extractedText FROM resume_artifacts WHERE id = ? AND tenant_id = ? LIMIT 1')
       .bind(resumeArtifactId, session.tenantId)
-      .first<{ id: string }>()
+      .first<{ extractedText: string }>()
     if (!resume) {
       return json({ ok: false, error: 'resume_not_found', message: 'That resume is not in your workspace.' }, 400)
     }
+    resumeText = resume.extractedText
+  } else {
+    const profile = await env.DB!
+      .prepare('SELECT resume_text AS resumeText FROM candidate_resume_profiles WHERE tenant_id = ? LIMIT 1')
+      .bind(session.tenantId)
+      .first<{ resumeText: string }>()
+    resumeText = profile?.resumeText ?? ''
   }
 
   const applicationId = crypto.randomUUID()
@@ -133,17 +144,13 @@ async function handleApply(request: Request, env: RequestContext['env'], session
 
   // Score is computed server-side from the candidate's resume vs the job — never
   // taken from the client. body.readinessScore is intentionally ignored.
-  const profile = await env.DB!
-    .prepare('SELECT resume_text AS resumeText FROM candidate_resume_profiles WHERE tenant_id = ? LIMIT 1')
-    .bind(session.tenantId)
-    .first<{ resumeText: string }>()
   const jobForMatch: JobForMatch = {
     title: job.title,
     company: job.company,
     description: job.description,
     requiredSkills: JSON.parse(job.requiredSkills || '[]') as string[],
   }
-  const match = await computeMatch(profile?.resumeText ?? '', jobForMatch, env)
+  const match = await computeMatch(resumeText, jobForMatch, env)
   const matchRationale = JSON.stringify({ matched: match.matched, gaps: match.gaps, summary: match.summary })
 
   try {
