@@ -143,19 +143,24 @@ export async function onRequestGet({ request, env }: RequestContext) {
     return json({ ok: true, jobs: (rows.results ?? []).map(serializeJob) })
   }
 
-  // Public browse: open jobs, optional keyword filter.
+  // Public browse: open jobs, optional keyword filter. Excludes the caller's
+  // own postings — JobsFlow is one login with a Find Work / Hire switch, so
+  // browsing can otherwise surface a role the same account can never apply
+  // to (or check fit on).
   const like = `%${query.replace(/[%_]/g, '')}%`
   const rows = query
     ? await env.DB
         .prepare(
           `SELECT ${jobColumns} FROM jobs
-           WHERE status = 'open' AND (title LIKE ? OR company LIKE ? OR required_skills LIKE ?)
+           WHERE status = 'open' AND employer_tenant_id != ?
+             AND (title LIKE ? OR company LIKE ? OR required_skills LIKE ?)
            ORDER BY created_at DESC LIMIT 50`,
         )
-        .bind(like, like, like)
+        .bind(session.tenantId, like, like, like)
         .all<JobRow>()
     : await env.DB
-        .prepare(`SELECT ${jobColumns} FROM jobs WHERE status = 'open' ORDER BY created_at DESC LIMIT 50`)
+        .prepare(`SELECT ${jobColumns} FROM jobs WHERE status = 'open' AND employer_tenant_id != ? ORDER BY created_at DESC LIMIT 50`)
+        .bind(session.tenantId)
         .all<JobRow>()
 
   return json({ ok: true, jobs: (rows.results ?? []).map(serializeJob) })

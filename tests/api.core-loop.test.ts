@@ -109,6 +109,29 @@ describe('core loop: post job -> browse -> apply -> employer sees -> advance', (
     expect(selfApply.status).toBe(400) // own job
   })
 
+  it('excludes the caller\'s own postings from the public browse list', async () => {
+    const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
+    const poster = await createSession(world.env, 'poster@co.com', 'employer')
+    const other = await createSession(world.env, 'other@me.com', 'candidate')
+    const { jobId } = await postJob(world.env, poster, 'Self-Owned Role')
+
+    // The one-login account that posted it never sees it in its own browse
+    // list — it can never apply to or check fit on its own posting.
+    const asPoster = await callHandler(jobsGet, { env: world.env, url: `${base}/api/jobs`, headers: { cookie: poster } })
+    const asPosterBody = (await asPoster.json()) as { jobs: Array<{ id: string }> }
+    expect(asPosterBody.jobs.map((j) => j.id)).not.toContain(jobId)
+
+    // A different account still sees it.
+    const asOther = await callHandler(jobsGet, { env: world.env, url: `${base}/api/jobs`, headers: { cookie: other } })
+    const asOtherBody = (await asOther.json()) as { jobs: Array<{ id: string }> }
+    expect(asOtherBody.jobs.map((j) => j.id)).toContain(jobId)
+
+    // Same holds with a keyword search.
+    const searched = await callHandler(jobsGet, { env: world.env, url: `${base}/api/jobs?q=Self-Owned`, headers: { cookie: poster } })
+    const searchedBody = (await searched.json()) as { jobs: Array<{ id: string }> }
+    expect(searchedBody.jobs.map((j) => j.id)).not.toContain(jobId)
+  })
+
   it('lets any signed-in account post a role (one login, both modes)', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
     const candidate = await createSession(world.env, 'c3@me.com', 'candidate')
