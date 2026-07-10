@@ -845,206 +845,12 @@
   font-weight: 750;
 }
 
-.auth-panel {
+.auth-redirecting {
   display: grid;
-  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.28fr) minmax(260px, 0.74fr);
-  gap: 16px;
-  align-items: stretch;
-  margin-bottom: 18px;
-  padding: 20px;
-  background:
-    linear-gradient(135deg, rgba(232, 248, 255, 0.95), rgba(255, 255, 255, 0.98));
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-  box-shadow: 0 24px 70px rgba(14, 116, 144, 0.13);
-}
-
-.auth-panel-ready {
-  margin-top: 28px;
-}
-
-.auth-copy,
-.auth-form,
-.auth-state,
-.auth-workspace-card {
-  min-width: 0;
-}
-
-.auth-copy span,
-.auth-form label span,
-.activation-next-copy span,
-.employer-activation-preview span,
-.market-row span {
-  color: var(--teal);
-  font-size: 0.76rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.auth-copy h2 {
-  margin: 5px 0 8px;
-  color: var(--ink);
-  font-size: 1.55rem;
-  line-height: 1.08;
-}
-
-.auth-copy p,
-.auth-state p {
-  margin: 0;
-  color: var(--muted);
-}
-
-.activation-path {
-  display: grid;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.activation-item {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
-  align-items: start;
-  padding: 10px;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid #d7ebf6;
-  border-radius: 8px;
-}
-
-.activation-item b {
-  display: grid;
-  width: 28px;
-  height: 28px;
   place-items: center;
-  color: var(--teal);
-  font-size: 0.75rem;
-  background: #e9f5f3;
-  border-radius: 999px;
-}
-
-.activation-item strong {
-  display: block;
-  color: var(--ink);
-}
-
-.activation-item p {
-  margin-top: 3px;
+  min-height: 240px;
   color: var(--muted);
-  font-size: 0.88rem;
-}
-
-.auth-form {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  align-content: start;
-}
-
-.sso-card {
-  grid-column: 1 / -1;
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-  padding: 16px;
-  background: #ffffff;
-  border: 1px solid #bae6fd;
-  border-radius: 8px;
-  box-shadow: 0 16px 38px rgba(14, 116, 144, 0.1);
-}
-
-.sso-card > span,
-.sso-card small {
-  color: var(--teal);
-  font-size: 0.76rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.sso-card strong {
-  color: var(--ink);
-  font-size: 1.25rem;
-  line-height: 1.18;
-}
-
-.sso-card p {
-  margin: 0;
-  color: var(--muted);
-}
-
-.sso-actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.78fr);
-  gap: 8px;
-}
-
-.sso-actions button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 40px;
-  min-width: 0;
-  padding: 0 14px;
-  color: var(--ink);
-  font-weight: 850;
-  background: #ffffff;
-  border: 1px solid #c7e2de;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.sso-actions .primary-sso {
-  min-height: 48px;
-  color: #ffffff;
-  background: linear-gradient(135deg, #0284c7, #0f766e);
-  border-color: #0284c7;
-  box-shadow: 0 14px 30px rgba(14, 116, 144, 0.22);
-}
-
-.sso-actions .secondary-sso {
-  min-height: 48px;
-  color: #075985;
-  background: #eff8ff;
-  border-color: #bae6fd;
-}
-
-.sso-actions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.sso-provider-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.sso-provider-row button {
-  min-width: 0;
-  padding: 7px 8px;
-  color: #075985;
-  font-size: 0.8rem;
-  font-weight: 850;
-  text-align: center;
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.sso-provider-row button:hover,
-.sso-provider-row button:focus-visible {
-  color: #ffffff;
-  background: #087f7a;
-  border-color: #087f7a;
-  outline: none;
-}
-
-.sso-provider-row button:disabled {
-  color: #6b8797;
-  cursor: not-allowed;
-  opacity: 0.62;
-  background: #edf6fb;
+  font-weight: 750;
 }
 
 html[data-jobsflow-clerk-mode="email"] .cl-socialButtonsRoot,
@@ -1277,255 +1083,6 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
   outline-offset: 1px !important;
 }
 
-.auth-form label {
-  display: grid;
-  gap: 6px;
-}
-
-.auth-form input {
-  width: 100%;
-  min-width: 0;
-  min-height: 40px;
-  padding: 0 10px;
-  color: var(--ink);
-  background: #ffffff;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-}
-
-.auth-helper {
-  grid-column: 1 / -1;
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.88rem;
-}
-
-.beta-fallback {
-  grid-column: 1 / -1;
-  min-width: 0;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid #d7ebf6;
-  border-radius: 8px;
-}
-
-.beta-fallback summary {
-  color: #075985;
-  font-weight: 850;
-  cursor: pointer;
-}
-
-.beta-fallback-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.segmented-control {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  padding: 4px;
-  background: #e8f7ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-}
-
-.segmented-control button {
-  min-height: 36px;
-  color: var(--muted);
-  font-weight: 850;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  cursor: pointer;
-}
-
-.segmented-control button.active {
-  color: #075985;
-  background: #ffffff;
-  border-color: #bae6fd;
-}
-
-.auth-state {
-  display: grid;
-  gap: 10px;
-  align-content: start;
-  padding: 14px;
-  background: #ffffff;
-  border: 1px solid #d7ebf6;
-  border-radius: 8px;
-  box-shadow: 0 14px 34px rgba(14, 116, 144, 0.08);
-}
-
-.auth-state .session-summary strong {
-  color: var(--ink);
-}
-
-.auth-workspace-card {
-  display: grid;
-  gap: 10px;
-  align-content: start;
-  padding: 18px;
-  background: #f0fdf9;
-  border: 1px solid #99f6e4;
-  border-radius: 8px;
-}
-
-.auth-workspace-card h3 {
-  margin: 0;
-  color: var(--ink);
-  font-size: 1.28rem;
-  line-height: 1.2;
-}
-
-.auth-workspace-card strong {
-  color: var(--ink);
-  font-size: 1.1rem;
-}
-
-.auth-workspace-card span:not(.status-pill) {
-  color: #0f766e;
-  font-weight: 850;
-}
-
-.auth-workspace-card p {
-  margin: 0;
-  color: var(--muted);
-}
-
-.auth-state-title {
-  color: var(--ink);
-  font-size: 1.05rem;
-}
-
-.auth-actions {
-  display: grid;
-  gap: 8px;
-}
-
-.auth-actions button {
-  color: #ffffff;
-  background: #0369a1;
-  border-color: #0369a1;
-}
-
-.auth-actions button:last-child {
-  color: #0f172a;
-  background: #eff6ff;
-  border-color: #bfdbfe;
-}
-
-.auth-actions button:disabled {
-  color: #64748b;
-  background: #f1f5f9;
-  border-color: #dbeafe;
-}
-
-.session-ready-card {
-  grid-column: 1 / -1;
-  display: grid;
-  gap: 8px;
-  padding: 14px;
-  color: var(--ink);
-  background: #f0fdf9;
-  border: 1px solid #99f6e4;
-  border-radius: 8px;
-}
-
-.session-ready-card strong {
-  font-size: 1.15rem;
-}
-
-.session-ready-card span {
-  color: #0f766e;
-  font-weight: 850;
-}
-
-.session-ready-card p {
-  margin: 0;
-  color: var(--muted);
-}
-
-.activation-next {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
-  gap: 14px;
-  align-items: stretch;
-  padding: 14px;
-  background: #f8fcff;
-  border: 1px solid #d7ebf6;
-  border-radius: 8px;
-}
-
-.activation-next-copy {
-  min-width: 0;
-}
-
-.activation-next-copy h3 {
-  margin: 5px 0 8px;
-  color: var(--ink);
-  font-size: 1.15rem;
-  line-height: 1.15;
-}
-
-.activation-next-copy p {
-  margin: 0;
-  color: var(--muted);
-}
-
-.activation-placeholder,
-.employer-activation-preview,
-.activation-resume {
-  min-width: 0;
-  padding: 14px;
-  background: #f7fbfa;
-  border: 1px solid #c7e2de;
-  border-radius: 8px;
-}
-
-.activation-placeholder {
-  display: grid;
-  gap: 10px;
-  align-content: start;
-}
-
-.activation-placeholder strong,
-.employer-activation-preview strong {
-  color: var(--ink);
-}
-
-.activation-placeholder p {
-  margin: 0;
-  color: var(--muted);
-}
-
-.employer-activation-preview {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.employer-activation-preview div {
-  min-width: 0;
-  padding: 12px;
-  background: #ffffff;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-
-.employer-activation-preview span,
-.market-row span {
-  color: var(--teal);
-}
-
-.activation-resume .panel-title {
-  margin-bottom: 10px;
-}
-
 .onboarding-copy,
 .onboarding-detail,
 .command-item {
@@ -1742,45 +1299,10 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
   border-color: var(--line);
 }
 
-.metrics-row {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.metric-tile,
 .panel {
   background: #ffffff;
   border: 1px solid var(--line);
   border-radius: 8px;
-}
-
-.metric-tile {
-  min-height: 126px;
-  padding: 16px;
-}
-
-.metric-tile span {
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 850;
-  text-transform: uppercase;
-}
-
-.metric-tile strong {
-  display: block;
-  margin-top: 8px;
-  font-size: 1.7rem;
-  line-height: 1.1;
-}
-
-.metric-tile p {
-  margin: 8px 0 0;
-  color: var(--muted);
-}
-
-.panel {
   padding: 18px;
 }
 
@@ -1821,10 +1343,6 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
 }
 
 .billing-ops-panel {
-  grid-column: span 5;
-}
-
-.resume-storage-panel {
   grid-column: span 5;
 }
 
@@ -2175,24 +1693,7 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
   margin: 0;
 }
 
-.upload-control {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.upload-control input {
-  min-width: 0;
-  padding: 9px;
-  background: var(--soft);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-
-.upload-control button,
-.backend-actions button,
-.auth-actions button {
+.backend-actions button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2207,9 +1708,7 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
   cursor: pointer;
 }
 
-.upload-control button:disabled,
-.backend-actions button:disabled,
-.auth-actions button:disabled {
+.backend-actions button:disabled {
   cursor: wait;
   opacity: 0.72;
 }
@@ -2296,7 +1795,6 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
 .priority-grid,
 .analytics-grid,
 .integration-grid,
-.market-grid,
 .pricing-grid,
 .trust-grid,
 .consent-grid,
@@ -2387,29 +1885,6 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
 .analytics-grid span {
   display: block;
   margin-top: 6px;
-  color: var(--muted);
-}
-
-.market-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-
-.market-row {
-  display: grid;
-  gap: 8px;
-  min-height: 164px;
-  align-content: start;
-  padding: 14px;
-  background: var(--soft);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-
-.market-row strong {
-  color: var(--ink);
-}
-
-.market-row p {
   color: var(--muted);
 }
 
@@ -3463,41 +2938,6 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
   margin-top: 10px;
 }
 
-.resume-artifact-list {
-  display: grid;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.resume-artifact-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-  padding: 10px;
-  background: var(--soft);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-
-.resume-artifact-row svg {
-  color: var(--teal);
-}
-
-.resume-artifact-row strong,
-.resume-artifact-row span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.resume-artifact-row span {
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 850;
-}
-
 .audit-preview-row {
   display: grid;
   grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.5fr) auto;
@@ -3575,8 +3015,6 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
 
   .onboarding-panel,
   .ops-layer,
-  .auth-panel,
-  .activation-next,
   .packet-grid {
     grid-template-columns: 1fr;
   }
@@ -3595,7 +3033,6 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
     padding-top: 72px;
   }
 
-  .metrics-row,
   .command-center,
   .trust-grid,
   .integration-grid,
@@ -3604,7 +3041,6 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
   .roadmap-grid,
   .packet-checklist,
   .guardrail-grid,
-  .market-grid,
   .states-grid,
   .evidence-review-grid,
   .employer-review-grid,
@@ -3644,7 +3080,6 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
   .integrations-panel,
   .readiness-panel,
   .billing-ops-panel,
-  .resume-storage-panel,
   .platform-panel,
   .system-panel,
   .scorecard-panel,
@@ -3743,15 +3178,8 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
   .workspace-lead,
   .onboarding-panel,
   .ops-layer,
-  .auth-panel,
-  .activation-next,
-  .auth-form,
-  .sso-actions,
-  .beta-fallback-grid,
-  .employer-activation-preview,
   .backend-grid,
   .onboarding-steps,
-  .metrics-row,
   .command-center,
   .two-column-list,
   .pipeline-bars,
@@ -3780,7 +3208,6 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
   .tailwind-results-grid,
   .tailwind-score-grid,
   .integration-grid,
-  .market-grid,
   .pricing-grid,
   .schema-grid,
   .readiness-grid,
@@ -3896,11 +3323,7 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
   .workspace-lead,
   .onboarding-panel,
   .ops-layer,
-  .auth-panel,
-  .activation-next,
-  .activation-resume,
-  .panel,
-  .metric-tile {
+  .panel {
     padding: 14px;
   }
 
@@ -3921,14 +3344,11 @@ html[data-jobsflow-clerk-step="signup-verification"] .cl-formFieldInputGroup inp
     flex-direction: column;
   }
 
-  .upload-control,
   .audit-preview-row {
     grid-template-columns: 1fr;
   }
 
-  .upload-control button,
-  .backend-actions button,
-  .auth-actions button {
+  .backend-actions button {
     width: 100%;
   }
 }

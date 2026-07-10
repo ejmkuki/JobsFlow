@@ -1,5 +1,5 @@
 import { CheckCircle2 } from 'lucide-react'
-import type { Metric, Tone } from '../types'
+import type { Tone } from '../types'
 import { toneClass } from '../lib/format'
 import { workspaces } from '../data/workspaces'
 
@@ -32,16 +32,6 @@ export function JobsFlowLogoMark({ className = 'brand-mark' }: { className?: str
 
 export function StatusPill({ children, tone = 'neutral' }: { children: string; tone?: Tone }) {
   return <span className={`status-pill ${toneClass(tone)}`}>{children}</span>
-}
-
-export function MetricTile({ metric }: { metric: Metric }) {
-  return (
-    <article className="metric-tile">
-      <span>{metric.label}</span>
-      <strong>{metric.value}</strong>
-      <p>{metric.detail}</p>
-    </article>
-  )
 }
 
 export function SectionHeader({

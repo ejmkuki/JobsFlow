@@ -1,13 +1,10 @@
 import type { BackendSession } from '../../backendClient'
-import { createJobsFlowSession, deleteBackendSession, getBackendSession, humanizeJobsFlowError } from '../../backendClient'
-import { candidateActivationChecklist } from '../../data/candidate'
-import { employerActivationChecklist } from '../../data/employer'
+import { createJobsFlowSession, getBackendSession, humanizeJobsFlowError } from '../../backendClient'
 import type { JobsFlowSsoProviderKey } from '../../jobsFlowSsoContext'
 import { useJobsFlowSso } from '../../jobsFlowSsoContext'
 import { writeAuthReturnPending } from '../../lib/appView'
 import { humanizeSsoError } from '../../lib/ssoErrors'
 import { AuthGateway } from './AuthGateway'
-import { WorkspaceReadyView } from './WorkspaceReadyView'
 import { ssoProviderActions } from './ssoProviders'
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 
@@ -29,8 +26,6 @@ export function AuthPanel({
   const [isBusy, setIsBusy] = useState(false)
   const sso = useJobsFlowSso()
   const autoSsoSessionAttempted = useRef(false)
-  const selectedChecklist =
-    accountType === 'candidate' ? candidateActivationChecklist : employerActivationChecklist
 
   const setAuthReturnPending = useCallback((pending: boolean) => {
     writeAuthReturnPending(pending)
@@ -235,24 +230,6 @@ export function AuthPanel({
     setMessage('Enter your email to get a sign-in code.')
   }
 
-  async function handleSignOut() {
-    setIsBusy(true)
-    try {
-      await deleteBackendSession()
-      if (sso.isSignedIn) {
-        await sso.signOut()
-      }
-      autoSsoSessionAttempted.current = false
-      setAuthReturnPending(false)
-      onSessionChange(null)
-      setMessage('Workspace closed. Your next action will need a fresh signed session.')
-    } catch (error) {
-      setMessage(humanizeJobsFlowError(error, 'auth'))
-    } finally {
-      setIsBusy(false)
-    }
-  }
-
   useEffect(() => {
     void checkSession()
   }, [checkSession])
@@ -317,15 +294,12 @@ export function AuthPanel({
     )
   }
 
+  // Signed in — App.tsx's own session effect redirects into /candidate or
+  // /employer immediately. This never has time to sit on screen; keep it
+  // minimal so nothing heavier flashes before the redirect lands.
   return (
-    <WorkspaceReadyView
-      session={session}
-      accountType={accountType}
-      selectedChecklist={selectedChecklist}
-      message={message}
-      isBusy={isBusy}
-      onRefresh={checkSession}
-      onSignOut={handleSignOut}
-    />
+    <div className="auth-redirecting" role="status">
+      <p>Opening your JobsFlow workspace…</p>
+    </div>
   )
 }
