@@ -146,6 +146,80 @@ describe('core loop: post job -> browse -> apply -> employer sees -> advance', (
   })
 })
 
+describe('reapply after withdraw or decline', () => {
+  it('lets a candidate reapply after withdrawing, reopening the same application', async () => {
+    const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
+    const employer = await createSession(world.env, 'reapply-emp1@co.com', 'employer')
+    const candidate = await createSession(world.env, 'reapply-cand1@me.com', 'candidate')
+    const { jobId } = await postJob(world.env, employer, 'Reopenable Role')
+
+    const first = await apply(world.env, candidate, jobId!)
+    expect(first.status).toBe(201)
+    const firstApplicationId = ((await first.json()) as { applicationId: string }).applicationId
+
+    const withdrawRes = await callHandler(appsPost, {
+      env: world.env,
+      method: 'POST',
+      url: `${base}/api/job-applications`,
+      headers: { ...jsonHeaders, cookie: candidate },
+      body: JSON.stringify({ action: 'withdraw', applicationId: firstApplicationId }),
+    })
+    expect(withdrawRes.status).toBe(200)
+
+    // Reapplying while withdrawn succeeds and reopens the SAME row.
+    const second = await apply(world.env, candidate, jobId!)
+    expect(second.status).toBe(201)
+    const secondBody = (await second.json()) as { applicationId: string; status: string }
+    expect(secondBody.applicationId).toBe(firstApplicationId)
+    expect(secondBody.status).toBe('submitted')
+
+    const mine = await callHandler(appsGet, { env: world.env, url: `${base}/api/job-applications`, headers: { cookie: candidate } })
+    const mineBody = (await mine.json()) as { applications: Array<{ id: string; status: string }> }
+    expect(mineBody.applications.length).toBe(1)
+    expect(mineBody.applications[0].status).toBe('submitted')
+
+    // Timeline shows both the original submit, the withdrawal, and the reapply.
+    const detail = await callHandler(appsGet, {
+      env: world.env,
+      url: `${base}/api/job-applications?applicationId=${firstApplicationId}`,
+      headers: { cookie: candidate },
+    })
+    const detailBody = (await detail.json()) as { events: Array<{ toStatus: string }> }
+    expect(detailBody.events.map((e) => e.toStatus)).toEqual(['submitted', 'withdrawn', 'submitted'])
+  })
+
+  it('lets a candidate reapply after the employer declines them', async () => {
+    const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
+    const employer = await createSession(world.env, 'reapply-emp2@co.com', 'employer')
+    const candidate = await createSession(world.env, 'reapply-cand2@me.com', 'candidate')
+    const { jobId } = await postJob(world.env, employer, 'Second Chance Role')
+
+    const first = await apply(world.env, candidate, jobId!)
+    const applicationId = ((await first.json()) as { applicationId: string }).applicationId
+
+    await callHandler(appsPost, {
+      env: world.env,
+      method: 'POST',
+      url: `${base}/api/job-applications`,
+      headers: { ...jsonHeaders, cookie: employer },
+      body: JSON.stringify({ action: 'advance', applicationId, status: 'rejected' }),
+    })
+
+    const second = await apply(world.env, candidate, jobId!)
+    expect(second.status).toBe(201)
+  })
+
+  it('still blocks a duplicate apply while the existing application is active', async () => {
+    const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
+    const employer = await createSession(world.env, 'reapply-emp3@co.com', 'employer')
+    const candidate = await createSession(world.env, 'reapply-cand3@me.com', 'candidate')
+    const { jobId } = await postJob(world.env, employer, 'Active Role')
+
+    expect((await apply(world.env, candidate, jobId!)).status).toBe(201)
+    expect((await apply(world.env, candidate, jobId!)).status).toBe(409)
+  })
+})
+
 describe('job edit + delete', () => {
   it('owner can edit their role; a non-owner cannot', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })

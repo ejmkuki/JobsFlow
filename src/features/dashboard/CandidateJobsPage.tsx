@@ -30,7 +30,17 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
   const [message, setMessage] = useState('')
   const [isBusy, setIsBusy] = useState(false)
 
-  const appliedJobIds = useMemo(() => new Set(applications.map((application) => application.jobId)), [applications])
+  // A withdrawn or declined application doesn't block reapplying — only an
+  // application still in an active stage does.
+  const appliedJobIds = useMemo(
+    () =>
+      new Set(
+        applications
+          .filter((application) => application.status !== 'withdrawn' && application.status !== 'rejected')
+          .map((application) => application.jobId),
+      ),
+    [applications],
+  )
 
   const load = useCallback(async (search: string) => {
     if (!session) return

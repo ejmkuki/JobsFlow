@@ -153,7 +153,54 @@ async function handleApply(request: Request, env: RequestContext['env'], session
   const match = await computeMatch(resumeText, jobForMatch, env)
   const matchRationale = JSON.stringify({ matched: match.matched, gaps: match.gaps, summary: match.summary })
 
-  try {
+  // UNIQUE(job_id, candidate_tenant_id) means one application row per
+  // candidate per job, ever. A withdrawn or declined application is not a
+  // dead end — the candidate can reapply, which reopens that same row
+  // (fresh cover note, resume, score, SLA clock) rather than being
+  // permanently blocked. An application still in an active stage is a real
+  // duplicate and stays blocked.
+  const existing = await env.DB!
+    .prepare('SELECT id, status FROM job_applications WHERE job_id = ? AND candidate_tenant_id = ? LIMIT 1')
+    .bind(jobId, session.tenantId)
+    .first<{ id: string; status: string }>()
+
+  if (existing && existing.status !== 'withdrawn' && existing.status !== 'rejected') {
+    return json({ ok: false, error: 'already_applied', message: 'You have already applied to this job.' }, 409)
+  }
+
+  const finalApplicationId = existing?.id ?? applicationId
+
+  if (existing) {
+    await env.DB!
+      .prepare(
+        `UPDATE job_applications SET
+          candidate_name = ?, candidate_email = ?, resume_artifact_id = ?, cover_note = ?,
+          readiness_score = ?, match_method = ?, match_rationale = ?, status = 'submitted',
+          last_status_change_at = datetime('now'), updated_at = datetime('now'),
+          employer_sla_due_at = datetime('now', ?)
+        WHERE id = ?`,
+      )
+      .bind(
+        session.displayName,
+        session.email,
+        resumeArtifactId || null,
+        coverNote,
+        match.score,
+        match.method,
+        matchRationale,
+        `+${slaDays} days`,
+        finalApplicationId,
+      )
+      .run()
+    await writeApplicationEvent(env, {
+      applicationId: finalApplicationId,
+      actorType: 'candidate',
+      actorUserId: session.userId,
+      fromStatus: existing.status,
+      toStatus: 'submitted',
+      note: 'Reapplied',
+    })
+  } else {
     await env.DB!
       .prepare(
         `INSERT INTO job_applications (
@@ -163,7 +210,7 @@ async function handleApply(request: Request, env: RequestContext['env'], session
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', datetime('now', ?))`,
       )
       .bind(
-        applicationId,
+        finalApplicationId,
         jobId,
         job.employerTenantId,
         session.tenantId,
@@ -178,24 +225,21 @@ async function handleApply(request: Request, env: RequestContext['env'], session
         `+${slaDays} days`,
       )
       .run()
-  } catch {
-    // UNIQUE(job_id, candidate_tenant_id) -> already applied.
-    return json({ ok: false, error: 'already_applied', message: 'You have already applied to this job.' }, 409)
+    await env.DB!.prepare('UPDATE jobs SET applicant_count = applicant_count + 1 WHERE id = ?').bind(jobId).run()
+    await writeApplicationEvent(env, { applicationId: finalApplicationId, actorType: 'candidate', actorUserId: session.userId, toStatus: 'submitted' })
   }
 
-  await env.DB!.prepare('UPDATE jobs SET applicant_count = applicant_count + 1 WHERE id = ?').bind(jobId).run()
-  await writeApplicationEvent(env, { applicationId, actorType: 'candidate', actorUserId: session.userId, toStatus: 'submitted' })
   await writeAuditEvent(env, {
     tenantId: session.tenantId,
     userId: session.userId,
     eventType: 'application.submitted',
     actorType: 'user',
-    action: 'Applied to a job',
+    action: existing ? 'Reapplied to a job' : 'Applied to a job',
     riskLevel: 'low',
-    metadata: { jobId, applicationId },
+    metadata: { jobId, applicationId: finalApplicationId },
   })
 
-  return json({ ok: true, applicationId, status: 'submitted', match }, 201)
+  return json({ ok: true, applicationId: finalApplicationId, status: 'submitted', match }, 201)
 }
 
 async function handleAdvance(env: RequestContext['env'], session: SessionContext, body: ApplyBody) {
