@@ -1,4 +1,4 @@
-import type { RequestContext } from '../_shared'
+import type { RequestContext, SessionContext } from '../_shared'
 import {
   enforceRateLimit,
   getSession,
@@ -20,6 +20,13 @@ type ResumeRow = {
   sourceHash: string
 }
 
+type ResumeArtifactRow = {
+  tenantId: string
+  objectKey: string
+  filename: string
+  contentType: string
+}
+
 const allowedContentTypes = new Set([
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -35,6 +42,13 @@ export async function onRequestGet({ request, env }: RequestContext) {
   const session = await getSession(request, env)
   if (!session) {
     return json({ ok: false, error: 'unauthorized', message: 'Sign in before reading resumes.' }, 401)
+  }
+
+  const url = new URL(request.url)
+  const id = url.searchParams.get('id')
+
+  if (id) {
+    return downloadResume({ id, env, session })
   }
 
   const resumes = await env.DB
@@ -60,6 +74,60 @@ export async function onRequestGet({ request, env }: RequestContext) {
   return json({
     ok: true,
     resumes: resumes.results ?? [],
+  })
+}
+
+// Streams a stored resume file. Two callers are authorized: the owning
+// tenant (a candidate's own file), or an employer tenant that has an
+// application referencing this resume for one of their own jobs — never
+// anyone else, and never by guessing an object key.
+async function downloadResume({
+  id,
+  env,
+  session,
+}: {
+  id: string
+  env: RequestContext['env']
+  session: SessionContext
+}) {
+  if (!env.RESUME_BUCKET) {
+    return missingConfig('RESUME_BUCKET')
+  }
+
+  const artifact = await env.DB!
+    .prepare(
+      `SELECT tenant_id AS tenantId, object_key AS objectKey, filename, content_type AS contentType
+       FROM resume_artifacts WHERE id = ? LIMIT 1`,
+    )
+    .bind(id)
+    .first<ResumeArtifactRow>()
+
+  if (!artifact) {
+    return json({ ok: false, error: 'not_found', message: 'That resume is not available.' }, 404)
+  }
+
+  const isOwner = artifact.tenantId === session.tenantId
+  if (!isOwner) {
+    const linkedToOwnJob = await env.DB!
+      .prepare('SELECT 1 FROM job_applications WHERE resume_artifact_id = ? AND employer_tenant_id = ? LIMIT 1')
+      .bind(id, session.tenantId)
+      .first<{ 1: number }>()
+    if (!linkedToOwnJob) {
+      return json({ ok: false, error: 'not_found', message: 'That resume is not available.' }, 404)
+    }
+  }
+
+  const object = await env.RESUME_BUCKET.get(artifact.objectKey)
+  if (!object) {
+    return json({ ok: false, error: 'not_found', message: 'That resume is not available.' }, 404)
+  }
+
+  return new Response(object.body, {
+    headers: {
+      'content-type': artifact.contentType || object.httpMetadata?.contentType || 'application/octet-stream',
+      'content-disposition': `attachment; filename="${artifact.filename.replace(/"/g, '')}"`,
+      'cache-control': 'private, max-age=0, no-store',
+    },
   })
 }
 

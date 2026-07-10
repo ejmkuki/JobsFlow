@@ -308,6 +308,59 @@ export async function onRequestGet({ request, env }: RequestContext) {
 
   const url = new URL(request.url)
   const jobId = url.searchParams.get('jobId')
+  const applicationId = url.searchParams.get('applicationId')
+
+  // Full detail + status timeline for one application. Either side of it
+  // (the candidate who applied, or the employer whose job it's on) can view.
+  if (applicationId) {
+    const application = await env.DB
+      .prepare(
+        `SELECT
+          a.id AS id,
+          a.status AS status,
+          a.candidate_name AS candidateName,
+          a.candidate_email AS candidateEmail,
+          a.readiness_score AS readinessScore,
+          a.match_method AS matchMethod,
+          a.match_rationale AS matchRationale,
+          a.cover_note AS coverNote,
+          a.resume_artifact_id AS resumeArtifactId,
+          a.employer_sla_due_at AS employerSlaDueAt,
+          a.created_at AS createdAt,
+          a.last_status_change_at AS lastStatusChangeAt,
+          j.id AS jobId,
+          j.title AS jobTitle,
+          j.company AS company,
+          j.location AS location
+        FROM job_applications a
+        INNER JOIN jobs j ON j.id = a.job_id
+        WHERE a.id = ? AND (a.employer_tenant_id = ? OR a.candidate_tenant_id = ?)
+        LIMIT 1`,
+      )
+      .bind(applicationId, session.tenantId, session.tenantId)
+      .first<EmployerApplicantRow & { jobId: string; jobTitle: string; company: string; location: string }>()
+
+    if (!application) {
+      return json({ ok: false, error: 'not_found', message: 'That application is not in your workspace.' }, 404)
+    }
+
+    const events = await env.DB
+      .prepare(
+        `SELECT
+          actor_type AS actorType,
+          from_status AS fromStatus,
+          to_status AS toStatus,
+          note,
+          created_at AS createdAt
+        FROM job_application_events
+        WHERE application_id = ?
+        ORDER BY created_at ASC, rowid ASC`,
+      )
+      .bind(applicationId)
+      .all<{ actorType: string; fromStatus: string | null; toStatus: string; note: string; createdAt: string }>()
+
+    return json({ ok: true, application, events: events.results ?? [] })
+  }
 
   // Employer view: applicants for a job they own.
   if (jobId) {

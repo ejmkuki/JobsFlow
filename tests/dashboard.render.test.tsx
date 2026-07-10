@@ -9,6 +9,7 @@ import { CandidateApplicationsPage } from '../src/features/dashboard/CandidateAp
 import { CandidateProfilePage } from '../src/features/dashboard/CandidateProfilePage'
 import { EmployerPipelinePage } from '../src/features/dashboard/EmployerPipelinePage'
 import { EmployerJobsPage } from '../src/features/dashboard/EmployerJobsPage'
+import { ApplicantDetailModal } from '../src/features/dashboard/ApplicantDetailModal'
 
 vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ ok: false }), { status: 503 })))
 afterEach(() => cleanup())
@@ -66,5 +67,10 @@ describe('employer dashboard pages', () => {
     wrap(<EmployerJobsPage session={null} />, '/employer/jobs')
     expect(screen.getByRole('heading', { name: 'Jobs' })).toBeTruthy()
     expect(screen.getByText('Post a role')).toBeTruthy()
+  })
+
+  it('ApplicantDetailModal shows a loading state while fetching', () => {
+    wrap(<ApplicantDetailModal applicationId="app-1" onClose={() => undefined} onMoved={() => undefined} />)
+    expect(screen.getByRole('dialog')).toBeTruthy()
   })
 })

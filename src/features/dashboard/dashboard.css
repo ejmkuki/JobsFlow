@@ -208,3 +208,36 @@
 }
 
 .jf-desc { color: var(--jf-ink-2); font-size: 13.5px; line-height: 1.55; margin: 0; white-space: pre-wrap; }
+
+/* Job summary (Candidates page collapsible role detail) */
+.jf-job-summary { background: var(--jf-surface); border: 1px solid var(--jf-line); border-radius: 11px; padding: 12px 14px; box-shadow: var(--jf-shadow); }
+.jf-job-summary summary { cursor: pointer; display: flex; flex-direction: column; gap: 2px; list-style: none; }
+.jf-job-summary summary::-webkit-details-marker { display: none; }
+.jf-job-summary summary strong { font-size: 14.5px; }
+.jf-job-summary[open] summary { margin-bottom: 10px; }
+.jf-job-summary .jf-item-skills { margin-bottom: 10px; }
+
+/* Clickable cards (open the applicant/application detail modal) */
+.jf-card-clickable { cursor: pointer; transition: box-shadow .12s ease, border-color .12s ease; }
+.jf-card-clickable:hover { border-color: var(--jf-line-strong); box-shadow: 0 4px 14px rgba(15, 23, 42, .08); }
+
+/* Applicant / application detail modal */
+.jf-modal-overlay {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, .45); display: flex;
+  align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; z-index: 100;
+}
+.jf-modal {
+  background: var(--jf-surface); border-radius: 14px; padding: 22px; max-width: 640px; width: 100%;
+  display: flex; flex-direction: column; gap: 16px; box-shadow: 0 30px 70px rgba(15, 23, 42, .28);
+}
+.jf-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.jf-modal-head h2 { margin: 0; font-size: 19px; }
+.jf-modal-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.jf-modal-subhead { margin: 0 0 8px; font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--jf-muted); }
+.jf-modal-foot { display: flex; justify-content: flex-end; padding-top: 4px; border-top: 1px solid var(--jf-line); }
+
+.jf-timeline { display: flex; flex-direction: column; gap: 12px; }
+.jf-timeline-row { display: grid; grid-template-columns: 10px 1fr; gap: 10px; align-items: start; }
+.jf-timeline-dot { width: 10px; height: 10px; border-radius: 999px; background: var(--jf-teal); margin-top: 5px; }
+.jf-timeline-row strong { display: block; font-size: 13.5px; }
+.jf-timeline-row span { font-size: 12px; }

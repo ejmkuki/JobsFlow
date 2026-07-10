@@ -1874,6 +1874,31 @@ export async function listJobApplicants(jobId: string) {
   )
 }
 
+export type ApplicationEvent = {
+  actorType: string
+  fromStatus: string | null
+  toStatus: string
+  note: string
+  createdAt: string
+}
+
+export type ApplicationDetail = JobApplicant & {
+  jobId: string
+  jobTitle: string
+  company: string
+  location: string
+}
+
+export async function getApplicationDetail(applicationId: string) {
+  return readJson<{ ok: boolean; application: ApplicationDetail; events: ApplicationEvent[] }>(
+    await fetch(`/api/job-applications?applicationId=${encodeURIComponent(applicationId)}`),
+  )
+}
+
+export function resumeDownloadHref(resumeArtifactId: string) {
+  return `/api/resumes?id=${encodeURIComponent(resumeArtifactId)}`
+}
+
 export async function applyToJob(input: { jobId: string; coverNote?: string; resumeArtifactId?: string }) {
   return readJson<{ applicationId: string; ok: boolean; status: string; match: MatchResult }>(
     await fetch('/api/job-applications', jsonPost({ action: 'apply', ...input })),

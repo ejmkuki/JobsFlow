@@ -34,14 +34,29 @@ function makeD1(db: DatabaseSync) {
   }
 }
 
-// In-memory R2 stand-in exposing only the put() surface the handlers use.
+// In-memory R2 stand-in exposing the put()/get() surface the handlers use.
 function makeR2() {
-  const objects = new Map<string, { value: ArrayBuffer; metadata?: Record<string, string> }>()
+  const objects = new Map<
+    string,
+    { value: ArrayBuffer; metadata?: Record<string, string>; contentType?: string }
+  >()
   return {
     bucket: {
-      async put(key: string, value: ArrayBuffer, options?: { customMetadata?: Record<string, string> }) {
-        objects.set(key, { value, metadata: options?.customMetadata })
+      async put(
+        key: string,
+        value: ArrayBuffer,
+        options?: { customMetadata?: Record<string, string>; httpMetadata?: { contentType?: string } },
+      ) {
+        objects.set(key, { value, metadata: options?.customMetadata, contentType: options?.httpMetadata?.contentType })
         return {}
+      },
+      async get(key: string) {
+        const object = objects.get(key)
+        if (!object) return null
+        return {
+          body: new Blob([object.value]).stream(),
+          httpMetadata: { contentType: object.contentType },
+        }
       },
     },
     objects,

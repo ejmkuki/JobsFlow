@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { BackendSession, CandidateApplication, MatchMethod } from '../../backendClient'
 import { humanizeJobsFlowError, listMyApplications, withdrawApplication } from '../../backendClient'
+import { ApplicantDetailModal } from './ApplicantDetailModal'
 
 function methodLabel(method: MatchMethod) {
   if (method === 'ai') return 'AI match'
@@ -28,6 +29,7 @@ export function CandidateApplicationsPage({ session }: { session: BackendSession
   const [applications, setApplications] = useState<CandidateApplication[]>([])
   const [message, setMessage] = useState('')
   const [isBusy, setIsBusy] = useState(false)
+  const [openApplicationId, setOpenApplicationId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!session) return
@@ -70,7 +72,7 @@ export function CandidateApplicationsPage({ session }: { session: BackendSession
         ) : (
           <div className="jf-list">
             {applications.map((application) => (
-              <div className="jf-item" key={application.id}>
+              <div className="jf-item jf-card-clickable" key={application.id} onClick={() => setOpenApplicationId(application.id)}>
                 <div className="jf-item-head">
                   <div className="jf-logo-sq">{(application.company[0] ?? 'J').toUpperCase()}</div>
                   <div className="jf-meta">
@@ -89,7 +91,15 @@ export function CandidateApplicationsPage({ session }: { session: BackendSession
                 </div>
                 {application.status !== 'withdrawn' && application.status !== 'rejected' ? (
                   <div className="jf-item-actions" style={{ justifyContent: 'flex-end' }}>
-                    <button className="jf-btn jf-btn-ghost" disabled={isBusy} onClick={() => void withdraw(application.id)} type="button">
+                    <button
+                      className="jf-btn jf-btn-ghost"
+                      disabled={isBusy}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        void withdraw(application.id)
+                      }}
+                      type="button"
+                    >
                       Withdraw
                     </button>
                   </div>
@@ -99,6 +109,15 @@ export function CandidateApplicationsPage({ session }: { session: BackendSession
           </div>
         )}
       </div>
+
+      {openApplicationId ? (
+        <ApplicantDetailModal
+          applicationId={openApplicationId}
+          viewerRole="candidate"
+          onClose={() => setOpenApplicationId(null)}
+          onMoved={() => void load()}
+        />
+      ) : null}
     </main>
   )
 }

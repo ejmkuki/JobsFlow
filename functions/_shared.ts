@@ -14,6 +14,11 @@ type D1Database = {
   prepare: (query: string) => D1PreparedStatement
 }
 
+type R2ObjectBody = {
+  body: ReadableStream
+  httpMetadata?: { contentType?: string }
+}
+
 type R2Bucket = {
   put: (
     key: string,
@@ -23,6 +28,7 @@ type R2Bucket = {
       customMetadata?: Record<string, string>
     },
   ) => Promise<unknown>
+  get: (key: string) => Promise<R2ObjectBody | null>
 }
 
 export type Env = {

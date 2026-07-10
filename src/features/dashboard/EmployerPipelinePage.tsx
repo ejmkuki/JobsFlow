@@ -2,6 +2,23 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { BackendSession, Job, JobApplicant, MatchMethod } from '../../backendClient'
 import { advanceApplication, humanizeJobsFlowError, listJobApplicants, listMyJobs, parseMatchRationale } from '../../backendClient'
+import { formatCents } from '../../lib/format'
+import { ApplicantDetailModal } from './ApplicantDetailModal'
+
+const workplaceLabels: Record<string, string> = { remote: 'Remote', hybrid: 'Hybrid', onsite: 'On-site' }
+const employmentLabels: Record<string, string> = {
+  full_time: 'Full-time',
+  part_time: 'Part-time',
+  contract: 'Contract',
+  internship: 'Internship',
+}
+
+function salaryLabel(job: Job) {
+  if (job.salaryMinCents == null && job.salaryMaxCents == null) return 'Compensation on request'
+  const min = job.salaryMinCents == null ? '' : formatCents(job.salaryMinCents, job.salaryCurrency)
+  const max = job.salaryMaxCents == null ? '' : formatCents(job.salaryMaxCents, job.salaryCurrency)
+  return [min, max].filter(Boolean).join(' – ')
+}
 
 function methodLabel(method: MatchMethod) {
   if (method === 'ai') return 'AI match'
@@ -68,6 +85,7 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
   const [applicants, setApplicants] = useState<JobApplicant[]>([])
   const [message, setMessage] = useState('')
   const [isBusy, setIsBusy] = useState(false)
+  const [openApplicationId, setOpenApplicationId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!session) return
@@ -151,6 +169,25 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
         <div className="jf-tile"><div className="jf-k">Overdue replies</div><div className="jf-v">{overdue}</div><div className="jf-d">anti-ghosting alerts</div></div>
       </section>
 
+      {activeJob ? (
+        <details className="jf-job-summary">
+          <summary>
+            <strong>{activeJob.title}</strong>
+            <span className="jf-msg">
+              {activeJob.company} · {activeJob.location} · {salaryLabel(activeJob)} ·{' '}
+              {workplaceLabels[activeJob.workplaceType] ?? activeJob.workplaceType} ·{' '}
+              {employmentLabels[activeJob.employmentType] ?? activeJob.employmentType}
+            </span>
+          </summary>
+          {activeJob.requiredSkills.length ? (
+            <div className="jf-item-skills">
+              {activeJob.requiredSkills.map((skill) => <span key={skill}>{skill}</span>)}
+            </div>
+          ) : null}
+          {activeJob.description ? <p className="jf-desc">{activeJob.description}</p> : <p className="jf-empty">No description added.</p>}
+        </details>
+      ) : null}
+
       {message ? <p className="jf-msg">{message}</p> : null}
 
       {jobs.length === 0 ? (
@@ -173,7 +210,12 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
                     const sla = slaState(applicant.employerSlaDueAt, applicant.status)
                     const closed = applicant.status === 'rejected' || applicant.status === 'withdrawn'
                     return (
-                      <div className="jf-card" key={applicant.id} style={closed ? { opacity: 0.72 } : undefined}>
+                      <div
+                        className="jf-card jf-card-clickable"
+                        key={applicant.id}
+                        onClick={() => setOpenApplicationId(applicant.id)}
+                        style={closed ? { opacity: 0.72 } : undefined}
+                      >
                         <div className="jf-card-top">
                           <div className="jf-avatar" style={closed ? { background: '#6a7887' } : undefined}>
                             {initials(applicant.candidateName)}
@@ -209,6 +251,7 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
                           <select
                             className="jf-move"
                             disabled={isBusy}
+                            onClick={(event) => event.stopPropagation()}
                             onChange={(event) => {
                               if (event.target.value) void move(applicant.id, event.target.value)
                             }}
@@ -238,6 +281,14 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
         <strong style={{ color: 'var(--jf-teal)' }}>Match</strong> is computed from each candidate's resume against {activeJob?.title ?? 'this role'} —
         AI-scored when available, keyword-scored otherwise. Not a black box.
       </p>
+
+      {openApplicationId ? (
+        <ApplicantDetailModal
+          applicationId={openApplicationId}
+          onClose={() => setOpenApplicationId(null)}
+          onMoved={() => void loadApplicants(selectedJobId)}
+        />
+      ) : null}
     </main>
   )
 }
