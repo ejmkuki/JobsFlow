@@ -140,7 +140,7 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
                   {job.requiredSkills.slice(0, 6).map((skill) => <span key={skill}>{skill}</span>)}
                 </div>
               ) : null}
-              {job.description ? <p className="jf-msg" style={{ margin: 0 }}>{job.description}</p> : null}
+              {job.description ? <p className="jf-desc">{job.description}</p> : null}
               {(() => {
                 const fit = fits[job.id]
                 if (!fit) return null
