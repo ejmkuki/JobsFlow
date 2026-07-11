@@ -137,8 +137,8 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
               </div>
               {job.requiredSkills.length || job.niceToHaveSkills.length ? (
                 <div className="jf-item-skills">
-                  {job.requiredSkills.slice(0, 6).map((skill) => <span key={skill}>{skill}</span>)}
-                  {job.niceToHaveSkills.slice(0, 4).map((skill) => <span className="jf-skill-optional" key={skill} title="Nice to have">{skill}</span>)}
+                  {job.requiredSkills.map((skill) => <span key={skill}>{skill}</span>)}
+                  {job.niceToHaveSkills.map((skill) => <span className="jf-skill-optional" key={skill} title="Nice to have">{skill}</span>)}
                 </div>
               ) : null}
               {job.description ? <p className="jf-desc">{job.description}</p> : null}
