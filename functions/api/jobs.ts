@@ -19,6 +19,7 @@ type JobRow = {
   workplaceType: string
   description: string
   requiredSkills: string
+  niceToHaveSkills: string
   salaryMinCents: number | null
   salaryMaxCents: number | null
   salaryCurrency: string
@@ -36,6 +37,7 @@ type JobBody = {
   workplaceType?: unknown
   description?: unknown
   requiredSkills?: unknown
+  niceToHaveSkills?: unknown
   salaryMinCents?: unknown
   salaryMaxCents?: unknown
   salaryCurrency?: unknown
@@ -81,6 +83,7 @@ function serializeJob(row: JobRow) {
     workplaceType: row.workplaceType,
     description: row.description,
     requiredSkills: JSON.parse(row.requiredSkills || '[]') as string[],
+    niceToHaveSkills: JSON.parse(row.niceToHaveSkills || '[]') as string[],
     salaryMinCents: row.salaryMinCents,
     salaryMaxCents: row.salaryMaxCents,
     salaryCurrency: row.salaryCurrency,
@@ -100,6 +103,7 @@ const jobColumns = `
   workplace_type AS workplaceType,
   description,
   required_skills AS requiredSkills,
+  nice_to_have_skills AS niceToHaveSkills,
   salary_min_cents AS salaryMinCents,
   salary_max_cents AS salaryMaxCents,
   salary_currency AS salaryCurrency,
@@ -153,10 +157,10 @@ export async function onRequestGet({ request, env }: RequestContext) {
         .prepare(
           `SELECT ${jobColumns} FROM jobs
            WHERE status = 'open' AND employer_tenant_id != ?
-             AND (title LIKE ? OR company LIKE ? OR required_skills LIKE ?)
+             AND (title LIKE ? OR company LIKE ? OR required_skills LIKE ? OR nice_to_have_skills LIKE ?)
            ORDER BY created_at DESC LIMIT 50`,
         )
-        .bind(session.tenantId, like, like, like)
+        .bind(session.tenantId, like, like, like, like)
         .all<JobRow>()
     : await env.DB
         .prepare(`SELECT ${jobColumns} FROM jobs WHERE status = 'open' AND employer_tenant_id != ? ORDER BY created_at DESC LIMIT 50`)
@@ -196,6 +200,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
   const workplaceType = workplaceTypes.has(String(body.workplaceType)) ? String(body.workplaceType) : 'remote'
   const description = safeString(body.description, '').slice(0, maxDescription)
   const requiredSkills = normalizeSkills(body.requiredSkills)
+  const niceToHaveSkills = normalizeSkills(body.niceToHaveSkills)
   const salaryMinCents = toIntOrNull(body.salaryMinCents)
   const salaryMaxCents = toIntOrNull(body.salaryMaxCents)
   const salaryCurrency = safeString(body.salaryCurrency, 'USD').slice(0, 8)
@@ -206,9 +211,9 @@ export async function onRequestPost({ request, env }: RequestContext) {
     .prepare(
       `INSERT INTO jobs (
         id, employer_tenant_id, created_by_user_id, title, company, location,
-        employment_type, workplace_type, description, required_skills,
+        employment_type, workplace_type, description, required_skills, nice_to_have_skills,
         salary_min_cents, salary_max_cents, salary_currency, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       jobId,
@@ -221,6 +226,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
       workplaceType,
       description,
       JSON.stringify(requiredSkills),
+      JSON.stringify(niceToHaveSkills),
       salaryMinCents,
       salaryMaxCents,
       salaryCurrency,
@@ -287,6 +293,7 @@ export async function onRequestPut({ request, env }: RequestContext) {
   const workplaceType = workplaceTypes.has(String(body.workplaceType)) ? String(body.workplaceType) : 'remote'
   const description = safeString(body.description, '').slice(0, maxDescription)
   const requiredSkills = normalizeSkills(body.requiredSkills)
+  const niceToHaveSkills = normalizeSkills(body.niceToHaveSkills)
   const salaryMinCents = toIntOrNull(body.salaryMinCents)
   const salaryMaxCents = toIntOrNull(body.salaryMaxCents)
   const salaryCurrency = safeString(body.salaryCurrency, 'USD').slice(0, 8)
@@ -296,7 +303,7 @@ export async function onRequestPut({ request, env }: RequestContext) {
     .prepare(
       `UPDATE jobs SET
         title = ?, company = ?, location = ?, employment_type = ?, workplace_type = ?,
-        description = ?, required_skills = ?, salary_min_cents = ?, salary_max_cents = ?,
+        description = ?, required_skills = ?, nice_to_have_skills = ?, salary_min_cents = ?, salary_max_cents = ?,
         salary_currency = ?, status = ?
       WHERE id = ? AND employer_tenant_id = ?`,
     )
@@ -308,6 +315,7 @@ export async function onRequestPut({ request, env }: RequestContext) {
       workplaceType,
       description,
       JSON.stringify(requiredSkills),
+      JSON.stringify(niceToHaveSkills),
       salaryMinCents,
       salaryMaxCents,
       salaryCurrency,

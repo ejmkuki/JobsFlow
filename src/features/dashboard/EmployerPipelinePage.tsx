@@ -183,9 +183,10 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
               {employmentLabels[activeJob.employmentType] ?? activeJob.employmentType}
             </span>
           </summary>
-          {activeJob.requiredSkills.length ? (
+          {activeJob.requiredSkills.length || activeJob.niceToHaveSkills.length ? (
             <div className="jf-item-skills">
               {activeJob.requiredSkills.map((skill) => <span key={skill}>{skill}</span>)}
+              {activeJob.niceToHaveSkills.map((skill) => <span className="jf-skill-optional" key={skill} title="Nice to have">{skill}</span>)}
             </div>
           ) : null}
           {activeJob.description ? <p className="jf-desc">{activeJob.description}</p> : <p className="jf-empty">No description added.</p>}

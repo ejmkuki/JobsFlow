@@ -32,6 +32,7 @@ const emptyForm = {
   salaryMin: '',
   salaryMax: '',
   skills: '',
+  niceToHaveSkills: '',
   description: '',
   employmentType: 'full_time',
   workplaceType: 'remote',
@@ -73,6 +74,7 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
       salaryMin: job.salaryMinCents == null ? '' : String(Math.round(job.salaryMinCents / 100)),
       salaryMax: job.salaryMaxCents == null ? '' : String(Math.round(job.salaryMaxCents / 100)),
       skills: job.requiredSkills.join(', '),
+      niceToHaveSkills: job.niceToHaveSkills.join(', '),
       description: job.description,
       employmentType: job.employmentType,
       workplaceType: job.workplaceType,
@@ -94,6 +96,7 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
       location: form.location.trim() || 'Remote',
       description: form.description.trim(),
       requiredSkills: form.skills.split(',').map((skill) => skill.trim()).filter(Boolean),
+      niceToHaveSkills: form.niceToHaveSkills.split(',').map((skill) => skill.trim()).filter(Boolean),
       salaryMinCents: form.salaryMin ? Math.round(Number(form.salaryMin) * 100) : null,
       salaryMaxCents: form.salaryMax ? Math.round(Number(form.salaryMax) * 100) : null,
       employmentType: form.employmentType,
@@ -133,6 +136,7 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
         salaryMin: suggestion.salaryMinUsd != null ? String(suggestion.salaryMinUsd) : prev.salaryMin,
         salaryMax: suggestion.salaryMaxUsd != null ? String(suggestion.salaryMaxUsd) : prev.salaryMax,
         skills: suggestion.skills.length ? suggestion.skills.join(', ') : prev.skills,
+        niceToHaveSkills: suggestion.niceToHaveSkills.length ? suggestion.niceToHaveSkills.join(', ') : prev.niceToHaveSkills,
         description: suggestion.description || prev.description,
       }))
       setMessage('AI suggestions applied below — review and edit before publishing.')
@@ -189,9 +193,10 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
                 </div>
                 <span className={`jf-pill ${job.status === 'open' ? 'jf-open' : 'jf-draft'}`}>{job.status}</span>
               </div>
-              {job.requiredSkills.length ? (
+              {job.requiredSkills.length || job.niceToHaveSkills.length ? (
                 <div className="jf-item-skills">
                   {job.requiredSkills.map((skill) => <span key={skill}>{skill}</span>)}
+                  {job.niceToHaveSkills.map((skill) => <span className="jf-skill-optional" key={skill} title="Nice to have">{skill}</span>)}
                 </div>
               ) : null}
               {job.description ? (
@@ -278,6 +283,10 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
           <label>
             Must-have skills (comma separated)
             <input onChange={(event) => set('skills', event.target.value)} placeholder="Product operations, Healthcare SaaS" value={form.skills} />
+          </label>
+          <label>
+            Nice-to-have skills (comma separated)
+            <input onChange={(event) => set('niceToHaveSkills', event.target.value)} placeholder="Figma, Spanish fluency" value={form.niceToHaveSkills} />
           </label>
           <label>
             Job Description
