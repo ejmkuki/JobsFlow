@@ -1,0 +1,19 @@
+name: Saved search alerts
+
+# Same rationale as sla-check-cron.yml — Cloudflare Pages Functions have no
+# native cron trigger, so GitHub Actions is the scheduler. Coarser cadence
+# than the SLA check since a new-job alert isn't time-sensitive the way an
+# overdue reply is.
+on:
+  schedule:
+    - cron: '42 */6 * * *' # every 6 hours, offset to avoid the top-of-hour pile-up
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call saved-search-alerts endpoint
+        run: |
+          curl --fail-with-body -sS -X POST "https://jobsflowai.ai/api/saved-search-alerts" \
+            -H "x-cron-secret: ${{ secrets.JOBSFLOW_CRON_SECRET }}"

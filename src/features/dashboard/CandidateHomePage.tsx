@@ -1,8 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Sparkles } from 'lucide-react'
-import type { BackendSession, CandidateApplication } from '../../backendClient'
-import { getProfile, humanizeJobsFlowError, listMyApplications, listResumes } from '../../backendClient'
+import type { BackendSession, CandidateApplication, JobRecommendation } from '../../backendClient'
+import { getProfile, humanizeJobsFlowError, listMyApplications, listRecommendations, listResumes } from '../../backendClient'
+import { formatCents } from '../../lib/format'
+
+function salaryLabel(job: JobRecommendation) {
+  if (job.salaryMinCents == null && job.salaryMaxCents == null) return null
+  const min = job.salaryMinCents == null ? '' : formatCents(job.salaryMinCents, job.salaryCurrency)
+  const max = job.salaryMaxCents == null ? '' : formatCents(job.salaryMaxCents, job.salaryCurrency)
+  return [min, max].filter(Boolean).join(' – ')
+}
 
 const statusLabels: Record<string, string> = {
   submitted: 'Submitted',
@@ -27,14 +35,16 @@ export function CandidateHomePage({ session }: { session: BackendSession | null 
   const [query, setQuery] = useState('')
   const [applications, setApplications] = useState<CandidateApplication[]>([])
   const [hasResume, setHasResume] = useState(false)
+  const [recommendations, setRecommendations] = useState<JobRecommendation[]>([])
   const [message, setMessage] = useState('')
 
   useEffect(() => {
     if (!session) return
-    Promise.all([listMyApplications(), listResumes(), getProfile()])
-      .then(([apps, resumes, profile]) => {
+    Promise.all([listMyApplications(), listResumes(), getProfile(), listRecommendations()])
+      .then(([apps, resumes, profile, recs]) => {
         setApplications(apps.applications)
         setHasResume(resumes.resumes.length > 0 || profile.profile.resumeText.trim().length > 0)
+        setRecommendations(recs.recommendations)
       })
       .catch((error) => setMessage(humanizeJobsFlowError(error, 'backend')))
   }, [session])
@@ -105,6 +115,36 @@ export function CandidateHomePage({ session }: { session: BackendSession | null 
               </div>
             )}
           </div>
+
+          {recommendations.length > 0 ? (
+            <div className="jf-panel">
+              <div className="jf-panel-head">
+                <h2>Roles you'd match well on</h2>
+                <button className="jf-seeall" onClick={() => navigate('/candidate/jobs')} type="button">Browse all</button>
+              </div>
+              <div className="jf-list">
+                {recommendations.slice(0, 5).map((job) => (
+                  <div
+                    className="jf-item jf-item-clickable"
+                    key={job.id}
+                    onClick={() => navigate(`/candidate/jobs?q=${encodeURIComponent(job.title)}`)}
+                  >
+                    <div className="jf-item-head">
+                      <div className="jf-logo-sq">{(job.company[0] ?? 'J').toUpperCase()}</div>
+                      <div className="jf-meta">
+                        <strong>{job.title}</strong>
+                        <span>{job.company} · {job.location}{salaryLabel(job) ? ` · ${salaryLabel(job)}` : ''}</span>
+                      </div>
+                      <div className="jf-fit">
+                        <b>{job.score}%</b>
+                        <small>Match</small>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <aside className="jf-panel">

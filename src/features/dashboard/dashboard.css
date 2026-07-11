@@ -134,6 +134,13 @@
 .jf-item-skills { display: flex; flex-wrap: wrap; gap: 6px; }
 .jf-item-skills span { background: var(--jf-surface-2); border: 1px solid var(--jf-line); color: var(--jf-ink-2); border-radius: 999px; padding: 2px 9px; font-size: 11.5px; font-weight: 600; }
 .jf-item-skills span.jf-skill-optional { background: transparent; border-style: dashed; color: var(--jf-muted); font-weight: 500; }
+.jf-bookmark { border: 0; background: none; color: var(--jf-muted); cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; flex: none; }
+.jf-bookmark:hover { background: var(--jf-surface-2); }
+.jf-bookmark.jf-bookmark-on { color: var(--jf-teal); }
+.jf-savedsearch { display: inline-flex; align-items: center; background: var(--jf-teal-soft); border: 1px solid var(--jf-teal); border-radius: 999px; padding: 2px 4px 2px 11px; font-size: 12px; font-weight: 600; color: var(--jf-teal); gap: 4px; }
+.jf-savedsearch button:first-child { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; padding: 0; }
+.jf-savedsearch-x { border: 0; background: none; color: var(--jf-teal); cursor: pointer; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; line-height: 1; }
+.jf-savedsearch-x:hover { background: rgba(14, 116, 144, .15); }
 .jf-item-actions { display: flex; align-items: center; gap: 10px; }
 .jf-item-note { flex: 1; height: 40px; border: 1px solid var(--jf-line-strong); border-radius: 10px; padding: 0 12px; font: inherit; background: var(--jf-surface-2); color: var(--jf-ink); }
 .jf-status { font-size: 12px; font-weight: 650; padding: 3px 10px; border-radius: 999px; }
@@ -241,6 +248,8 @@
 /* Clickable cards (open the applicant/application detail modal) */
 .jf-card-clickable { cursor: pointer; transition: box-shadow .12s ease, border-color .12s ease; }
 .jf-card-clickable:hover { border-color: var(--jf-line-strong); box-shadow: 0 4px 14px rgba(15, 23, 42, .08); }
+.jf-item-clickable { cursor: pointer; transition: box-shadow .12s ease, border-color .12s ease; }
+.jf-item-clickable:hover { border-color: var(--jf-line-strong); box-shadow: 0 4px 14px rgba(15, 23, 42, .08); }
 
 /* Applicant / application detail modal */
 .jf-modal-overlay {

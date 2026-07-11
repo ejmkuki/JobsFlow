@@ -1856,13 +1856,99 @@ const jsonPost = (body: unknown): RequestInit => ({
   method: 'POST',
 })
 
-export async function listOpenJobs(query = '') {
-  const url = query ? `/api/jobs?q=${encodeURIComponent(query)}` : '/api/jobs'
-  return readJson<{ ok: boolean; jobs: Job[] }>(await fetch(url))
+export type JobBrowseFilters = {
+  query?: string
+  workplaceType?: string
+  employmentType?: string
+  salaryMin?: number
+  postedWithinDays?: number
+}
+
+export async function listOpenJobs(filters: JobBrowseFilters = {}) {
+  const params = new URLSearchParams()
+  if (filters.query) params.set('q', filters.query)
+  if (filters.workplaceType) params.set('workplaceType', filters.workplaceType)
+  if (filters.employmentType) params.set('employmentType', filters.employmentType)
+  if (filters.salaryMin) params.set('salaryMin', String(filters.salaryMin))
+  if (filters.postedWithinDays) params.set('postedWithinDays', String(filters.postedWithinDays))
+  const search = params.toString()
+  return readJson<{ ok: boolean; jobs: Job[] }>(await fetch(search ? `/api/jobs?${search}` : '/api/jobs'))
 }
 
 export async function listMyJobs() {
   return readJson<{ ok: boolean; jobs: Job[] }>(await fetch('/api/jobs?scope=mine'))
+}
+
+export type SavedJob = {
+  jobId: string
+  title: string
+  company: string
+  location: string
+  employmentType: string
+  workplaceType: string
+  requiredSkills: string[]
+  salaryMinCents: number | null
+  salaryMaxCents: number | null
+  salaryCurrency: string
+  status: string
+  savedAt: string
+}
+
+export async function listSavedJobs() {
+  return readJson<{ ok: boolean; savedJobs: SavedJob[] }>(await fetch('/api/saved-jobs'))
+}
+
+export async function saveJob(jobId: string) {
+  return readJson<{ ok: boolean }>(await fetch('/api/saved-jobs', jsonPost({ jobId })))
+}
+
+export async function unsaveJob(jobId: string) {
+  return readJson<{ ok: boolean }>(await fetch(`/api/saved-jobs?jobId=${encodeURIComponent(jobId)}`, { method: 'DELETE' }))
+}
+
+export type SavedSearch = {
+  id: string
+  label: string
+  query: string
+  workplaceType: string | null
+  employmentType: string | null
+  salaryMinCents: number | null
+  createdAt: string
+}
+
+export async function listSavedSearches() {
+  return readJson<{ ok: boolean; savedSearches: SavedSearch[] }>(await fetch('/api/saved-searches'))
+}
+
+export async function saveSearch(input: {
+  label?: string
+  query?: string
+  workplaceType?: string
+  employmentType?: string
+  salaryMinCents?: number
+}) {
+  return readJson<{ ok: boolean; savedSearchId: string }>(await fetch('/api/saved-searches', jsonPost(input)))
+}
+
+export async function deleteSavedSearch(id: string) {
+  return readJson<{ ok: boolean }>(await fetch(`/api/saved-searches?id=${encodeURIComponent(id)}`, { method: 'DELETE' }))
+}
+
+export type JobRecommendation = {
+  id: string
+  title: string
+  company: string
+  location: string
+  workplaceType: string
+  employmentType: string
+  salaryMinCents: number | null
+  salaryMaxCents: number | null
+  salaryCurrency: string
+  score: number
+}
+
+export async function listRecommendations() {
+  return readJson<{ ok: boolean; recommendations: JobRecommendation[]; reason?: string }>(await fetch('/api/recommendations'))
 }
 
 export async function createJob(input: JobDraft) {

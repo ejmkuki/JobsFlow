@@ -147,25 +147,52 @@ export async function onRequestGet({ request, env }: RequestContext) {
     return json({ ok: true, jobs: (rows.results ?? []).map(serializeJob) })
   }
 
-  // Public browse: open jobs, optional keyword filter. Excludes the caller's
-  // own postings — JobsFlow is one login with a Find Work / Hire switch, so
-  // browsing can otherwise surface a role the same account can never apply
-  // to (or check fit on).
-  const like = `%${query.replace(/[%_]/g, '')}%`
-  const rows = query
-    ? await env.DB
-        .prepare(
-          `SELECT ${jobColumns} FROM jobs
-           WHERE status = 'open' AND employer_tenant_id != ?
-             AND (title LIKE ? OR company LIKE ? OR required_skills LIKE ? OR nice_to_have_skills LIKE ?)
-           ORDER BY created_at DESC LIMIT 50`,
-        )
-        .bind(session.tenantId, like, like, like, like)
-        .all<JobRow>()
-    : await env.DB
-        .prepare(`SELECT ${jobColumns} FROM jobs WHERE status = 'open' AND employer_tenant_id != ? ORDER BY created_at DESC LIMIT 50`)
-        .bind(session.tenantId)
-        .all<JobRow>()
+  // Public browse: open jobs, with optional keyword search and structured
+  // filters (workplace/employment type, salary floor, posted-within window).
+  // Excludes the caller's own postings — JobsFlow is one login with a Find
+  // Work / Hire switch, so browsing can otherwise surface a role the same
+  // account can never apply to (or check fit on). Filtering happens
+  // server-side against indexed columns (idx_jobs_open_filters), never
+  // client-side over an unfiltered result set.
+  const workplaceFilter = url.searchParams.get('workplaceType')
+  const employmentFilter = url.searchParams.get('employmentType')
+  const salaryMinParam = url.searchParams.get('salaryMin')
+  const postedWithinDaysParam = url.searchParams.get('postedWithinDays')
+
+  const conditions: string[] = [`status = 'open'`, 'employer_tenant_id != ?']
+  const binds: unknown[] = [session.tenantId]
+
+  if (query) {
+    const like = `%${query.replace(/[%_]/g, '')}%`
+    conditions.push('(title LIKE ? OR company LIKE ? OR required_skills LIKE ? OR nice_to_have_skills LIKE ?)')
+    binds.push(like, like, like, like)
+  }
+  if (workplaceFilter && workplaceTypes.has(workplaceFilter)) {
+    conditions.push('workplace_type = ?')
+    binds.push(workplaceFilter)
+  }
+  if (employmentFilter && employmentTypes.has(employmentFilter)) {
+    conditions.push('employment_type = ?')
+    binds.push(employmentFilter)
+  }
+  const salaryMinCents = salaryMinParam ? Math.round(Number(salaryMinParam) * 100) : null
+  if (salaryMinCents != null && Number.isFinite(salaryMinCents) && salaryMinCents > 0) {
+    // A job clears the candidate's floor if the top of its stated range
+    // meets it. Jobs with no salary listed are excluded rather than
+    // guessed into a match once the candidate has explicitly set a floor.
+    conditions.push('salary_max_cents IS NOT NULL AND salary_max_cents >= ?')
+    binds.push(salaryMinCents)
+  }
+  const postedWithinDays = postedWithinDaysParam ? Math.floor(Number(postedWithinDaysParam)) : null
+  if (postedWithinDays != null && Number.isFinite(postedWithinDays) && postedWithinDays > 0) {
+    conditions.push(`created_at >= datetime('now', ?)`)
+    binds.push(`-${postedWithinDays} days`)
+  }
+
+  const rows = await env.DB
+    .prepare(`SELECT ${jobColumns} FROM jobs WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC LIMIT 50`)
+    .bind(...binds)
+    .all<JobRow>()
 
   return json({ ok: true, jobs: (rows.results ?? []).map(serializeJob) })
 }
