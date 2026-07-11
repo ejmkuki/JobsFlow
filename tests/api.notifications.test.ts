@@ -145,6 +145,43 @@ describe('lifecycle notifications', () => {
     expect(strangerView.notifications.length).toBe(0)
   })
 
+  it('does not let one tenant mark another tenant\'s notification as read by guessing its id', async () => {
+    const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
+    const employer = await createSession(world.env, 'notify-emp6@co.com', 'employer')
+    const stranger = await createSession(world.env, 'notify-stranger2@co.com', 'employer')
+    const candidate = await createSession(world.env, 'notify-cand6@me.com', 'candidate')
+    const jobId = await postJob(world.env, employer)
+    await apply(world.env, candidate, jobId)
+
+    const owner = await listNotifications(world.env, employer)
+    const targetId = owner.notifications[0].id
+    expect(owner.unreadCount).toBe(1)
+
+    await callHandler(notificationsPost, {
+      env: world.env,
+      method: 'POST',
+      url: `${base}/api/notifications`,
+      headers: { ...jsonHeaders, cookie: stranger },
+      body: JSON.stringify({ id: targetId }),
+    })
+
+    // Unaffected — the UPDATE's WHERE clause requires tenant_id to match too.
+    const afterAttempt = await listNotifications(world.env, employer)
+    expect(afterAttempt.unreadCount).toBe(1)
+    expect(afterAttempt.notifications[0].readAt).toBeNull()
+
+    // markAll from the stranger's own (empty) inbox is a no-op, doesn't touch the real owner's.
+    await callHandler(notificationsPost, {
+      env: world.env,
+      method: 'POST',
+      url: `${base}/api/notifications`,
+      headers: { ...jsonHeaders, cookie: stranger },
+      body: JSON.stringify({ markAll: true }),
+    })
+    const afterMarkAll = await listNotifications(world.env, employer)
+    expect(afterMarkAll.unreadCount).toBe(1)
+  })
+
   it('sends the new-applicant email to the employer when RESEND_API_KEY is configured', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap', RESEND_API_KEY: 'test-resend-key' })
     const employer = await createSession(world.env, 'notify-emp5@co.com', 'employer')

@@ -211,7 +211,7 @@ function extractRunsFromContentStream(text: string, fontNameToCMap: Map<string, 
       continue
     }
     if (ch === '/') {
-      const tfMatch = /^\/([A-Za-z0-9#+.\-]+)\s+[\d.]+\s+Tf/.exec(text.slice(i, i + 80))
+      const tfMatch = /^\/([A-Za-z0-9#+.-]+)\s+[\d.]+\s+Tf/.exec(text.slice(i, i + 80))
       if (tfMatch) {
         currentFont = tfMatch[1]
         i += tfMatch[0].length
@@ -307,7 +307,7 @@ export async function extractPdfText(file: File): Promise<string | null> {
 
       const pageFontMap = new Map<string, Map<number, string>>()
       for (const fontDictMatch of dictText.matchAll(/\/Font\s*<<([\s\S]*?)>>/g)) {
-        for (const ref of fontDictMatch[1].matchAll(/\/([A-Za-z0-9#+.\-]+)\s+(\d+)\s+\d+\s+R/g)) {
+        for (const ref of fontDictMatch[1].matchAll(/\/([A-Za-z0-9#+.-]+)\s+(\d+)\s+\d+\s+R/g)) {
           const cmap = fontToUnicode.get(Number(ref[2]))
           if (cmap) pageFontMap.set(ref[1], cmap)
         }

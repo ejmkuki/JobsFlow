@@ -145,4 +145,25 @@ describe('GET /api/job-applications?rollup=sla', () => {
     const result = await rollup(world.env, employer)
     expect(result.overdueCount).toBe(2)
   })
+
+  it('never counts another employer tenant\'s overdue applications in the rollup', async () => {
+    const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
+    const employer = await createSession(world.env, 'sla-emp4@co.com', 'employer')
+    const stranger = await createSession(world.env, 'sla-stranger@co.com', 'employer')
+    const candidate = await createSession(world.env, 'sla-cand5@me.com', 'candidate')
+
+    const jobId = await postJob(world.env, employer, 'DBA')
+    const appId = await apply(world.env, candidate, jobId)
+    await world.env.DB!
+      .prepare(`UPDATE job_applications SET employer_sla_due_at = datetime('now', '-1 day') WHERE id = ?`)
+      .bind(appId)
+      .run()
+
+    // The overdue application is real and belongs to `employer` — a
+    // different employer tenant must see zero, not leak someone else's count.
+    const ownerView = await rollup(world.env, employer)
+    expect(ownerView.overdueCount).toBe(1)
+    const strangerView = await rollup(world.env, stranger)
+    expect(strangerView.overdueCount).toBe(0)
+  })
 })
