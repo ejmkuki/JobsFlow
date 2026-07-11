@@ -43,6 +43,23 @@
 .jf-mode { display: flex; background: var(--jf-surface-2); border: 1px solid var(--jf-line); border-radius: 999px; padding: 3px; }
 .jf-mode button { border: 0; background: transparent; font-size: 12.5px; font-weight: 650; color: var(--jf-muted); padding: 5px 13px; border-radius: 999px; cursor: pointer; }
 .jf-mode button.jf-on { background: var(--jf-surface); color: var(--jf-teal); box-shadow: var(--jf-shadow); }
+.jf-notif { position: relative; }
+.jf-notif-btn { position: relative; border: 0; background: none; color: var(--jf-ink-2); width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; }
+.jf-notif-btn:hover { background: var(--jf-surface-2); }
+.jf-notif-badge { position: absolute; top: 1px; right: 1px; background: var(--jf-crit); color: #fff; font-size: 10px; font-weight: 700; line-height: 1; min-width: 15px; height: 15px; border-radius: 999px; display: grid; place-items: center; padding: 0 3px; border: 2px solid var(--jf-surface); }
+.jf-notif-panel { position: absolute; top: calc(100% + 10px); right: 0; width: 340px; max-height: 420px; background: var(--jf-surface); border: 1px solid var(--jf-line); border-radius: var(--jf-radius); box-shadow: var(--jf-shadow-lg); overflow: hidden; display: flex; flex-direction: column; z-index: 30; }
+.jf-notif-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--jf-line); font-size: 13.5px; }
+.jf-notif-empty { margin: 0; padding: 22px 14px; color: var(--jf-muted); font-size: 13px; text-align: center; }
+.jf-notif-list { overflow-y: auto; }
+.jf-notif-item { display: flex; align-items: flex-start; gap: 9px; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--jf-line); background: none; padding: 11px 14px; cursor: pointer; }
+.jf-notif-item:last-child { border-bottom: 0; }
+.jf-notif-item:hover { background: var(--jf-surface-2); }
+.jf-notif-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 6px; flex: none; background: transparent; }
+.jf-notif-item.jf-unread .jf-notif-dot { background: var(--jf-sky); }
+.jf-notif-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.jf-notif-body strong { font-size: 13px; }
+.jf-notif-body span { font-size: 12.5px; color: var(--jf-ink-2); }
+.jf-notif-body small { font-size: 11px; color: var(--jf-muted); }
 .jf-account { display: flex; align-items: center; gap: 9px; }
 .jf-avatar { border-radius: 50%; background: linear-gradient(135deg, var(--jf-teal), var(--jf-sky)); color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 700; width: 32px; height: 32px; flex: none; }
 .jf-linkbtn { border: 0; background: none; color: var(--jf-muted); font-size: 13px; font-weight: 600; cursor: pointer; }
@@ -146,6 +163,9 @@
 .jf-page-head p { margin: 4px 0 0; color: var(--jf-muted); font-size: 14px; max-width: 60ch; }
 .jf-head-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 .jf-select { height: 40px; padding: 0 12px; border: 1px solid var(--jf-line-strong); border-radius: 10px; background: var(--jf-surface); font-size: 13.5px; font-weight: 600; color: var(--jf-ink); cursor: pointer; }
+.jf-banner { border-radius: var(--jf-radius); padding: 13px 16px; font-size: 13.5px; }
+.jf-banner-warn { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; }
+.jf-banner-warn strong { font-size: 15px; }
 .jf-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .jf-tile { background: var(--jf-surface); border: 1px solid var(--jf-line); border-radius: var(--jf-radius); padding: 16px 18px; box-shadow: var(--jf-shadow); }
 .jf-tile .jf-k { font-size: 11.5px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--jf-muted); }

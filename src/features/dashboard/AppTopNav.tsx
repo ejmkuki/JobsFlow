@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import type { BackendSession } from '../../backendClient'
+import { NotificationBell } from './NotificationBell'
 import './dashboard.css'
 
 function initials(name: string) {
@@ -70,6 +71,7 @@ export function AppTopNav({ session, onSignOut }: { session: BackendSession | nu
                 Hire
               </button>
             </div>
+            <NotificationBell session={session} />
             <div className="jf-account">
               <div className="jf-avatar" title={name}>{initials(name)}</div>
               <button className="jf-linkbtn" onClick={onSignOut} type="button">Sign out</button>

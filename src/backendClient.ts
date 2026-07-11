@@ -1895,6 +1895,28 @@ export async function suggestJobIntake(text: string) {
   )
 }
 
+export type NotificationItem = {
+  id: string
+  type: string
+  title: string
+  body: string
+  linkPath: string | null
+  readAt: string | null
+  createdAt: string
+}
+
+export async function listNotifications() {
+  return readJson<{ ok: boolean; notifications: NotificationItem[]; unreadCount: number }>(await fetch('/api/notifications'))
+}
+
+export async function markNotificationRead(id: string) {
+  return readJson<{ ok: boolean }>(await fetch('/api/notifications', jsonPost({ id })))
+}
+
+export async function markAllNotificationsRead() {
+  return readJson<{ ok: boolean }>(await fetch('/api/notifications', jsonPost({ markAll: true })))
+}
+
 export async function listMyApplications() {
   return readJson<{ ok: boolean; applications: CandidateApplication[] }>(await fetch('/api/job-applications'))
 }
@@ -1903,6 +1925,10 @@ export async function listJobApplicants(jobId: string) {
   return readJson<{ ok: boolean; applicants: JobApplicant[] }>(
     await fetch(`/api/job-applications?jobId=${encodeURIComponent(jobId)}`),
   )
+}
+
+export async function getOverdueApplicationsCount() {
+  return readJson<{ ok: boolean; overdueCount: number }>(await fetch('/api/job-applications?rollup=sla'))
 }
 
 export type ApplicationEvent = {

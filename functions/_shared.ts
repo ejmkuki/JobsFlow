@@ -46,6 +46,7 @@ export type Env = {
   RESEND_API_KEY?: string
   ANTHROPIC_API_KEY?: string
   ANTHROPIC_MODEL?: string
+  CRON_SECRET?: string
 }
 
 export type RequestContext = {

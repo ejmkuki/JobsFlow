@@ -10,6 +10,9 @@ import {
   writeAuditEvent,
 } from '../_shared'
 import { computeMatch, type JobForMatch } from '../lib/match'
+import { notify, renderNotificationEmail } from '../lib/notify'
+
+const appUrl = 'https://jobsflowai.ai'
 
 type ApplyBody = {
   action?: unknown
@@ -93,9 +96,11 @@ async function handleApply(request: Request, env: RequestContext['env'], session
 
   const job = await env.DB!
     .prepare(
-      `SELECT id, employer_tenant_id AS employerTenantId, status, title, company, description,
-              required_skills AS requiredSkills
-       FROM jobs WHERE id = ? LIMIT 1`,
+      `SELECT j.id, j.employer_tenant_id AS employerTenantId, j.status, j.title, j.company, j.description,
+              j.required_skills AS requiredSkills, u.email AS employerEmail
+       FROM jobs j
+       LEFT JOIN users u ON u.id = j.created_by_user_id
+       WHERE j.id = ? LIMIT 1`,
     )
     .bind(jobId)
     .first<{
@@ -106,6 +111,7 @@ async function handleApply(request: Request, env: RequestContext['env'], session
       company: string
       description: string
       requiredSkills: string
+      employerEmail: string | null
     }>()
 
   if (!job || job.status !== 'open') {
@@ -177,7 +183,7 @@ async function handleApply(request: Request, env: RequestContext['env'], session
           candidate_name = ?, candidate_email = ?, resume_artifact_id = ?, cover_note = ?,
           readiness_score = ?, match_method = ?, match_rationale = ?, status = 'submitted',
           last_status_change_at = datetime('now'), updated_at = datetime('now'),
-          employer_sla_due_at = datetime('now', ?)
+          employer_sla_due_at = datetime('now', ?), sla_breach_notified_at = NULL
         WHERE id = ?`,
       )
       .bind(
@@ -239,6 +245,34 @@ async function handleApply(request: Request, env: RequestContext['env'], session
     metadata: { jobId, applicationId: finalApplicationId },
   })
 
+  const pipelineUrl = `${appUrl}/employer/candidates?job=${jobId}`
+  const applicantEmail = renderNotificationEmail({
+    heading: `New applicant: ${session.displayName}`,
+    lines: [
+      `${session.displayName} just applied to ${job.title}.`,
+      match.method === 'unscored' ? '' : `Match: ${match.score}% (${match.method === 'ai' ? 'AI-scored' : 'keyword-scored'}).`,
+    ].filter(Boolean),
+    ctaLabel: 'Review applicant',
+    ctaUrl: pipelineUrl,
+  })
+  await notify(env, {
+    tenantId: job.employerTenantId,
+    type: 'new_applicant',
+    title: `New applicant: ${session.displayName}`,
+    body: `Applied to ${job.title}.`,
+    linkPath: `/employer/candidates?job=${jobId}`,
+    email: job.employerEmail
+      ? {
+          to: job.employerEmail,
+          subject: `New applicant for ${job.title}`,
+          html: applicantEmail.html,
+          text: applicantEmail.text,
+          idempotencyKey: `new-applicant-${finalApplicationId}-${Math.floor(Date.now() / 60000)}`,
+          tags: [{ name: 'template', value: 'new_applicant' }],
+        }
+      : undefined,
+  })
+
   return json({ ok: true, applicationId: finalApplicationId, status: 'submitted', match }, 201)
 }
 
@@ -250,9 +284,24 @@ async function handleAdvance(env: RequestContext['env'], session: SessionContext
   }
 
   const application = await env.DB!
-    .prepare('SELECT id, status FROM job_applications WHERE id = ? AND employer_tenant_id = ? LIMIT 1')
+    .prepare(
+      `SELECT a.id, a.status, a.candidate_tenant_id AS candidateTenantId, a.candidate_name AS candidateName,
+              a.candidate_email AS candidateEmail, a.job_id AS jobId, j.title AS jobTitle, j.company AS company
+       FROM job_applications a
+       INNER JOIN jobs j ON j.id = a.job_id
+       WHERE a.id = ? AND a.employer_tenant_id = ? LIMIT 1`,
+    )
     .bind(applicationId, session.tenantId)
-    .first<{ id: string; status: string }>()
+    .first<{
+      id: string
+      status: string
+      candidateTenantId: string
+      candidateName: string
+      candidateEmail: string
+      jobId: string
+      jobTitle: string
+      company: string
+    }>()
 
   if (!application) {
     return json({ ok: false, error: 'not_found', message: 'That applicant is not in your pipeline.' }, 404)
@@ -263,7 +312,8 @@ async function handleAdvance(env: RequestContext['env'], session: SessionContext
     .prepare(
       `UPDATE job_applications
        SET status = ?, last_status_change_at = datetime('now'), updated_at = datetime('now'),
-           employer_sla_due_at = ${clearSla ? 'NULL' : `datetime('now', '+${slaDays} days')`}
+           employer_sla_due_at = ${clearSla ? 'NULL' : `datetime('now', '+${slaDays} days')`},
+           sla_breach_notified_at = NULL
        WHERE id = ?`,
     )
     .bind(target, applicationId)
@@ -286,6 +336,48 @@ async function handleAdvance(env: RequestContext['env'], session: SessionContext
     riskLevel: 'low',
     metadata: { applicationId, from: application.status, to: target },
   })
+
+  // Notify the candidate for the transitions that actually matter to them —
+  // not every internal pipeline micro-stage (employer_review, screen).
+  const statusCopy: Record<string, { title: string; line: string }> = {
+    interview: {
+      title: `You're moving to interview for ${application.jobTitle}`,
+      line: `${application.company} has moved your application for ${application.jobTitle} to the interview stage.`,
+    },
+    offer: {
+      title: `You have an offer for ${application.jobTitle}`,
+      line: `${application.company} has extended an offer for ${application.jobTitle}. Congratulations!`,
+    },
+    rejected: {
+      title: `Update on your application for ${application.jobTitle}`,
+      line: `${application.company} has decided not to move forward with your application for ${application.jobTitle} at this time.`,
+    },
+  }
+  const copy = statusCopy[target]
+  if (copy) {
+    const applicationsUrl = `${appUrl}/candidate/applications`
+    const statusEmail = renderNotificationEmail({
+      heading: copy.title,
+      lines: [copy.line],
+      ctaLabel: 'View application',
+      ctaUrl: applicationsUrl,
+    })
+    await notify(env, {
+      tenantId: application.candidateTenantId,
+      type: `application_${target}`,
+      title: copy.title,
+      body: copy.line,
+      linkPath: '/candidate/applications',
+      email: {
+        to: application.candidateEmail,
+        subject: copy.title,
+        html: statusEmail.html,
+        text: statusEmail.text,
+        idempotencyKey: `application-${target}-${applicationId}-${Math.floor(Date.now() / 60000)}`,
+        tags: [{ name: 'template', value: `application_${target}` }],
+      },
+    })
+  }
 
   return json({ ok: true, applicationId, status: target })
 }
@@ -360,6 +452,24 @@ export async function onRequestGet({ request, env }: RequestContext) {
   const url = new URL(request.url)
   const jobId = url.searchParams.get('jobId')
   const applicationId = url.searchParams.get('applicationId')
+
+  // Cross-job overdue-reply count for the employer's whole workspace — the
+  // per-applicant SLA badge is buried per-job, this is the rollup meant to
+  // surface on the employer's landing page instead.
+  if (url.searchParams.get('rollup') === 'sla') {
+    const row = await env.DB
+      .prepare(
+        `SELECT COUNT(*) AS overdueCount
+         FROM job_applications
+         WHERE employer_tenant_id = ?
+           AND employer_sla_due_at IS NOT NULL
+           AND employer_sla_due_at < datetime('now')
+           AND status NOT IN ('rejected', 'offer', 'withdrawn')`,
+      )
+      .bind(session.tenantId)
+      .first<{ overdueCount: number }>()
+    return json({ ok: true, overdueCount: row?.overdueCount ?? 0 })
+  }
 
   // Full detail + status timeline for one application. Either side of it
   // (the candidate who applied, or the employer whose job it's on) can view.
