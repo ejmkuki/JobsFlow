@@ -1871,7 +1871,7 @@ export async function deleteJob(id: string) {
 
 export type JobIntakeSuggestion = {
   skills: string[]
-  summary: string
+  description: string
   title: string | null
   location: string | null
   salaryMinUsd: number | null

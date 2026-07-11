@@ -133,7 +133,7 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
         salaryMin: suggestion.salaryMinUsd != null ? String(suggestion.salaryMinUsd) : prev.salaryMin,
         salaryMax: suggestion.salaryMaxUsd != null ? String(suggestion.salaryMaxUsd) : prev.salaryMax,
         skills: suggestion.skills.length ? suggestion.skills.join(', ') : prev.skills,
-        description: suggestion.summary || prev.description,
+        description: suggestion.description || prev.description,
       }))
       setMessage('AI suggestions applied below — review and edit before publishing.')
     } catch (error) {
@@ -280,8 +280,8 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
             <input onChange={(event) => set('skills', event.target.value)} placeholder="Product operations, Healthcare SaaS" value={form.skills} />
           </label>
           <label>
-            Description
-            <textarea onChange={(event) => set('description', event.target.value)} rows={editingId ? 6 : 3} value={form.description} />
+            Job Description
+            <textarea onChange={(event) => set('description', event.target.value)} rows={editingId ? 10 : 6} value={form.description} />
           </label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <button
@@ -294,7 +294,7 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
               {isSuggesting ? 'Cleaning up…' : 'Clean up with AI'}
             </button>
             <span className="jf-msg" style={{ margin: 0 }}>
-              Paste a raw job description above, then run this to fill in the title, location, salary, must-have skills, and a clean summary — only from what the text actually states.
+              Paste a raw job posting above, then run this to fill in the title, location, salary, and must-have skills, and to strip boilerplate from the description — the full role content stays, only generic filler is removed.
             </span>
           </div>
           <button className="jf-btn jf-btn-primary" disabled={isBusy || !form.title.trim()} type="submit" style={{ alignSelf: 'flex-start' }}>

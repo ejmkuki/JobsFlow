@@ -72,9 +72,14 @@ describe('POST /api/job-intake', () => {
     expect(body.message).toMatch(/manually/)
   })
 
-  it('returns a deduplicated skill list and summary parsed from the AI response', async () => {
+  it('returns a deduplicated skill list and full description parsed from the AI response', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap', ANTHROPIC_API_KEY: 'test-key' })
     const employer = await createSession(world.env, 'ai@co.com', 'employer')
+
+    const longDescription =
+      'Manage MongoDB and relational database environments.\n' +
+      'Required: Proven experience administering MongoDB in production, including sharded clusters and replica sets.\n' +
+      'Preferred: Experience with database automation using Bash, Python, or Golang.'
 
     vi.stubGlobal(
       'fetch',
@@ -87,7 +92,7 @@ describe('POST /api/job-intake', () => {
                   type: 'text',
                   text:
                     'Here you go:\n{"skills": ["Oracle RAC", "RMAN", "Oracle RAC", "MongoDB"], ' +
-                    '"summary": "Own our Oracle and MongoDB fleet, 8+ years required.", ' +
+                    `"description": ${JSON.stringify(longDescription)}, ` +
                     '"title": "Senior Database Administrator", "location": "Remote", ' +
                     '"salaryMinUsd": 93816, "salaryMaxUsd": 162875}',
                 },
@@ -112,7 +117,7 @@ describe('POST /api/job-intake', () => {
       ok: boolean
       suggestion: {
         skills: string[]
-        summary: string
+        description: string
         title: string | null
         location: string | null
         salaryMinUsd: number | null
@@ -122,7 +127,9 @@ describe('POST /api/job-intake', () => {
     expect(body.ok).toBe(true)
     // Deduplicated: "Oracle RAC" only appears once despite the model repeating it.
     expect(body.suggestion.skills).toEqual(['Oracle RAC', 'RMAN', 'MongoDB'])
-    expect(body.suggestion.summary).toContain('Oracle and MongoDB fleet')
+    // Full multi-part content preserved, not shortened to a one-liner.
+    expect(body.suggestion.description).toBe(longDescription)
+    expect(body.suggestion.description).toContain('Preferred:')
     expect(body.suggestion.title).toBe('Senior Database Administrator')
     expect(body.suggestion.location).toBe('Remote')
     expect(body.suggestion.salaryMinUsd).toBe(93816)
@@ -138,7 +145,7 @@ describe('POST /api/job-intake', () => {
       vi.fn(async () =>
         new Response(
           JSON.stringify({
-            content: [{ type: 'text', text: '{"skills": ["Oracle"], "summary": "DBA role."}' }],
+            content: [{ type: 'text', text: '{"skills": ["Oracle"], "description": "DBA role."}' }],
           }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         ),
