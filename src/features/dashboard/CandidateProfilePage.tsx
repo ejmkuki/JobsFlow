@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import type { BackendSession, ResumeArtifact } from '../../backendClient'
-import { getProfile, humanizeJobsFlowError, listResumes, saveProfile, uploadResume } from '../../backendClient'
+import { deleteResume, getProfile, humanizeJobsFlowError, listResumes, saveProfile, uploadResume } from '../../backendClient'
 import { extractDocxText } from '../../lib/docx'
 import { extractPdfText } from '../../lib/pdf'
 
@@ -92,6 +92,18 @@ export function CandidateProfilePage({ session }: { session: BackendSession | nu
     }
   }
 
+  async function handleFileDelete(file: ResumeArtifact) {
+    if (typeof window !== 'undefined' && !window.confirm(`Delete "${file.filename}"? This cannot be undone.`)) return
+    setFileMessage('Deleting…')
+    try {
+      await deleteResume(file.id)
+      setFileMessage('Deleted.')
+      await load()
+    } catch (error) {
+      setFileMessage(humanizeJobsFlowError(error, 'resume'))
+    }
+  }
+
   const chars = resumeText.trim().length
 
   return (
@@ -149,7 +161,12 @@ export function CandidateProfilePage({ session }: { session: BackendSession | nu
           <div className="jf-list">
             {resumeFiles.map((file) => (
               <div className="jf-item" key={file.id} style={{ padding: '10px 14px' }}>
-                <span className="jf-msg">{file.filename} · {(file.sizeBytes / 1024).toFixed(1)} KB</span>
+                <div className="jf-item-actions" style={{ justifyContent: 'space-between' }}>
+                  <span className="jf-msg">{file.filename} · {(file.sizeBytes / 1024).toFixed(1)} KB</span>
+                  <button className="jf-btn jf-btn-sm jf-btn-danger" onClick={() => void handleFileDelete(file)} type="button">
+                    Delete
+                  </button>
+                </div>
               </div>
             ))}
           </div>

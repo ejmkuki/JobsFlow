@@ -135,6 +135,57 @@ async function downloadResume({
   })
 }
 
+export async function onRequestDelete({ request, env }: RequestContext) {
+  if (!env.DB) {
+    return missingConfig('DB')
+  }
+  if (!env.RESUME_BUCKET) {
+    return missingConfig('RESUME_BUCKET')
+  }
+
+  const session = await getSession(request, env)
+  if (!session) {
+    return json({ ok: false, error: 'unauthorized', message: 'Sign in to delete a resume.' }, 401)
+  }
+
+  const rate = await enforceRateLimit(env, `resume-delete:${session.tenantId}`, 30, 60)
+  if (!rate.allowed) {
+    return tooManyRequests(rate)
+  }
+
+  const url = new URL(request.url)
+  const id = url.searchParams.get('id')
+  if (!id) {
+    return json({ ok: false, error: 'id_required', message: 'Missing the resume to delete.' }, 400)
+  }
+
+  const owned = await env.DB
+    .prepare('SELECT object_key AS objectKey, filename FROM resume_artifacts WHERE id = ? AND tenant_id = ? LIMIT 1')
+    .bind(id, session.tenantId)
+    .first<{ objectKey: string; filename: string }>()
+  if (!owned) {
+    return json({ ok: false, error: 'not_found', message: 'That resume is not available.' }, 404)
+  }
+
+  await env.RESUME_BUCKET.delete(owned.objectKey)
+  // Applications that were submitted with this resume keep their own record
+  // of the match/score; resume_artifact_id on job_applications is ON DELETE
+  // SET NULL, so removing the artifact doesn't touch application history.
+  await env.DB.prepare('DELETE FROM resume_artifacts WHERE id = ? AND tenant_id = ?').bind(id, session.tenantId).run()
+
+  await writeAuditEvent(env, {
+    tenantId: session.tenantId,
+    userId: session.userId,
+    eventType: 'resume.deleted',
+    actorType: 'user',
+    action: 'Deleted resume file from private workspace storage',
+    riskLevel: 'low',
+    metadata: { artifactId: id, filename: owned.filename },
+  })
+
+  return json({ ok: true })
+}
+
 export async function onRequestPost({ request, env }: RequestContext) {
   if (!env.DB) {
     return missingConfig('DB')

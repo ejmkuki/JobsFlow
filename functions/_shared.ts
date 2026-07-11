@@ -29,6 +29,7 @@ type R2Bucket = {
     },
   ) => Promise<unknown>
   get: (key: string) => Promise<R2ObjectBody | null>
+  delete: (key: string) => Promise<void>
 }
 
 export type Env = {

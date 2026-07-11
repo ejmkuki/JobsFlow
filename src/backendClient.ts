@@ -1357,6 +1357,10 @@ export async function uploadResume(file: File) {
   )
 }
 
+export async function deleteResume(id: string) {
+  return readJson<{ ok: boolean }>(await fetch(`/api/resumes?id=${encodeURIComponent(id)}`, { method: 'DELETE' }))
+}
+
 export async function listApplicationPacketReviews() {
   return readJson<{ ok: boolean; packets: ApplicationPacketReview[] }>(await fetch('/api/packet-review'))
 }

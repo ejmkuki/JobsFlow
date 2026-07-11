@@ -58,6 +58,9 @@ function makeR2() {
           httpMetadata: { contentType: object.contentType },
         }
       },
+      async delete(key: string) {
+        objects.delete(key)
+      },
     },
     objects,
   }
