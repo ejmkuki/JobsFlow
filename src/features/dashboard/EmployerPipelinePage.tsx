@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { BackendSession, Job, JobApplicant, MatchMethod } from '../../backendClient'
-import { advanceApplication, humanizeJobsFlowError, listJobApplicants, listMyJobs, parseMatchRationale } from '../../backendClient'
+import {
+  advanceApplication,
+  getOverdueApplicationsCount,
+  humanizeJobsFlowError,
+  listJobApplicants,
+  listMyJobs,
+  parseMatchRationale,
+} from '../../backendClient'
 import { formatCents } from '../../lib/format'
 import { ApplicantDetailModal } from './ApplicantDetailModal'
 
@@ -87,6 +94,14 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
   const [message, setMessage] = useState('')
   const [isBusy, setIsBusy] = useState(false)
   const [openApplicationId, setOpenApplicationId] = useState<string | null>(null)
+  const [overdueAcrossJobs, setOverdueAcrossJobs] = useState(0)
+
+  useEffect(() => {
+    if (!session) return
+    getOverdueApplicationsCount()
+      .then((result) => setOverdueAcrossJobs(result.overdueCount))
+      .catch(() => {}) // advisory rollup — a failed fetch here shouldn't block the page
+  }, [session])
 
   useEffect(() => {
     if (!session) return
@@ -121,6 +136,7 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
     try {
       await advanceApplication({ applicationId, status })
       await loadApplicants(selectedJobId)
+      void getOverdueApplicationsCount().then((result) => setOverdueAcrossJobs(result.overdueCount))
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'backend'))
     } finally {
@@ -166,11 +182,17 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
         </div>
       </div>
 
+      {overdueAcrossJobs > 0 ? (
+        <div className="jf-banner jf-banner-warn">
+          <strong>{overdueAcrossJobs}</strong> applicant{overdueAcrossJobs === 1 ? '' : 's'} overdue across your open roles — reply soon to avoid ghosting candidates.
+        </div>
+      ) : null}
+
       <section className="jf-tiles">
         <div className="jf-tile"><div className="jf-k">Open roles</div><div className="jf-v">{jobs.filter((j) => j.status === 'open').length}</div><div className="jf-d">across your team</div></div>
         <div className="jf-tile"><div className="jf-k">Active candidates</div><div className="jf-v">{activeCount}</div><div className="jf-d">in this pipeline</div></div>
         <div className="jf-tile"><div className="jf-k">Interviewing</div><div className="jf-v">{interviewing}</div><div className="jf-d">this role</div></div>
-        <div className="jf-tile"><div className="jf-k">Overdue replies</div><div className="jf-v">{overdue}</div><div className="jf-d">anti-ghosting alerts</div></div>
+        <div className="jf-tile"><div className="jf-k">Overdue replies</div><div className="jf-v">{overdue}</div><div className="jf-d">this role — {overdueAcrossJobs} total above</div></div>
       </section>
 
       {activeJob ? (

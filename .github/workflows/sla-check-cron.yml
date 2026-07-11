@@ -1,0 +1,19 @@
+name: SLA breach check
+
+# Cloudflare Pages Functions have no native cron trigger, so this repo's
+# scheduler is GitHub Actions hitting the app's own endpoint instead. GitHub
+# schedules run "at least once around" the given time, not exactly on it —
+# fine for a response-window check, not a real-time guarantee.
+on:
+  schedule:
+    - cron: '17 * * * *' # hourly, offset off the hour to avoid the GitHub Actions top-of-hour pile-up
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call sla-check endpoint
+        run: |
+          curl --fail-with-body -sS -X POST "https://jobsflowai.ai/api/sla-check" \
+            -H "x-cron-secret: ${{ secrets.JOBSFLOW_CRON_SECRET }}"
