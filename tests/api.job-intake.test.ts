@@ -85,7 +85,11 @@ describe('POST /api/job-intake', () => {
               content: [
                 {
                   type: 'text',
-                  text: 'Here you go:\n{"skills": ["Oracle RAC", "RMAN", "Oracle RAC", "MongoDB"], "summary": "Own our Oracle and MongoDB fleet, 8+ years required."}',
+                  text:
+                    'Here you go:\n{"skills": ["Oracle RAC", "RMAN", "Oracle RAC", "MongoDB"], ' +
+                    '"summary": "Own our Oracle and MongoDB fleet, 8+ years required.", ' +
+                    '"title": "Senior Database Administrator", "location": "Remote", ' +
+                    '"salaryMinUsd": 93816, "salaryMaxUsd": 162875}',
                 },
               ],
             }),
@@ -104,10 +108,56 @@ describe('POST /api/job-intake', () => {
       body: JSON.stringify({ text: longJobText }),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { ok: boolean; suggestion: { skills: string[]; summary: string } }
+    const body = (await res.json()) as {
+      ok: boolean
+      suggestion: {
+        skills: string[]
+        summary: string
+        title: string | null
+        location: string | null
+        salaryMinUsd: number | null
+        salaryMaxUsd: number | null
+      }
+    }
     expect(body.ok).toBe(true)
     // Deduplicated: "Oracle RAC" only appears once despite the model repeating it.
     expect(body.suggestion.skills).toEqual(['Oracle RAC', 'RMAN', 'MongoDB'])
     expect(body.suggestion.summary).toContain('Oracle and MongoDB fleet')
+    expect(body.suggestion.title).toBe('Senior Database Administrator')
+    expect(body.suggestion.location).toBe('Remote')
+    expect(body.suggestion.salaryMinUsd).toBe(93816)
+    expect(body.suggestion.salaryMaxUsd).toBe(162875)
+  })
+
+  it('leaves title/location/salary null when the model omits them, without fabricating values', async () => {
+    const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap', ANTHROPIC_API_KEY: 'test-key' })
+    const employer = await createSession(world.env, 'ai2@co.com', 'employer')
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            content: [{ type: 'text', text: '{"skills": ["Oracle"], "summary": "DBA role."}' }],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      ),
+    )
+
+    const res = await callHandler(intakePost, {
+      env: world.env,
+      method: 'POST',
+      url: `${base}/api/job-intake`,
+      headers: { ...jsonHeaders, cookie: employer },
+      body: JSON.stringify({ text: longJobText }),
+    })
+    const body = (await res.json()) as {
+      suggestion: { title: string | null; location: string | null; salaryMinUsd: number | null; salaryMaxUsd: number | null }
+    }
+    expect(body.suggestion.title).toBeNull()
+    expect(body.suggestion.location).toBeNull()
+    expect(body.suggestion.salaryMinUsd).toBeNull()
+    expect(body.suggestion.salaryMaxUsd).toBeNull()
   })
 })

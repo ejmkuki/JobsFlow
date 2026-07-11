@@ -128,6 +128,10 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
       const { suggestion } = await suggestJobIntake(form.description)
       setForm((prev) => ({
         ...prev,
+        title: suggestion.title || prev.title,
+        location: suggestion.location || prev.location,
+        salaryMin: suggestion.salaryMinUsd != null ? String(suggestion.salaryMinUsd) : prev.salaryMin,
+        salaryMax: suggestion.salaryMaxUsd != null ? String(suggestion.salaryMaxUsd) : prev.salaryMax,
         skills: suggestion.skills.length ? suggestion.skills.join(', ') : prev.skills,
         description: suggestion.summary || prev.description,
       }))
@@ -235,11 +239,11 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
               <input onChange={(event) => set('location', event.target.value)} value={form.location} />
             </label>
             <label>
-              Min ($)
+              Min(US$)
               <input inputMode="numeric" onChange={(event) => set('salaryMin', event.target.value.replace(/\D/g, ''))} value={form.salaryMin} />
             </label>
             <label>
-              Max ($)
+              Max(US$)
               <input inputMode="numeric" onChange={(event) => set('salaryMax', event.target.value.replace(/\D/g, ''))} value={form.salaryMax} />
             </label>
           </div>
@@ -290,7 +294,7 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
               {isSuggesting ? 'Cleaning up…' : 'Clean up with AI'}
             </button>
             <span className="jf-msg" style={{ margin: 0 }}>
-              Paste a raw job description above, then run this to rewrite it as a clean summary and pull out the must-have skills.
+              Paste a raw job description above, then run this to fill in the title, location, salary, must-have skills, and a clean summary — only from what the text actually states.
             </span>
           </div>
           <button className="jf-btn jf-btn-primary" disabled={isBusy || !form.title.trim()} type="submit" style={{ alignSelf: 'flex-start' }}>

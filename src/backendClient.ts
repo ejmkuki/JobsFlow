@@ -1869,7 +1869,14 @@ export async function deleteJob(id: string) {
   return readJson<{ ok: boolean }>(await fetch(`/api/jobs?id=${encodeURIComponent(id)}`, { method: 'DELETE' }))
 }
 
-export type JobIntakeSuggestion = { skills: string[]; summary: string }
+export type JobIntakeSuggestion = {
+  skills: string[]
+  summary: string
+  title: string | null
+  location: string | null
+  salaryMinUsd: number | null
+  salaryMaxUsd: number | null
+}
 
 export async function suggestJobIntake(text: string) {
   return readJson<{ ok: boolean; suggestion: JobIntakeSuggestion }>(
