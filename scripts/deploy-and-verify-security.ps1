@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
-  Deploy JobsFlow to Cloudflare Pages and verify the Phase 0 auth fix in
-  production (forged Cloudflare Access header must be rejected with 403).
+  Deploy JobsFlow to Cloudflare Pages and verify production is healthy
+  (forged Cloudflare Access header must be rejected with 403).
 
 .DESCRIPTION
   Steps:
@@ -109,7 +109,7 @@ Write-Host ("  db={0} resumeBucket={1} sessionSecret={2} bootstrapToken={3} ssoP
   $health.bindings.bootstrapToken, $health.features.ssoProvider)
 if (-not $health.bindings.sessionSecret) { throw "AUTH_SESSION_SECRET is not configured in production." }
 
-# 6. Forged-header attack check (Phase 0 DoD) --------------------------------
+# 6. Forged-header attack check (standing regression check on every deploy) --
 Write-Host "==> Security check: forged Cloudflare Access header must be rejected..." -ForegroundColor Cyan
 $attack = Invoke-WebRequest -Uri "$BaseUrl/api/session" -Method POST -SkipHttpErrorCheck `
   -Headers @{ "cf-access-authenticated-user-email" = "victim@example.com"; "content-type" = "application/json" } `
@@ -123,4 +123,4 @@ if ($attack.StatusCode -eq 403) {
 $cookie = $attack.Headers["set-cookie"]
 if ($cookie) { throw "SECURITY FAIL: forged request received a session cookie." }
 
-Write-Host "==> Deploy verified. Phase 0 auth fix confirmed in production." -ForegroundColor Green
+Write-Host "==> Deploy verified. Health check and forged-header auth check both passed in production." -ForegroundColor Green
