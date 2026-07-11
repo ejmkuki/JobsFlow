@@ -83,6 +83,14 @@ export type ResumeArtifact = {
   hasText: boolean
 }
 
+// Returned only from the upload response — the full text already extracted
+// server-side (never re-fetched for list views), plus how it was obtained
+// so the UI can be honest about OCR having been used on a scanned PDF.
+export type UploadedResume = ResumeArtifact & {
+  extractedText: string
+  textSource: 'parsed' | 'ocr' | 'none'
+}
+
 export type PacketReviewState = 'approved' | 'blocked' | 'candidate_approval_required'
 
 export type PacketReviewFinding = {
@@ -1349,7 +1357,7 @@ export async function uploadResume(file: File) {
   const formData = new FormData()
   formData.set('resume', file)
 
-  return readJson<{ ok: boolean; resume: ResumeArtifact }>(
+  return readJson<{ ok: boolean; resume: UploadedResume }>(
     await fetch('/api/resumes', {
       body: formData,
       method: 'POST',
@@ -1758,6 +1766,7 @@ export type Job = {
   workplaceType: string
   description: string
   requiredSkills: string[]
+  niceToHaveSkills: string[]
   salaryMinCents: number | null
   salaryMaxCents: number | null
   salaryCurrency: string
@@ -1774,6 +1783,7 @@ export type JobDraft = {
   workplaceType?: string
   description?: string
   requiredSkills?: string[]
+  niceToHaveSkills?: string[]
   salaryMinCents?: number | null
   salaryMaxCents?: number | null
   salaryCurrency?: string
@@ -1871,6 +1881,7 @@ export async function deleteJob(id: string) {
 
 export type JobIntakeSuggestion = {
   skills: string[]
+  niceToHaveSkills: string[]
   description: string
   title: string | null
   location: string | null

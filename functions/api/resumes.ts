@@ -11,6 +11,7 @@ import {
 } from '../_shared'
 import { extractDocxText } from '../lib/docx'
 import { extractPdfText } from '../lib/pdf'
+import { ocrPdfText } from '../lib/pdf-ocr'
 
 type ResumeRow = {
   approvalStatus: string
@@ -246,10 +247,26 @@ export async function onRequestPost({ request, env }: RequestContext) {
   // PDF extraction is best-effort (see lib/pdf.ts) and honestly returns
   // nothing rather than garbled text for files it can't confidently read.
   let extractedText = ''
+  let textSource: 'parsed' | 'ocr' | 'none' = 'none'
   if (resume.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
     extractedText = (await extractDocxText(new Uint8Array(bytes))) ?? ''
+    if (extractedText) textSource = 'parsed'
   } else if (resume.type === 'application/pdf') {
     extractedText = (await extractPdfText(new Uint8Array(bytes))) ?? ''
+    if (extractedText) {
+      textSource = 'parsed'
+    } else {
+      // The deterministic scanner couldn't read this one (scanned/image PDF,
+      // or an embedded font with no usable ToUnicode map) — fall back to a
+      // paid OCR tier via Claude's native document understanding, rather
+      // than leaving the candidate stuck with an unscored resume. Rate
+      // limited separately and more tightly since this costs real tokens.
+      const ocrRate = await enforceRateLimit(env, `resume-ocr:${session.tenantId}`, 5, 300)
+      if (ocrRate.allowed) {
+        extractedText = (await ocrPdfText(new Uint8Array(bytes), env)) ?? ''
+        if (extractedText) textSource = 'ocr'
+      }
+    }
   }
 
   await env.RESUME_BUCKET.put(objectKey, bytes, {
@@ -312,6 +329,13 @@ export async function onRequestPost({ request, env }: RequestContext) {
         sourceHash,
         approvalStatus: 'uploaded',
         hasText: extractedText.length > 0,
+        // Full text + how it was obtained, so the client can populate the
+        // profile textarea from the one extraction that already ran server
+        // side instead of blindly re-running its own — and so it can tell
+        // the candidate honestly when OCR was needed, rather than silently
+        // succeeding or failing.
+        extractedText,
+        textSource,
       },
     },
     201,

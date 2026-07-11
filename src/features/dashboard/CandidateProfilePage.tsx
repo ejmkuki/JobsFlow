@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import type { BackendSession, ResumeArtifact } from '../../backendClient'
 import { deleteResume, getProfile, humanizeJobsFlowError, listResumes, saveProfile, uploadResume } from '../../backendClient'
-import { extractDocxText } from '../../lib/docx'
-import { extractPdfText } from '../../lib/pdf'
 import { evaluateResumeHealth } from '../../lib/resumeHealth'
 
 export function CandidateProfilePage({ session }: { session: BackendSession | null }) {
@@ -62,23 +60,25 @@ export function CandidateProfilePage({ session }: { session: BackendSession | nu
     setIsUploading(true)
     setFileMessage('Uploading…')
     try {
-      await uploadResume(file)
+      const { resume } = await uploadResume(file)
       setSelectedFile(null)
 
-      // Both .docx and PDF get their text read automatically so matching
-      // works without a separate paste step. Never overwrite text the
-      // candidate already saved. PDF extraction is best-effort — some files
-      // (embedded/subset fonts) honestly can't be read; the message says so.
-      const isDocx = file.name.toLowerCase().endsWith('.docx')
-      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
-      if ((isDocx || isPdf) && !resumeText.trim()) {
-        const extracted = isDocx ? await extractDocxText(file) : await extractPdfText(file)
-        if (extracted) {
-          await saveProfile({ resumeText: extracted, headline: headline.trim() })
-          await load()
-          setFileMessage('Uploaded and extracted your resume text below — it now drives your match scores.')
-          return
-        }
+      // The server already extracted this file's text once (falling back to
+      // OCR for a scanned/unreadable PDF) — reuse that result rather than
+      // re-running extraction client-side. Never overwrite text the
+      // candidate already saved.
+      if (resume.extractedText && !resumeText.trim()) {
+        await saveProfile({ resumeText: resume.extractedText, headline: headline.trim() })
+        await load()
+        setFileMessage(
+          resume.textSource === 'ocr'
+            ? 'Uploaded and read via OCR (this looked like a scanned PDF) — the extracted text now drives your match scores. Double-check it below.'
+            : 'Uploaded and extracted your resume text below — it now drives your match scores.',
+        )
+        return
+      }
+
+      if (!resumeText.trim() && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') || file.name.toLowerCase().endsWith('.docx'))) {
         setFileMessage('Uploaded, but could not read text from this file automatically — paste your resume text above.')
         await load()
         return
@@ -174,7 +174,7 @@ export function CandidateProfilePage({ session }: { session: BackendSession | nu
         <h3 style={{ margin: 0 }}>Resume file</h3>
         <p className="jf-msg" style={{ margin: 0 }}>
           Attach a PDF/DOCX so employers can download it. JobsFlow reads its text automatically if the field above is empty —
-          most PDFs work; a few with unusual embedded fonts may need a manual paste.
+          scanned PDFs are read via OCR if a direct text read fails. The rare file that still can't be read needs a manual paste.
         </p>
         <div className="jf-item-actions" style={{ justifyContent: 'flex-start' }}>
           <input accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleFileChange} type="file" />
