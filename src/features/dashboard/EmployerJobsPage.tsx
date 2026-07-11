@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { BackendSession, Job } from '../../backendClient'
-import { createJob, deleteJob, humanizeJobsFlowError, listMyJobs, updateJob } from '../../backendClient'
+import { createJob, deleteJob, humanizeJobsFlowError, listMyJobs, suggestJobIntake, updateJob } from '../../backendClient'
 import { formatCents } from '../../lib/format'
 
 function salaryLabel(job: Job) {
@@ -45,6 +45,7 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
   const [form, setForm] = useState(emptyForm)
   const [message, setMessage] = useState('')
   const [isBusy, setIsBusy] = useState(false)
+  const [isSuggesting, setIsSuggesting] = useState(false)
 
   function set<K extends keyof typeof emptyForm>(key: K, value: (typeof emptyForm)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -113,6 +114,28 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
       setMessage(humanizeJobsFlowError(error, 'backend'))
     } finally {
       setIsBusy(false)
+    }
+  }
+
+  async function handleSuggest() {
+    if (!form.description.trim()) {
+      setMessage('Paste the raw job description below, then run AI cleanup.')
+      return
+    }
+    setIsSuggesting(true)
+    setMessage('Cleaning up with AI…')
+    try {
+      const { suggestion } = await suggestJobIntake(form.description)
+      setForm((prev) => ({
+        ...prev,
+        skills: suggestion.skills.length ? suggestion.skills.join(', ') : prev.skills,
+        description: suggestion.summary || prev.description,
+      }))
+      setMessage('AI suggestions applied below — review and edit before publishing.')
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'backend'))
+    } finally {
+      setIsSuggesting(false)
     }
   }
 
@@ -256,6 +279,20 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
             Description
             <textarea onChange={(event) => set('description', event.target.value)} rows={editingId ? 6 : 3} value={form.description} />
           </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <button
+              className="jf-btn jf-btn-ghost jf-btn-sm"
+              disabled={isSuggesting || !form.description.trim()}
+              onClick={() => void handleSuggest()}
+              style={{ alignSelf: 'flex-start' }}
+              type="button"
+            >
+              {isSuggesting ? 'Cleaning up…' : 'Clean up with AI'}
+            </button>
+            <span className="jf-msg" style={{ margin: 0 }}>
+              Paste a raw job description above, then run this to rewrite it as a clean summary and pull out the must-have skills.
+            </span>
+          </div>
           <button className="jf-btn jf-btn-primary" disabled={isBusy || !form.title.trim()} type="submit" style={{ alignSelf: 'flex-start' }}>
             {editingId ? 'Save changes' : 'Publish role'}
           </button>
