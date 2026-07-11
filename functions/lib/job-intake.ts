@@ -16,8 +16,8 @@ export type JobIntakeSuggestion = {
   salaryMaxUsd: number | null
 }
 
-const MAX_INPUT_CHARS = 8000
-const MAX_DESCRIPTION_CHARS = 6000
+const MAX_INPUT_CHARS = 12000
+const MAX_DESCRIPTION_CHARS = 10000
 const MAX_SKILLS = 12
 const TIMEOUT_MS = 12000
 const DEFAULT_MODEL = 'claude-haiku-4-5'
@@ -63,13 +63,15 @@ export async function suggestJobIntake(rawText: string, env: Env): Promise<JobIn
     'Task 1: extract a clean, deduplicated list of the must-have skills/technologies/qualifications actually required ' +
     '(not vague filler like "team player").\n\n' +
     'Task 2: produce a cleaned FULL job description — this is NOT a summary and must not be shortened, paraphrased down, ' +
-    'or have content dropped. Preserve everything a candidate needs to decide whether to apply, in its original level of ' +
-    'detail: the role\'s purpose, all responsibilities, and all required AND preferred qualifications. Keep bullet-point ' +
-    'structure using newlines so it stays readable. The ONLY things to remove are generic boilerplate that carries no ' +
-    'role-specific information: page-UI chrome ("Apply", "posted on", "time type", requisition/job-req IDs), company ' +
-    'marketing/mission-statement blurbs, EEO/DEI/legal disclaimers, generic learning-and-development or benefits ' +
-    'marketing copy, and hiring-process/accessibility boilerplate. When in doubt about whether something is boilerplate ' +
-    'or real content, keep it.\n\n' +
+    'or have content dropped. This is a light cleanup pass, not a rewrite: keep essentially everything, including the ' +
+    'role\'s purpose, all responsibilities, all required AND preferred qualifications, and anything about the company ' +
+    '(culture, benefits, learning/development, DEI, environment/community commitments, what the hiring process looks ' +
+    'like) — candidates read job postings to learn about the company and role, not just the task list, so this content ' +
+    'is NOT boilerplate and must stay. Keep bullet-point structure using newlines so it stays readable. The ONLY things ' +
+    'to remove are literal page-UI chrome that isn\'t prose at all: field labels and their raw values like "Apply", ' +
+    '"remote type: Hybrid", "locations: X", "time type: Full time", "posted on: N days ago", "job requisition id: XXXX". ' +
+    'When in doubt about whether something is page chrome or real written content, keep it — removing too much is worse ' +
+    'than removing too little.\n\n' +
     'Task 3: only where the text actually states them, extract the job title, primary work location (city/state or ' +
     '"Remote"), and annual base salary range in USD.\n\n' +
     'Respond with ONLY a JSON object, no prose, matching exactly: ' +
@@ -93,7 +95,7 @@ export async function suggestJobIntake(rawText: string, env: Env): Promise<JobIn
       },
       body: JSON.stringify({
         model,
-        max_tokens: 3000,
+        max_tokens: 4500,
         system,
         messages: [{ role: 'user', content: `RAW JOB POSTING TEXT:\n${text}` }],
       }),
