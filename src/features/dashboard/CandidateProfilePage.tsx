@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import type { BackendSession, ResumeArtifact } from '../../backendClient'
 import { deleteResume, getProfile, humanizeJobsFlowError, listResumes, saveProfile, uploadResume } from '../../backendClient'
 import { extractDocxText } from '../../lib/docx'
 import { extractPdfText } from '../../lib/pdf'
+import { evaluateResumeHealth } from '../../lib/resumeHealth'
 
 export function CandidateProfilePage({ session }: { session: BackendSession | null }) {
   const [headline, setHeadline] = useState('')
@@ -105,6 +106,7 @@ export function CandidateProfilePage({ session }: { session: BackendSession | nu
   }
 
   const chars = resumeText.trim().length
+  const health = useMemo(() => evaluateResumeHealth(resumeText), [resumeText])
 
   return (
     <main className="jf-page">
@@ -143,6 +145,30 @@ export function CandidateProfilePage({ session }: { session: BackendSession | nu
           </button>
         </div>
       </form>
+
+      {chars > 0 ? (
+        <div className="jf-panel jf-profile">
+          <h3 style={{ margin: 0 }}>Resume health</h3>
+          <p className="jf-msg" style={{ margin: 0 }}>
+            A quick, deterministic check of your resume text — not job-specific, and not AI-scored. Same honesty rule as everywhere else: every box is checked by a plain rule you can see below.
+          </p>
+          <div className="jf-progress"><i style={{ width: `${(health.done / health.total) * 100}%` }} /></div>
+          <p className="jf-msg" style={{ marginTop: -6, marginBottom: 8 }}>{health.done} of {health.total} checks pass</p>
+          {health.checks.map((check) => (
+            <div className="jf-check" key={check.id}>
+              <span className={`jf-tick ${check.done ? 'done' : 'todo'}`}>
+                {check.done ? (
+                  <svg aria-hidden="true" fill="none" height="12" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24" width="12"><path d="M20 6 9 17l-5-5" /></svg>
+                ) : null}
+              </span>
+              <div className="jf-ck-body">
+                <strong>{check.label}</strong>
+                <span>{check.detail}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <div className="jf-panel jf-profile">
         <h3 style={{ margin: 0 }}>Resume file</h3>
