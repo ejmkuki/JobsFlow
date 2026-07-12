@@ -25,6 +25,7 @@ type ApplyBody = {
   resumeArtifactId?: unknown
   readinessScore?: unknown
   aiConsent?: unknown
+  referralCode?: unknown
 }
 
 type CandidateApplicationRow = {
@@ -178,6 +179,21 @@ async function handleApply(request: Request, env: RequestContext['env'], session
   const applicationId = crypto.randomUUID()
   const coverNote = safeString(body.coverNote, '').slice(0, maxCoverNote)
 
+  // A referral code is scoped to one referrer + one job (functions/api/
+  // referrals.ts) — it only attributes if it actually matches this job, and
+  // never to the applicant's own tenant (no self-referral credit).
+  let referredByTenantId: string | null = null
+  const referralCode = safeString(body.referralCode, '')
+  if (referralCode) {
+    const referral = await env.DB!
+      .prepare('SELECT tenant_id AS tenantId FROM referral_codes WHERE code = ? AND job_id = ? LIMIT 1')
+      .bind(referralCode, jobId)
+      .first<{ tenantId: string }>()
+    if (referral && referral.tenantId !== session.tenantId) {
+      referredByTenantId = referral.tenantId
+    }
+  }
+
   // Score is computed server-side from the candidate's resume vs the job — never
   // taken from the client. body.readinessScore is intentionally ignored.
   const jobForMatch: JobForMatch = {
@@ -242,8 +258,8 @@ async function handleApply(request: Request, env: RequestContext['env'], session
         `INSERT INTO job_applications (
           id, job_id, employer_tenant_id, candidate_tenant_id, candidate_user_id,
           candidate_name, candidate_email, resume_artifact_id, cover_note, readiness_score,
-          match_method, match_rationale, status, employer_sla_due_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', datetime('now', ?))`,
+          match_method, match_rationale, status, employer_sla_due_at, referred_by_tenant_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', datetime('now', ?), ?)`,
       )
       .bind(
         finalApplicationId,
@@ -259,6 +275,7 @@ async function handleApply(request: Request, env: RequestContext['env'], session
         match.method,
         matchRationale,
         `+${slaDays} days`,
+        referredByTenantId,
       )
       .run()
     await env.DB!.prepare('UPDATE jobs SET applicant_count = applicant_count + 1 WHERE id = ?').bind(jobId).run()

@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Sparkles } from 'lucide-react'
 import type { BackendSession, CandidateApplication, JobRecommendation } from '../../backendClient'
-import { getProfile, humanizeJobsFlowError, listMyApplications, listRecommendations, listResumes } from '../../backendClient'
+import { getProfile, humanizeJobsFlowError, listMyApplications, listRecommendations, listReferrals, listResumes } from '../../backendClient'
 import { formatCents } from '../../lib/format'
 
 function salaryLabel(job: JobRecommendation) {
@@ -37,6 +37,7 @@ export function CandidateHomePage({ session }: { session: BackendSession | null 
   const [hasResume, setHasResume] = useState(false)
   const [recommendations, setRecommendations] = useState<JobRecommendation[]>([])
   const [message, setMessage] = useState('')
+  const [referredApplications, setReferredApplications] = useState(0)
 
   useEffect(() => {
     if (!session) return
@@ -47,6 +48,9 @@ export function CandidateHomePage({ session }: { session: BackendSession | null 
         setRecommendations(recs.recommendations)
       })
       .catch((error) => setMessage(humanizeJobsFlowError(error, 'backend')))
+    listReferrals()
+      .then((result) => setReferredApplications(result.totalReferredApplications))
+      .catch(() => {}) // advisory stat — a failed fetch shouldn't block the page
   }, [session])
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
@@ -175,6 +179,16 @@ export function CandidateHomePage({ session }: { session: BackendSession | null 
           ))}
         </aside>
       </div>
+
+      {referredApplications > 0 ? (
+        <section className="jf-panel">
+          <div className="jf-panel-head"><h2>Your referrals</h2></div>
+          <p className="jf-msg">
+            <strong>{referredApplications}</strong> application{referredApplications === 1 ? '' : 's'} came in through links you shared.
+            Use the <strong>Share</strong> button on any job to get another one.
+          </p>
+        </section>
+      ) : null}
     </main>
   )
 }

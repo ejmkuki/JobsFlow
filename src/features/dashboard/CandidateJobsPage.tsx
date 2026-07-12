@@ -4,6 +4,7 @@ import { Bookmark, Search, SendHorizontal } from 'lucide-react'
 import type { BackendSession, CandidateApplication, Job, JobBrowseFilters, MatchResult, ResumeArtifact, SavedJob, SavedSearch } from '../../backendClient'
 import {
   applyToJob,
+  createReferral,
   deleteSavedSearch,
   humanizeJobsFlowError,
   JobsFlowApiError,
@@ -109,6 +110,23 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
   useEffect(() => {
     void load()
   }, [load])
+
+  // A shared job link carries ?job={id}&ref={code} (see functions/jobs/
+  // [slug].ts). Capture it once on landing and remember it per-job, so
+  // whenever the candidate actually applies to that job — now or later in
+  // the same browser — the referral is attributed even if they browse
+  // around first.
+  useEffect(() => {
+    const jobId = searchParams.get('job')
+    const ref = searchParams.get('ref')
+    if (jobId && ref && typeof window !== 'undefined') {
+      try {
+        window.localStorage?.setItem(`jf-referral-${jobId}`, ref)
+      } catch {
+        // Storage unavailable — attribution simply won't carry through, not fatal.
+      }
+    }
+  }, [searchParams])
 
   function buildFilterParams() {
     const params: Record<string, string> = {}
@@ -221,6 +239,12 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
     const resumeLabel = selectedResumeId
       ? resumeFiles.find((file) => file.id === selectedResumeId)?.filename ?? 'selected resume'
       : 'your profile resume'
+    let referralCode: string | undefined
+    try {
+      referralCode = window.localStorage?.getItem(`jf-referral-${job.id}`) ?? undefined
+    } catch {
+      referralCode = undefined
+    }
     setIsBusy(true)
     setMessage(`Applying to ${job.title}…`)
     try {
@@ -229,6 +253,7 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
         coverNote: notes[job.id]?.trim() ?? '',
         resumeArtifactId: selectedResumeId || undefined,
         aiConsent,
+        referralCode,
       })
       setFits((current) => ({ ...current, [job.id]: { match: result.match, resumeLabel } }))
       setMessage(`Applied to ${job.title} at ${job.company} — ${result.match.score}% match.`)
@@ -243,6 +268,17 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
       setMessage(humanizeJobsFlowError(error, 'backend'))
     } finally {
       setIsBusy(false)
+    }
+  }
+
+  async function handleShare(job: Job) {
+    try {
+      const result = await createReferral(job.id)
+      const link = `https://jobsflowai.ai/jobs/${job.slug}?ref=${result.code}`
+      await navigator.clipboard.writeText(link)
+      setMessage(`Referral link copied — you'll see credit if a friend applies through it.`)
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'backend'))
     }
   }
 
@@ -397,6 +433,9 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
                   ) : null}
                   <button className="jf-btn jf-btn-ghost" disabled={fits[job.id] === 'loading'} onClick={() => void handleCheckFit(job)} type="button">
                     Check fit
+                  </button>
+                  <button className="jf-btn jf-btn-ghost" onClick={() => void handleShare(job)} title="Copy a referral link — get credit if a friend applies" type="button">
+                    Share
                   </button>
                   <button className="jf-btn jf-btn-primary" disabled={isBusy} onClick={() => void handleApply(job)} type="button">
                     <SendHorizontal size={15} aria-hidden="true" /> Apply

@@ -2043,7 +2043,7 @@ export function resumeDownloadHref(resumeArtifactId: string) {
   return `/api/resumes?id=${encodeURIComponent(resumeArtifactId)}`
 }
 
-export async function applyToJob(input: { jobId: string; coverNote?: string; resumeArtifactId?: string; aiConsent?: boolean }) {
+export async function applyToJob(input: { jobId: string; coverNote?: string; resumeArtifactId?: string; aiConsent?: boolean; referralCode?: string }) {
   return readJson<{ applicationId: string; ok: boolean; status: string; match: MatchResult }>(
     await fetch('/api/job-applications', jsonPost({ action: 'apply', ...input })),
   )
@@ -2197,6 +2197,16 @@ export async function addApplicantNote(input: { applicationId: string; body: str
   return readJson<{ ok: boolean; noteId: string; mentionedUserIds: string[] }>(
     await fetch('/api/applicant-notes', jsonPost(input)),
   )
+}
+
+export type ReferralSummary = { code: string; jobId: string; jobTitle: string; jobSlug: string; createdAt: string; referredApplications: number }
+
+export async function listReferrals() {
+  return readJson<{ ok: boolean; referrals: ReferralSummary[]; totalReferredApplications: number }>(await fetch('/api/referrals'))
+}
+
+export async function createReferral(jobId: string) {
+  return readJson<{ ok: boolean; code: string }>(await fetch('/api/referrals', jsonPost({ jobId })))
 }
 
 export async function exportAccountData() {

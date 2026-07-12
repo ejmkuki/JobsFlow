@@ -50,10 +50,12 @@ export async function onRequestGet({ request, env }: RequestContext) {
   // params — keeps this handler testable with a plain constructed Request
   // (see tests/helpers/worker.ts's callHandler) without needing the test
   // harness to simulate Pages' dynamic-route param extraction.
-  const slug = decodeURIComponent(new URL(request.url).pathname.replace(/^\/jobs\//, '').replace(/\/$/, ''))
+  const requestUrl = new URL(request.url)
+  const slug = decodeURIComponent(requestUrl.pathname.replace(/^\/jobs\//, '').replace(/\/$/, ''))
   if (!slug) {
     return notFoundPage()
   }
+  const ref = requestUrl.searchParams.get('ref')
 
   const job = await env.DB
     .prepare(
@@ -137,7 +139,7 @@ body{font-family:system-ui,-apple-system,sans-serif;max-width:720px;margin:40px 
 <p class="meta">${escapeHtml(job.company)} · ${escapeHtml(job.location)} · ${escapeHtml(job.workplaceType)}</p>
 ${skills.length ? `<div class="skills">${skills.map((skill) => `<span>${escapeHtml(skill)}</span>`).join('')}</div>` : ''}
 <div>${escapeHtml(description).split('\n').map((line) => `<p>${line}</p>`).join('')}</div>
-<a class="cta" href="${appUrl}/candidate/jobs?job=${encodeURIComponent(job.id)}">Apply on JobsFlow AI</a>
+<a class="cta" href="${appUrl}/candidate/jobs?job=${encodeURIComponent(job.id)}${ref ? `&ref=${encodeURIComponent(ref)}` : ''}">Apply on JobsFlow AI</a>
 </body>
 </html>`
 
