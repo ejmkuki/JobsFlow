@@ -14,6 +14,7 @@ export type NotificationEmail = {
   text: string
   idempotencyKey?: string
   tags?: Array<{ name: string; value: string }>
+  attachments?: Array<{ filename: string; content: string }>
 }
 
 export type NotificationInput = {

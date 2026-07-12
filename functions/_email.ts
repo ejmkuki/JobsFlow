@@ -5,7 +5,13 @@ type EmailTag = {
   value: string
 }
 
+type EmailAttachment = {
+  content: string
+  filename: string
+}
+
 export type SendJobsFlowEmailInput = {
+  attachments?: EmailAttachment[]
   html: string
   idempotencyKey?: string
   replyTo?: string | string[]
@@ -68,6 +74,7 @@ export async function sendJobsFlowEmail(env: Env, input: SendJobsFlowEmailInput)
 
   const response = await fetch(resendEmailEndpoint, {
     body: JSON.stringify({
+      attachments: input.attachments,
       from: jobsFlowEmailFrom,
       html: input.html,
       reply_to: input.replyTo,
