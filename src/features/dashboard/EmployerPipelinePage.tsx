@@ -64,6 +64,15 @@ function initials(name: string) {
   )
 }
 
+const blindModeStorageKey = 'jf-blind-review'
+
+// Deterministic "Candidate #ABCD" label from the application id — same
+// candidate always gets the same blind label within a session, but it
+// carries no identifying information itself.
+function blindLabel(applicationId: string) {
+  return `Candidate #${applicationId.replace(/-/g, '').slice(-4).toUpperCase()}`
+}
+
 type Sla = { klass: string; label: string } | null
 
 function slaState(dueAt: string | null, status: string): Sla {
@@ -97,6 +106,25 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
   const [openApplicationId, setOpenApplicationId] = useState<string | null>(null)
   const [overdueAcrossJobs, setOverdueAcrossJobs] = useState(0)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [blindMode, setBlindMode] = useState(() => {
+    try {
+      return typeof window !== 'undefined' && window.localStorage?.getItem(blindModeStorageKey) === '1'
+    } catch {
+      return false
+    }
+  })
+
+  function toggleBlindMode() {
+    setBlindMode((prev) => {
+      const next = !prev
+      try {
+        window.localStorage?.setItem(blindModeStorageKey, next ? '1' : '0')
+      } catch {
+        // Storage unavailable (private browsing, test env) — toggle still works for this session.
+      }
+      return next
+    })
+  }
 
   useEffect(() => {
     if (!session) return
@@ -211,11 +239,21 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
               ))}
             </select>
           ) : null}
+          <label className="jf-msg" style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+            <input type="checkbox" checked={blindMode} onChange={toggleBlindMode} />
+            Blind review
+          </label>
           <button className="jf-btn jf-btn-primary" onClick={() => navigate('../jobs')} type="button">
             + New role
           </button>
         </div>
       </div>
+
+      {blindMode ? (
+        <p className="jf-msg">
+          Blind review is on — names and emails are hidden on the board. Evidence (fit score, matched skills, gaps) stays visible. Open a card to reveal identity.
+        </p>
+      ) : null}
 
       {overdueAcrossJobs > 0 ? (
         <div className="jf-banner jf-banner-warn">
@@ -309,15 +347,15 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
                               checked={selectedIds.has(applicant.id)}
                               onClick={(event) => event.stopPropagation()}
                               onChange={() => toggleSelected(applicant.id)}
-                              aria-label={`Select ${applicant.candidateName}`}
+                              aria-label={`Select ${blindMode ? blindLabel(applicant.id) : applicant.candidateName}`}
                             />
                           ) : null}
-                          <div className="jf-avatar" style={closed ? { background: '#6a7887' } : undefined}>
-                            {initials(applicant.candidateName)}
+                          <div className="jf-avatar" style={closed ? { background: '#6a7887' } : blindMode ? { background: '#6a7887' } : undefined}>
+                            {blindMode ? '?' : initials(applicant.candidateName)}
                           </div>
                           <div className="jf-who">
-                            <strong>{applicant.candidateName}</strong>
-                            <span>{applicant.candidateEmail}</span>
+                            <strong>{blindMode ? blindLabel(applicant.id) : applicant.candidateName}</strong>
+                            <span>{blindMode ? 'Identity hidden — open to reveal' : applicant.candidateEmail}</span>
                           </div>
                           <div className="jf-fit">
                             <b>{applicant.matchMethod === 'unscored' ? '—' : `${applicant.readinessScore}%`}</b>
