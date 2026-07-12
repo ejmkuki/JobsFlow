@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:pages": "npm run build && npx wrangler pages dev dist --compatibility-date=2026-07-02",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node ./scripts/check-bundle-size.mjs",
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",

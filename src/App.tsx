@@ -8,7 +8,6 @@ import { workspaces } from './data/workspaces'
 import { AuthPanel } from './features/auth/AuthPanel'
 import { ProductOnboarding, SignalOperationsLayer } from './features/landing'
 import { LandingHero } from './features/landing'
-import { TrustWorkspace } from './features/trust/TrustWorkspace'
 import { useJobsFlowSso } from './jobsFlowSsoContext'
 import { writeAuthReturnPending } from './lib/appView'
 import { onboardingSteps } from './productModel'
@@ -38,6 +37,9 @@ const EmployerJobsPage = lazy(() =>
 )
 const TeamPage = lazy(() => import('./features/dashboard/TeamPage').then((m) => ({ default: m.TeamPage })))
 const ActivityPage = lazy(() => import('./features/dashboard/ActivityPage').then((m) => ({ default: m.ActivityPage })))
+// /trust is a standalone route most candidates/employers never visit — keep
+// it out of the eager bundle the same way the dashboard pages already are.
+const TrustWorkspace = lazy(() => import('./features/trust/TrustWorkspace').then((m) => ({ default: m.TrustWorkspace })))
 
 const workspaceIds: Workspace[] = ['candidate', 'employer', 'trust']
 
