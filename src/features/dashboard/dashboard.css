@@ -34,7 +34,7 @@
 .jf-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; color: var(--jf-ink); }
 .jf-logo svg { width: 26px; height: 20px; }
 .jf-logo strong { font-size: 15px; letter-spacing: -.2px; }
-.jf-tabs { display: flex; gap: 4px; }
+.jf-tabs { display: flex; gap: 4px; min-width: 0; overflow-x: auto; }
 .jf-tab { text-decoration: none; color: var(--jf-ink-2); font-size: 14px; font-weight: 550; padding: 8px 12px; border-radius: 8px; position: relative; }
 .jf-tab:hover { background: var(--jf-surface-2); }
 .jf-tab.jf-active { color: var(--jf-teal); font-weight: 700; }
@@ -141,7 +141,7 @@
 .jf-savedsearch button:first-child { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; padding: 0; }
 .jf-savedsearch-x { border: 0; background: none; color: var(--jf-teal); cursor: pointer; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; line-height: 1; }
 .jf-savedsearch-x:hover { background: rgba(14, 116, 144, .15); }
-.jf-item-actions { display: flex; align-items: center; gap: 10px; }
+.jf-item-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .jf-item-note { flex: 1; height: 40px; border: 1px solid var(--jf-line-strong); border-radius: 10px; padding: 0 12px; font: inherit; background: var(--jf-surface-2); color: var(--jf-ink); }
 .jf-status { font-size: 12px; font-weight: 650; padding: 3px 10px; border-radius: 999px; }
 .jf-status.jf-blue { background: var(--jf-teal-soft); color: var(--jf-teal); }
@@ -168,7 +168,7 @@
 .jf-page-head { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
 .jf-page-head h1 { font-size: 24px; letter-spacing: -.5px; margin: 0; }
 .jf-page-head p { margin: 4px 0 0; color: var(--jf-muted); font-size: 14px; max-width: 60ch; }
-.jf-head-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.jf-head-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .jf-select { height: 40px; padding: 0 12px; border: 1px solid var(--jf-line-strong); border-radius: 10px; background: var(--jf-surface); font-size: 13.5px; font-weight: 600; color: var(--jf-ink); cursor: pointer; }
 .jf-banner { border-radius: var(--jf-radius); padding: 13px 16px; font-size: 13.5px; }
 .jf-banner-warn { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; }
@@ -232,7 +232,6 @@
   .jf-tiles { grid-template-columns: repeat(2, 1fr); }
   .jf-post-row { grid-template-columns: 1fr; }
   .jf-nav-inner { gap: 14px; }
-  .jf-tabs { overflow-x: auto; }
 }
 
 .jf-desc { color: var(--jf-ink-2); font-size: 13.5px; line-height: 1.55; margin: 0; white-space: pre-wrap; }

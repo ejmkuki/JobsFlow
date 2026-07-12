@@ -291,9 +291,9 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
       {message ? <p className="jf-msg">{message}</p> : null}
 
       {selectedIds.size > 0 ? (
-        <div className="jf-banner jf-banner-warn" style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
+        <div className="jf-banner jf-banner-warn" style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between', flexWrap: 'wrap' }}>
           <span><strong>{selectedIds.size}</strong> selected</span>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <select
               className="jf-select"
               disabled={isBusy}
