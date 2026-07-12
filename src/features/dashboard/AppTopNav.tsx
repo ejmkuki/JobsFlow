@@ -21,11 +21,13 @@ const candidateTabs = [
   { to: '/candidate/jobs', label: 'Jobs', end: false },
   { to: '/candidate/applications', label: 'Applications', end: false },
   { to: '/candidate/profile', label: 'Profile', end: false },
+  { to: '/candidate/activity', label: 'Activity', end: false },
 ]
 const employerTabs = [
   { to: '/employer/candidates', label: 'Candidates', end: false },
   { to: '/employer/jobs', label: 'Jobs', end: false },
   { to: '/employer/team', label: 'Team', end: false },
+  { to: '/employer/activity', label: 'Activity', end: false },
 ]
 
 export function AppTopNav({ session, onSignOut }: { session: BackendSession | null; onSignOut: () => void }) {

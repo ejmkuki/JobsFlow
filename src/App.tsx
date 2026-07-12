@@ -37,6 +37,7 @@ const EmployerJobsPage = lazy(() =>
   import('./features/dashboard/EmployerJobsPage').then((m) => ({ default: m.EmployerJobsPage })),
 )
 const TeamPage = lazy(() => import('./features/dashboard/TeamPage').then((m) => ({ default: m.TeamPage })))
+const ActivityPage = lazy(() => import('./features/dashboard/ActivityPage').then((m) => ({ default: m.ActivityPage })))
 
 const workspaceIds: Workspace[] = ['candidate', 'employer', 'trust']
 
@@ -217,6 +218,7 @@ function AppShell() {
             <Route path="jobs" element={<CandidateJobsPage session={session} />} />
             <Route path="applications" element={<CandidateApplicationsPage session={session} />} />
             <Route path="profile" element={<CandidateProfilePage session={session} />} />
+            <Route path="activity" element={<ActivityPage session={session} />} />
             <Route path="*" element={<Navigate replace to="/candidate" />} />
           </Route>
           <Route
@@ -227,6 +229,7 @@ function AppShell() {
             <Route path="candidates" element={<EmployerPipelinePage session={session} />} />
             <Route path="jobs" element={<EmployerJobsPage session={session} />} />
             <Route path="team" element={<TeamPage session={session} />} />
+            <Route path="activity" element={<ActivityPage session={session} />} />
             <Route path="*" element={<Navigate replace to="/employer/candidates" />} />
           </Route>
           <Route
