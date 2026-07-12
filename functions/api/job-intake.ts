@@ -1,6 +1,7 @@
 import type { RequestContext } from '../_shared'
 import { enforceRateLimit, getSession, json, missingConfig, tooManyRequests } from '../_shared'
 import { suggestJobIntake } from '../lib/job-intake'
+import { planRateLimit } from '../lib/plans'
 
 const MIN_TEXT_CHARS = 40
 const MAX_TEXT_CHARS = 20000
@@ -15,7 +16,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
     return json({ ok: false, error: 'unauthorized', message: 'Sign in before using AI job intake.' }, 401)
   }
 
-  const rate = await enforceRateLimit(env, `job-intake:${session.tenantId}`, 15, 60)
+  const rate = await enforceRateLimit(env, `job-intake:${session.tenantId}`, planRateLimit(session.planCode, 15), 60)
   if (!rate.allowed) {
     return tooManyRequests(rate)
   }

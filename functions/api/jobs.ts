@@ -9,7 +9,7 @@ import {
   writeAuditEvent,
 } from '../_shared'
 import { buildJobSlug } from '../lib/slug'
-import { freeOpenJobsCap, isPaidEmployerPlan } from '../lib/plans'
+import { freeOpenJobsCap, isPaidEmployerPlan, planRateLimit } from '../lib/plans'
 
 type JobRow = {
   id: string
@@ -215,7 +215,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
     return json({ ok: false, error: 'unauthorized', message: 'Sign in to post a job.' }, 401)
   }
 
-  const rate = await enforceRateLimit(env, `job-post:${session.tenantId}`, 30, 60)
+  const rate = await enforceRateLimit(env, `job-post:${session.tenantId}`, planRateLimit(session.planCode, 30), 60)
   if (!rate.allowed) {
     return tooManyRequests(rate)
   }
