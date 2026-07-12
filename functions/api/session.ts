@@ -442,14 +442,40 @@ export async function onRequestPost({ request, env }: RequestContext) {
     .bind(email)
     .first<{ tenantId: string; userId: string }>()
 
-  const tenantId = existingUser?.tenantId ?? crypto.randomUUID()
+  // A brand-new email with a pending team invite joins that tenant instead
+  // of getting a fresh one — the invite is matched purely by email; the
+  // active auth mode has already proven the caller owns it before a session
+  // is ever issued, so no separate accept-link token is needed.
+  const pendingInvite = existingUser
+    ? null
+    : await db
+        .prepare(
+          `SELECT id, tenant_id AS tenantId, role FROM tenant_invites
+           WHERE invited_email = ? AND status = 'pending' AND expires_at > datetime('now')
+           ORDER BY created_at DESC LIMIT 1`,
+        )
+        .bind(email)
+        .first<{ id: string; tenantId: string; role: string }>()
+
+  const tenantId = existingUser?.tenantId ?? pendingInvite?.tenantId ?? crypto.randomUUID()
   const userId = existingUser?.userId ?? crypto.randomUUID()
+  const resolvedRole = pendingInvite?.role ?? role
 
   if (!existingUser) {
-    await db
-      .prepare('INSERT INTO tenants (id, type, name, plan_code) VALUES (?, ?, ?, ?)')
-      .bind(tenantId, accountType, tenantName, accountType === 'employer' ? 'hiring_team' : 'candidate_starter')
-      .run()
+    if (pendingInvite) {
+      await db
+        .prepare(`UPDATE tenant_invites SET status = 'accepted', accepted_at = datetime('now') WHERE id = ?`)
+        .bind(pendingInvite.id)
+        .run()
+    } else {
+      // owner_user_id is set in a follow-up UPDATE, not this INSERT — it
+      // references users(id), and that row doesn't exist until the INSERT
+      // just below, so setting it here would violate the FK constraint.
+      await db
+        .prepare('INSERT INTO tenants (id, type, name, plan_code) VALUES (?, ?, ?, ?)')
+        .bind(tenantId, accountType, tenantName, accountType === 'employer' ? 'hiring_team' : 'candidate_starter')
+        .run()
+    }
 
     await db
       .prepare(
@@ -458,10 +484,14 @@ export async function onRequestPost({ request, env }: RequestContext) {
         VALUES (?, ?, ?, ?, ?)
         `,
       )
-      .bind(userId, tenantId, email, displayName, role)
+      .bind(userId, tenantId, email, displayName, resolvedRole)
       .run()
 
-    if (accountType === 'candidate') {
+    if (!pendingInvite) {
+      await db.prepare('UPDATE tenants SET owner_user_id = ? WHERE id = ?').bind(userId, tenantId).run()
+    }
+
+    if (accountType === 'candidate' && !pendingInvite) {
       await db
         .prepare(
           `
@@ -496,13 +526,17 @@ export async function onRequestPost({ request, env }: RequestContext) {
   await writeAuditEvent(env, {
     tenantId,
     userId,
-    eventType: existingUser ? 'session.created' : 'tenant.created',
+    eventType: existingUser ? 'session.created' : pendingInvite ? 'team.invite_accepted' : 'tenant.created',
     actorType: 'user',
-    action: existingUser ? 'Signed in to JobsFlow workspace' : 'Created JobsFlow tenant and first user',
+    action: existingUser
+      ? 'Signed in to JobsFlow workspace'
+      : pendingInvite
+        ? 'Joined an existing JobsFlow workspace via team invite'
+        : 'Created JobsFlow tenant and first user',
     riskLevel: 'low',
     metadata: {
       accountType,
-      role,
+      role: resolvedRole,
       accessMode: sessionAccess.mode,
       externalUserId: sessionAccess.externalUserId,
     },
@@ -518,7 +552,7 @@ export async function onRequestPost({ request, env }: RequestContext) {
         userId,
         email,
         displayName,
-        role,
+        role: resolvedRole,
         expiresAt,
       },
     },
