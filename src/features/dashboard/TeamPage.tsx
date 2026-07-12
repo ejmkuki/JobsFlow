@@ -1,6 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import type { BackendSession, TeamInvite, TeamMember } from '../../backendClient'
-import { humanizeJobsFlowError, inviteTeamMember, listTeam, removeTeamMember, revokeTeamInvite } from '../../backendClient'
+import type { BackendSession, BillingStatus, TeamInvite, TeamMember } from '../../backendClient'
+import {
+  getBillingStatus,
+  humanizeJobsFlowError,
+  inviteTeamMember,
+  listTeam,
+  openBillingPortal,
+  removeTeamMember,
+  revokeTeamInvite,
+  startUpgradeCheckout,
+} from '../../backendClient'
 
 const roleLabels: Record<string, string> = {
   recruiter: 'Recruiter',
@@ -16,6 +25,8 @@ export function TeamPage({ session }: { session: BackendSession | null }) {
   const [role, setRole] = useState('recruiter')
   const [message, setMessage] = useState('')
   const [isBusy, setIsBusy] = useState(false)
+  const [billing, setBilling] = useState<BillingStatus | null>(null)
+  const [isBillingBusy, setIsBillingBusy] = useState(false)
 
   function refresh() {
     if (!session) return
@@ -26,9 +37,36 @@ export function TeamPage({ session }: { session: BackendSession | null }) {
         setIsOwner(result.isOwner)
       })
       .catch((error) => setMessage(humanizeJobsFlowError(error, 'backend')))
+    getBillingStatus()
+      .then(setBilling)
+      .catch(() => {}) // advisory panel — a failed fetch shouldn't block the rest of the page
   }
 
   useEffect(refresh, [session])
+
+  async function upgrade() {
+    setIsBillingBusy(true)
+    setMessage('')
+    try {
+      const result = await startUpgradeCheckout()
+      window.location.href = result.url
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'backend'))
+      setIsBillingBusy(false)
+    }
+  }
+
+  async function manageBilling() {
+    setIsBillingBusy(true)
+    setMessage('')
+    try {
+      const result = await openBillingPortal()
+      window.location.href = result.url
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'backend'))
+      setIsBillingBusy(false)
+    }
+  }
 
   async function submitInvite(event: FormEvent) {
     event.preventDefault()
@@ -81,7 +119,34 @@ export function TeamPage({ session }: { session: BackendSession | null }) {
 
       {message ? <p className="jf-msg">{message}</p> : null}
 
-      {isOwner ? (
+      {isOwner && billing ? (
+        <section className="jf-panel">
+          <div className="jf-panel-head">
+            <h2>Plan</h2>
+            <span className={`jf-status ${billing.isPaid ? 'jf-green' : 'jf-blue'}`}>{billing.isPaid ? 'Pro' : 'Free'}</span>
+          </div>
+          {billing.isPaid ? (
+            <>
+              <p className="jf-msg">Unlimited open roles, AI-assisted matching, team seats, and structured scorecards.</p>
+              <button className="jf-btn jf-btn-ghost" disabled={isBillingBusy} onClick={() => void manageBilling()} type="button">
+                Manage billing
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="jf-msg">
+                Free plan: up to 3 open roles at once, keyword-only matching. Upgrade for unlimited roles, AI-assisted
+                matching, team seats, and structured scorecards.
+              </p>
+              <button className="jf-btn jf-btn-primary" disabled={isBillingBusy} onClick={() => void upgrade()} type="button">
+                Upgrade to Pro
+              </button>
+            </>
+          )}
+        </section>
+      ) : null}
+
+      {isOwner && billing?.isPaid ? (
         <section className="jf-panel">
           <div className="jf-panel-head">
             <h2>Invite a teammate</h2>

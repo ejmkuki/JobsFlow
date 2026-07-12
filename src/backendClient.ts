@@ -2209,6 +2209,20 @@ export async function createReferral(jobId: string) {
   return readJson<{ ok: boolean; code: string }>(await fetch('/api/referrals', jsonPost({ jobId })))
 }
 
+export type BillingStatus = { ok: boolean; planCode: string; isPaid: boolean; isOwner: boolean; hasBillingAccount: boolean }
+
+export async function getBillingStatus() {
+  return readJson<BillingStatus>(await fetch('/api/billing'))
+}
+
+export async function startUpgradeCheckout() {
+  return readJson<{ ok: boolean; url: string }>(await fetch('/api/billing', jsonPost({ action: 'create_checkout' })))
+}
+
+export async function openBillingPortal() {
+  return readJson<{ ok: boolean; url: string }>(await fetch('/api/billing', jsonPost({ action: 'create_portal' })))
+}
+
 export async function exportAccountData() {
   return readJson<{ ok: boolean; data: unknown }>(await fetch('/api/account-data'))
 }

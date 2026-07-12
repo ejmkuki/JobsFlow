@@ -10,5 +10,11 @@ CLERK_AUTHORIZED_PARTIES=http://localhost:5173,https://jobsflow.workflowfy.ai,ht
 CF_ACCESS_TEAM_DOMAIN=https://your-team.cloudflareaccess.com
 CF_ACCESS_AUD=replace-with-access-application-aud-tag
 RESEND_API_KEY=re_replace-with-resend-api-key
+# Stripe billing (optional — the employer paid-plan gate and /api/billing
+# stay in "still being prepared" mode without these). STRIPE_PRICE_ID_PRO is
+# the recurring Price id for the employer Pro subscription.
+STRIPE_SECRET_KEY=sk_test_replace-with-stripe-secret-key
+STRIPE_WEBHOOK_SECRET=whsec_replace-with-stripe-webhook-secret
+STRIPE_PRICE_ID_PRO=price_replace-with-stripe-price-id
 # Local dev auth requires no env flag: it is enabled only for loopback requests
 # that lack the Cloudflare edge request.cf object (see isTrustedDevRequest).

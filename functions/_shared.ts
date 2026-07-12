@@ -47,6 +47,9 @@ export type Env = {
   ANTHROPIC_API_KEY?: string
   ANTHROPIC_MODEL?: string
   CRON_SECRET?: string
+  STRIPE_SECRET_KEY?: string
+  STRIPE_WEBHOOK_SECRET?: string
+  STRIPE_PRICE_ID_PRO?: string
 }
 
 export type RequestContext = {
