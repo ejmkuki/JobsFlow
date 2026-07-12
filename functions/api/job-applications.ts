@@ -18,6 +18,7 @@ type ApplyBody = {
   action?: unknown
   jobId?: unknown
   applicationId?: unknown
+  applicationIds?: unknown
   status?: unknown
   note?: unknown
   coverNote?: unknown
@@ -57,6 +58,7 @@ type EmployerApplicantRow = {
 
 const employerTargets = new Set(['employer_review', 'screen', 'interview', 'offer', 'rejected'])
 const slaDays = 7
+const maxBulkActions = 50
 const maxCoverNote = 4000
 
 async function readBody(request: Request): Promise<ApplyBody> {
@@ -276,11 +278,19 @@ async function handleApply(request: Request, env: RequestContext['env'], session
   return json({ ok: true, applicationId: finalApplicationId, status: 'submitted', match }, 201)
 }
 
-async function handleAdvance(env: RequestContext['env'], session: SessionContext, body: ApplyBody) {
-  const applicationId = safeString(body.applicationId, '')
-  const target = safeString(body.status, '')
+// Shared by the single-item and bulk advance paths. Returns a small result
+// object rather than a Response so bulk mode can process many of these in a
+// loop and report a per-item outcome instead of failing the whole batch on
+// the first bad id.
+async function advanceOne(
+  env: RequestContext['env'],
+  session: SessionContext,
+  applicationId: string,
+  target: string,
+  note: string,
+): Promise<{ ok: true; applicationId: string; status: string } | { ok: false; applicationId: string; error: string }> {
   if (!applicationId || !employerTargets.has(target)) {
-    return json({ ok: false, error: 'invalid_transition', message: 'Choose a valid next stage.' }, 400)
+    return { ok: false, applicationId, error: 'invalid_transition' }
   }
 
   const application = await env.DB!
@@ -304,7 +314,7 @@ async function handleAdvance(env: RequestContext['env'], session: SessionContext
     }>()
 
   if (!application) {
-    return json({ ok: false, error: 'not_found', message: 'That applicant is not in your pipeline.' }, 404)
+    return { ok: false, applicationId, error: 'not_found' }
   }
 
   const clearSla = target === 'rejected' || target === 'offer'
@@ -325,7 +335,7 @@ async function handleAdvance(env: RequestContext['env'], session: SessionContext
     actorUserId: session.userId,
     fromStatus: application.status,
     toStatus: target,
-    note: safeString(body.note, ''),
+    note,
   })
   await writeAuditEvent(env, {
     tenantId: session.tenantId,
@@ -379,7 +389,45 @@ async function handleAdvance(env: RequestContext['env'], session: SessionContext
     })
   }
 
-  return json({ ok: true, applicationId, status: target })
+  return { ok: true, applicationId, status: target }
+}
+
+async function handleAdvance(env: RequestContext['env'], session: SessionContext, body: ApplyBody) {
+  const applicationId = safeString(body.applicationId, '')
+  const target = safeString(body.status, '')
+  const result = await advanceOne(env, session, applicationId, target, safeString(body.note, ''))
+
+  if (!result.ok) {
+    if (result.error === 'invalid_transition') {
+      return json({ ok: false, error: 'invalid_transition', message: 'Choose a valid next stage.' }, 400)
+    }
+    return json({ ok: false, error: 'not_found', message: 'That applicant is not in your pipeline.' }, 404)
+  }
+
+  return json(result)
+}
+
+async function handleBulkAdvance(env: RequestContext['env'], session: SessionContext, body: ApplyBody) {
+  const applicationIds = Array.isArray(body.applicationIds)
+    ? body.applicationIds.filter((id): id is string => typeof id === 'string').slice(0, maxBulkActions)
+    : []
+  const target = safeString(body.status, '')
+
+  if (applicationIds.length === 0) {
+    return json({ ok: false, error: 'ids_required', message: 'Select at least one applicant.' }, 400)
+  }
+  if (!employerTargets.has(target)) {
+    return json({ ok: false, error: 'invalid_transition', message: 'Choose a valid next stage.' }, 400)
+  }
+
+  const note = safeString(body.note, '')
+  const results = []
+  for (const applicationId of applicationIds) {
+    results.push(await advanceOne(env, session, applicationId, target, note))
+  }
+
+  const succeeded = results.filter((r) => r.ok).length
+  return json({ ok: true, succeeded, failed: results.length - succeeded, results })
 }
 
 async function handleWithdraw(env: RequestContext['env'], session: SessionContext, body: ApplyBody) {
@@ -432,6 +480,9 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   if (action === 'advance') {
     return handleAdvance(env, session, body)
+  }
+  if (action === 'bulk_advance') {
+    return handleBulkAdvance(env, session, body)
   }
   if (action === 'withdraw') {
     return handleWithdraw(env, session, body)
