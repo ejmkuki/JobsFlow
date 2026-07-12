@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Env } from '../functions/_shared'
-import { callHandler, createTestWorld, extractSessionCookie } from './helpers/worker'
+import { callHandler, createTestWorld, extractSessionCookie, type TestWorld } from './helpers/worker'
 import { onRequestPost as sessionPost } from '../functions/api/session'
 import { onRequestDelete as teamDelete, onRequestGet as teamGet, onRequestPost as teamPost } from '../functions/api/team'
+
+// Team seats are a paid-plan feature (Phase G #1) — no billing endpoint
+// exists yet to actually upgrade a tenant, so tests upgrade directly via the
+// underlying DB, the same way a successful Stripe webhook eventually will.
+function upgradeToPaid(world: TestWorld, email: string) {
+  world.db.prepare(`UPDATE tenants SET plan_code = 'hiring_team_pro' WHERE id = (SELECT tenant_id FROM users WHERE email = ?)`).run(email)
+}
 
 const jsonHeaders = { 'content-type': 'application/json' }
 const base = 'https://jobsflowai.ai'
@@ -50,6 +57,7 @@ describe('team invites and multi-seat tenants', () => {
   it('lets the workspace owner invite a teammate, sending an email', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap', RESEND_API_KEY: 'test-key' })
     const owner = await createSessionCookie(world.env, 'owner1@co.com', 'employer')
+    upgradeToPaid(world, 'owner1@co.com')
 
     const sendSpy = vi.fn(async () => new Response(JSON.stringify({ id: 'email_1' }), { status: 200 }))
     vi.stubGlobal('fetch', sendSpy)
@@ -71,6 +79,7 @@ describe('team invites and multi-seat tenants', () => {
   it('rejects inviting an email that already has a JobsFlow account', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
     const owner = await createSessionCookie(world.env, 'owner2@co.com', 'employer')
+    upgradeToPaid(world, 'owner2@co.com')
     await createSessionCookie(world.env, 'existing@me.com', 'candidate')
 
     const res = await invite(world.env, owner, 'existing@me.com')
@@ -82,6 +91,7 @@ describe('team invites and multi-seat tenants', () => {
   it('only the workspace owner can invite — a regular member cannot', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
     const owner = await createSessionCookie(world.env, 'owner3@co.com', 'employer')
+    upgradeToPaid(world, 'owner3@co.com')
     await invite(world.env, owner, 'member3@co.com')
     const memberCookie = await createSessionCookie(world.env, 'member3@co.com', 'employer')
 
@@ -94,6 +104,7 @@ describe('team invites and multi-seat tenants', () => {
     const ownerRes = await createSession(world.env, 'owner4@co.com', 'employer')
     const ownerCookie = extractSessionCookie(ownerRes)!
     const ownerBody = (await ownerRes.json()) as { session: { tenantId: string } }
+    upgradeToPaid(world, 'owner4@co.com')
 
     await invite(world.env, ownerCookie, 'member4@co.com', 'hiring_manager')
 
@@ -110,6 +121,7 @@ describe('team invites and multi-seat tenants', () => {
   it('keeps team membership scoped to its own tenant', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
     const ownerA = await createSessionCookie(world.env, 'ownerA@co.com', 'employer')
+    upgradeToPaid(world, 'ownerA@co.com')
     const ownerB = await createSessionCookie(world.env, 'ownerB@co.com', 'employer')
     await invite(world.env, ownerA, 'teammateA@co.com')
 
@@ -123,6 +135,7 @@ describe('team invites and multi-seat tenants', () => {
     const ownerRes = await createSession(world.env, 'owner5@co.com', 'employer')
     const ownerCookie = extractSessionCookie(ownerRes)!
     const ownerBody = (await ownerRes.json()) as { session: { tenantId: string } }
+    upgradeToPaid(world, 'owner5@co.com')
 
     const inviteRes = await invite(world.env, ownerCookie, 'revoked5@co.com')
     const { inviteId } = (await inviteRes.json()) as { inviteId: string }
@@ -142,6 +155,7 @@ describe('team invites and multi-seat tenants', () => {
   it('removes a team member, and prevents the owner from removing themselves', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
     const owner = await createSessionCookie(world.env, 'owner6@co.com', 'employer')
+    upgradeToPaid(world, 'owner6@co.com')
     await invite(world.env, owner, 'member6@co.com')
     const ownerTenant = (await getTeam(world.env, owner)).members.find((m) => m.isOwner)!
     await createSessionCookie(world.env, 'member6@co.com', 'employer')
@@ -163,5 +177,13 @@ describe('team invites and multi-seat tenants', () => {
     })
     const after = await getTeam(world.env, owner)
     expect(after.members).toHaveLength(1)
+  })
+
+  it('is a paid-plan feature — a free-plan owner cannot invite', async () => {
+    const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
+    const owner = await createSessionCookie(world.env, 'owner-free@co.com', 'employer')
+
+    const res = await invite(world.env, owner, 'teammate-free@co.com')
+    expect(res.status).toBe(402)
   })
 })

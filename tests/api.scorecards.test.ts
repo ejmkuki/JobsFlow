@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Env } from '../functions/_shared'
-import { callHandler, createTestWorld, extractSessionCookie } from './helpers/worker'
+import { callHandler, createTestWorld, extractSessionCookie, type TestWorld } from './helpers/worker'
 import { onRequestPost as sessionPost } from '../functions/api/session'
 import { onRequestPost as jobsPost } from '../functions/api/jobs'
 import { onRequestPost as appsPost } from '../functions/api/job-applications'
@@ -19,6 +19,13 @@ async function createSession(env: Env, email: string, accountType: 'candidate' |
     cf: {},
   })
   return extractSessionCookie(res)!
+}
+
+// Scorecards are a paid-plan feature (Phase G #1) — no billing endpoint
+// exists yet to actually upgrade a tenant, so tests upgrade directly via the
+// underlying DB, the same way a successful Stripe webhook eventually will.
+function upgradeToPaid(world: TestWorld, email: string) {
+  world.db.prepare(`UPDATE tenants SET plan_code = 'hiring_team_pro' WHERE id = (SELECT tenant_id FROM users WHERE email = ?)`).run(email)
 }
 
 async function postJob(env: Env, cookie: string) {
@@ -77,6 +84,7 @@ describe('interview scorecards', () => {
   it('creates a job-specific template and resolves it over the tenant default', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
     const employer = await createSession(world.env, 'sc-emp1@co.com', 'employer')
+    upgradeToPaid(world, 'sc-emp1@co.com')
     const jobId = await postJob(world.env, employer)
 
     const defaultRes = await createTemplate(world.env, employer, '')
@@ -92,6 +100,7 @@ describe('interview scorecards', () => {
   it('submits a weighted scorecard and aggregates across interviewers', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
     const owner = await createSession(world.env, 'sc-owner@co.com', 'employer')
+    upgradeToPaid(world, 'sc-owner@co.com')
     const candidate = await createSession(world.env, 'sc-cand1@me.com', 'candidate')
     const jobId = await postJob(world.env, owner)
     const applicationId = await apply(world.env, candidate, jobId)
@@ -115,6 +124,7 @@ describe('interview scorecards', () => {
   it('re-submitting by the same interviewer updates their submission instead of duplicating it', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
     const owner = await createSession(world.env, 'sc-owner2@co.com', 'employer')
+    upgradeToPaid(world, 'sc-owner2@co.com')
     const candidate = await createSession(world.env, 'sc-cand2@me.com', 'candidate')
     const jobId = await postJob(world.env, owner)
     const applicationId = await apply(world.env, candidate, jobId)
@@ -137,7 +147,9 @@ describe('interview scorecards', () => {
   it('never lets one employer tenant read or file a scorecard on another tenant\'s applicant', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
     const owner = await createSession(world.env, 'sc-owner3@co.com', 'employer')
+    upgradeToPaid(world, 'sc-owner3@co.com')
     const stranger = await createSession(world.env, 'sc-stranger@co.com', 'employer')
+    upgradeToPaid(world, 'sc-stranger@co.com')
     const candidate = await createSession(world.env, 'sc-cand3@me.com', 'candidate')
     const jobId = await postJob(world.env, owner)
     const applicationId = await apply(world.env, candidate, jobId)
@@ -157,6 +169,7 @@ describe('interview scorecards', () => {
   it('rejects a submission with no recommendation and a template with no criteria', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
     const owner = await createSession(world.env, 'sc-owner4@co.com', 'employer')
+    upgradeToPaid(world, 'sc-owner4@co.com')
     const candidate = await createSession(world.env, 'sc-cand4@me.com', 'candidate')
     const jobId = await postJob(world.env, owner)
     const applicationId = await apply(world.env, candidate, jobId)
@@ -172,5 +185,17 @@ describe('interview scorecards', () => {
 
     const badSubmit = await submitScorecard(world.env, owner, applicationId, { sql: 5 }, 'not-a-real-recommendation')
     expect(badSubmit.status).toBe(400)
+  })
+
+  it('is a paid-plan feature — a free-plan employer is blocked from both reading and creating', async () => {
+    const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap' })
+    const employer = await createSession(world.env, 'sc-free@co.com', 'employer')
+    const jobId = await postJob(world.env, employer)
+
+    const getRes = await callHandler(scorecardsGet, { env: world.env, url: `${base}/api/scorecards?jobId=${jobId}`, headers: { cookie: employer } })
+    expect(getRes.status).toBe(402)
+
+    const createRes = await createTemplate(world.env, employer, jobId)
+    expect(createRes.status).toBe(402)
   })
 })

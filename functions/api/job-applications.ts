@@ -11,6 +11,7 @@ import {
 } from '../_shared'
 import { computeMatch, type JobForMatch } from '../lib/match'
 import { notify, renderNotificationEmail } from '../lib/notify'
+import { isPaidEmployerPlan } from '../lib/plans'
 
 const appUrl = 'https://jobsflowai.ai'
 
@@ -128,9 +129,10 @@ async function handleApply(request: Request, env: RequestContext['env'], session
   const job = await env.DB!
     .prepare(
       `SELECT j.id, j.employer_tenant_id AS employerTenantId, j.status, j.title, j.company, j.description,
-              j.required_skills AS requiredSkills, u.email AS employerEmail
+              j.required_skills AS requiredSkills, u.email AS employerEmail, t.plan_code AS employerPlanCode
        FROM jobs j
        LEFT JOIN users u ON u.id = j.created_by_user_id
+       INNER JOIN tenants t ON t.id = j.employer_tenant_id
        WHERE j.id = ? LIMIT 1`,
     )
     .bind(jobId)
@@ -143,6 +145,7 @@ async function handleApply(request: Request, env: RequestContext['env'], session
       description: string
       requiredSkills: string
       employerEmail: string | null
+      employerPlanCode: string
     }>()
 
   if (!job || job.status !== 'open') {
@@ -202,7 +205,7 @@ async function handleApply(request: Request, env: RequestContext['env'], session
     description: job.description,
     requiredSkills: JSON.parse(job.requiredSkills || '[]') as string[],
   }
-  const match = await computeMatch(resumeText, jobForMatch, env)
+  const match = await computeMatch(resumeText, jobForMatch, env, isPaidEmployerPlan(job.employerPlanCode))
   const matchRationale = JSON.stringify({ matched: match.matched, gaps: match.gaps, summary: match.summary })
 
   // UNIQUE(job_id, candidate_tenant_id) means one application row per

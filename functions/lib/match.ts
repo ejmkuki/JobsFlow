@@ -98,7 +98,8 @@ function toStringArray(value: unknown): string[] {
   return value.filter((v): v is string => typeof v === 'string').map((v) => v.trim()).filter(Boolean).slice(0, MAX_SKILLS)
 }
 
-async function aiMatch(resumeText: string, job: JobForMatch, env: Env): Promise<MatchResult | null> {
+async function aiMatch(resumeText: string, job: JobForMatch, env: Env, allowAi: boolean): Promise<MatchResult | null> {
+  if (!allowAi) return null
   const apiKey = env.ANTHROPIC_API_KEY
   if (!apiKey) return null
 
@@ -181,7 +182,10 @@ async function aiMatch(resumeText: string, job: JobForMatch, env: Env): Promise<
 
 // Compute a match. Keyword tier is the deterministic floor; AI tier is additive
 // and falls back to keyword on any failure. Empty resume => honest "unscored".
-export async function computeMatch(resumeText: string, job: JobForMatch, env: Env): Promise<MatchResult> {
+// allowAi gates the AI tier on the hiring tenant's plan (Phase G #1) — free
+// plan gets keyword-only matching regardless of whether ANTHROPIC_API_KEY is
+// configured; defaults to true so existing callers are unaffected.
+export async function computeMatch(resumeText: string, job: JobForMatch, env: Env, allowAi = true): Promise<MatchResult> {
   if (!resumeText.trim()) {
     return {
       score: 0,
@@ -192,6 +196,6 @@ export async function computeMatch(resumeText: string, job: JobForMatch, env: En
     }
   }
   const base = keywordMatch(resumeText, job)
-  const ai = await aiMatch(resumeText, job, env)
+  const ai = await aiMatch(resumeText, job, env, allowAi)
   return ai ?? base
 }

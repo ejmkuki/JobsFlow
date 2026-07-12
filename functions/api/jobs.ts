@@ -9,6 +9,7 @@ import {
   writeAuditEvent,
 } from '../_shared'
 import { buildJobSlug } from '../lib/slug'
+import { freeOpenJobsCap, isPaidEmployerPlan } from '../lib/plans'
 
 type JobRow = {
   id: string
@@ -236,6 +237,24 @@ export async function onRequestPost({ request, env }: RequestContext) {
   const salaryMaxCents = toIntOrNull(body.salaryMaxCents)
   const salaryCurrency = safeString(body.salaryCurrency, 'USD').slice(0, 8)
   const status = body.status === 'draft' ? 'draft' : 'open'
+
+  if (status === 'open' && !isPaidEmployerPlan(session.planCode)) {
+    const openCount = await env.DB
+      .prepare(`SELECT COUNT(*) AS n FROM jobs WHERE employer_tenant_id = ? AND status = 'open'`)
+      .bind(session.tenantId)
+      .first<{ n: number }>()
+    if ((openCount?.n ?? 0) >= freeOpenJobsCap) {
+      return json(
+        {
+          ok: false,
+          error: 'plan_limit_reached',
+          message: `Free plan allows up to ${freeOpenJobsCap} open roles at once. Close one or upgrade to post more.`,
+        },
+        402,
+      )
+    }
+  }
+
   const jobId = crypto.randomUUID()
   const slug = buildJobSlug(title, company, jobId)
 
@@ -331,6 +350,23 @@ export async function onRequestPut({ request, env }: RequestContext) {
   const salaryMaxCents = toIntOrNull(body.salaryMaxCents)
   const salaryCurrency = safeString(body.salaryCurrency, 'USD').slice(0, 8)
   const status = jobStatuses.has(String(body.status)) ? String(body.status) : 'open'
+
+  if (status === 'open' && !isPaidEmployerPlan(session.planCode)) {
+    const openCount = await env.DB
+      .prepare(`SELECT COUNT(*) AS n FROM jobs WHERE employer_tenant_id = ? AND status = 'open' AND id != ?`)
+      .bind(session.tenantId, id)
+      .first<{ n: number }>()
+    if ((openCount?.n ?? 0) >= freeOpenJobsCap) {
+      return json(
+        {
+          ok: false,
+          error: 'plan_limit_reached',
+          message: `Free plan allows up to ${freeOpenJobsCap} open roles at once. Close one or upgrade to post more.`,
+        },
+        402,
+      )
+    }
+  }
 
   await env.DB
     .prepare(

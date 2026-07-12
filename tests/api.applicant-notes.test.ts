@@ -102,6 +102,7 @@ describe('applicant notes and @mentions', () => {
   it('parses an @mention of a real teammate and notifies + emails them, but not a bare "@" that matches nobody', async () => {
     const world = createTestWorld({ AUTH_BOOTSTRAP_TOKEN: 'test-bootstrap', RESEND_API_KEY: 'test-key' })
     const owner = await createSession(world.env, 'note-owner2@co.com', 'employer')
+    world.db.prepare(`UPDATE tenants SET plan_code = 'hiring_team_pro' WHERE id = (SELECT tenant_id FROM users WHERE email = ?)`).run('note-owner2@co.com')
     await callHandler(teamPost, {
       env: world.env,
       method: 'POST',

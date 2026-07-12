@@ -1,6 +1,7 @@
 import type { RequestContext } from '../_shared'
 import { enforceRateLimit, getSession, json, missingConfig, normalizeEmail, safeString, tooManyRequests } from '../_shared'
 import { notify, renderNotificationEmail } from '../lib/notify'
+import { isPaidEmployerPlan } from '../lib/plans'
 
 const appUrl = 'https://jobsflowai.ai'
 const inviteRoles = new Set(['recruiter', 'hiring_manager'])
@@ -68,6 +69,13 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   if (!(await requireOwner(env, session.tenantId, session.userId))) {
     return json({ ok: false, error: 'owner_required', message: 'Only the workspace owner can invite teammates.' }, 403)
+  }
+
+  if (!isPaidEmployerPlan(session.planCode)) {
+    return json(
+      { ok: false, error: 'plan_limit_reached', message: 'Team seats are a paid-plan feature. Upgrade to invite teammates.' },
+      402,
+    )
   }
 
   const body = (await request.json().catch(() => ({}))) as { email?: unknown; role?: unknown }

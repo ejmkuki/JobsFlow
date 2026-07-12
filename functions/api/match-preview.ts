@@ -1,6 +1,7 @@
 import type { RequestContext } from '../_shared'
 import { enforceRateLimit, getSession, json, missingConfig, safeString, tooManyRequests } from '../_shared'
 import { computeMatch, type JobForMatch } from '../lib/match'
+import { isPaidEmployerPlan } from '../lib/plans'
 
 type PreviewBody = { jobId?: unknown; resumeArtifactId?: unknown }
 
@@ -11,6 +12,7 @@ type JobRow = {
   company: string
   description: string
   requiredSkills: string
+  employerPlanCode: string
 }
 
 async function readBody(request: Request): Promise<PreviewBody> {
@@ -45,9 +47,10 @@ export async function onRequestPost({ request, env }: RequestContext) {
 
   const job = await env.DB
     .prepare(
-      `SELECT employer_tenant_id AS employerTenantId, status, title, company, description,
-              required_skills AS requiredSkills
-       FROM jobs WHERE id = ? LIMIT 1`,
+      `SELECT j.employer_tenant_id AS employerTenantId, j.status, j.title, j.company, j.description,
+              j.required_skills AS requiredSkills, t.plan_code AS employerPlanCode
+       FROM jobs j INNER JOIN tenants t ON t.id = j.employer_tenant_id
+       WHERE j.id = ? LIMIT 1`,
     )
     .bind(jobId)
     .first<JobRow>()
@@ -88,6 +91,6 @@ export async function onRequestPost({ request, env }: RequestContext) {
     requiredSkills: JSON.parse(job.requiredSkills || '[]') as string[],
   }
 
-  const match = await computeMatch(resumeText, jobForMatch, env)
+  const match = await computeMatch(resumeText, jobForMatch, env, isPaidEmployerPlan(job.employerPlanCode))
   return json({ ok: true, match })
 }

@@ -1,5 +1,6 @@
 import type { RequestContext, SessionContext } from '../_shared'
 import { enforceRateLimit, getSession, json, missingConfig, safeString, tooManyRequests, writeAuditEvent } from '../_shared'
+import { isPaidEmployerPlan } from '../lib/plans'
 
 const maxCriteria = 12
 const maxNoteChars = 4000
@@ -223,6 +224,9 @@ export async function onRequestGet({ request, env }: RequestContext) {
   if (!session) {
     return json({ ok: false, error: 'unauthorized', message: 'Sign in to view scorecards.' }, 401)
   }
+  if (!isPaidEmployerPlan(session.planCode)) {
+    return json({ ok: false, error: 'plan_limit_reached', message: 'Structured scorecards are a paid-plan feature. Upgrade to use them.' }, 402)
+  }
 
   const url = new URL(request.url)
   const jobId = url.searchParams.get('jobId')
@@ -244,6 +248,9 @@ export async function onRequestPost({ request, env }: RequestContext) {
   const session = await getSession(request, env)
   if (!session) {
     return json({ ok: false, error: 'unauthorized', message: 'Sign in to use scorecards.' }, 401)
+  }
+  if (!isPaidEmployerPlan(session.planCode)) {
+    return json({ ok: false, error: 'plan_limit_reached', message: 'Structured scorecards are a paid-plan feature. Upgrade to use them.' }, 402)
   }
 
   const rate = await enforceRateLimit(env, `scorecard:${session.tenantId}`, 60, 60)
