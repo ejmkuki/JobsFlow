@@ -6,6 +6,7 @@ import {
   applyToJob,
   deleteSavedSearch,
   humanizeJobsFlowError,
+  JobsFlowApiError,
   listMyApplications,
   listOpenJobs,
   listResumes,
@@ -57,6 +58,7 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([])
   const [message, setMessage] = useState('')
   const [isBusy, setIsBusy] = useState(false)
+  const [consentJob, setConsentJob] = useState<Job | null>(null)
 
   // A withdrawn or declined application doesn't block reapplying — only an
   // application still in an active stage does.
@@ -215,7 +217,7 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
     }
   }
 
-  async function handleApply(job: Job) {
+  async function handleApply(job: Job, aiConsent?: boolean) {
     const resumeLabel = selectedResumeId
       ? resumeFiles.find((file) => file.id === selectedResumeId)?.filename ?? 'selected resume'
       : 'your profile resume'
@@ -226,11 +228,18 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
         jobId: job.id,
         coverNote: notes[job.id]?.trim() ?? '',
         resumeArtifactId: selectedResumeId || undefined,
+        aiConsent,
       })
       setFits((current) => ({ ...current, [job.id]: { match: result.match, resumeLabel } }))
       setMessage(`Applied to ${job.title} at ${job.company} — ${result.match.score}% match.`)
+      setConsentJob(null)
       await load()
     } catch (error) {
+      if (error instanceof JobsFlowApiError && error.code === 'consent_required') {
+        setMessage('')
+        setConsentJob(job)
+        return
+      }
       setMessage(humanizeJobsFlowError(error, 'backend'))
     } finally {
       setIsBusy(false)
@@ -403,6 +412,27 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
           </p>
         ) : null}
       </div>
+
+      {consentJob ? (
+        <div className="jf-modal-overlay" onClick={() => setConsentJob(null)} role="presentation">
+          <div className="jf-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <h2>Before you apply</h2>
+            <p className="jf-msg">
+              JobsFlow uses AI-assisted matching to score how well your resume fits {consentJob.title}. This score is
+              <strong> informational only</strong> — it never auto-rejects you, and a human always reviews your application. You
+              won't be asked again after this.
+            </p>
+            <div className="jf-modal-foot">
+              <button className="jf-btn jf-btn-ghost" onClick={() => setConsentJob(null)} type="button">
+                Cancel
+              </button>
+              <button className="jf-btn jf-btn-primary" disabled={isBusy} onClick={() => void handleApply(consentJob, true)} type="button">
+                I understand, apply
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }

@@ -127,7 +127,7 @@ describe('resume file deletion', () => {
       method: 'POST',
       url: `${base}/api/job-applications`,
       headers: { ...jsonHeaders, cookie: candidate },
-      body: JSON.stringify({ action: 'apply', jobId: jobBody.job.id, resumeArtifactId: upload.resume.id }),
+      body: JSON.stringify({ action: 'apply', aiConsent: true, jobId: jobBody.job.id, resumeArtifactId: upload.resume.id }),
     })
     expect(applyRes.status).toBe(201)
 

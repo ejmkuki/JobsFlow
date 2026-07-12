@@ -50,7 +50,7 @@ async function apply(env: Env, cookie: string, jobId: string, readinessScore?: n
     method: 'POST',
     url: `${base}/api/job-applications`,
     headers: { ...jsonHeaders, cookie },
-    body: JSON.stringify({ action: 'apply', jobId, coverNote: 'Keen.', readinessScore }),
+    body: JSON.stringify({ action: 'apply', aiConsent: true, jobId, coverNote: 'Keen.', readinessScore }),
   })
 }
 

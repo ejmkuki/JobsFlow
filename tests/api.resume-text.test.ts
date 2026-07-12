@@ -232,7 +232,7 @@ describe('per-file resume text extraction and selection', () => {
       method: 'POST',
       url: `${base}/api/job-applications`,
       headers: { ...jsonHeaders, cookie: candidate },
-      body: JSON.stringify({ action: 'apply', jobId, resumeArtifactId: upload.resume.id }),
+      body: JSON.stringify({ action: 'apply', aiConsent: true, jobId, resumeArtifactId: upload.resume.id }),
     })
     expect(res.status).toBe(201)
     const body = (await res.json()) as { match: { score: number; gaps: string[] } }

@@ -97,7 +97,7 @@ describe('GET /api/recommendations', () => {
       method: 'POST',
       url: `${base}/api/job-applications`,
       headers: { ...jsonHeaders, cookie: candidate },
-      body: JSON.stringify({ action: 'apply', jobId }),
+      body: JSON.stringify({ action: 'apply', aiConsent: true, jobId }),
     })
 
     const after = await recommendations(world.env, candidate)

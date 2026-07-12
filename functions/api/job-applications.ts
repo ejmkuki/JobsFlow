@@ -24,6 +24,7 @@ type ApplyBody = {
   coverNote?: unknown
   resumeArtifactId?: unknown
   readinessScore?: unknown
+  aiConsent?: unknown
 }
 
 type CandidateApplicationRow = {
@@ -94,6 +95,33 @@ async function handleApply(request: Request, env: RequestContext['env'], session
   const jobId = safeString(body.jobId, '')
   if (!jobId) {
     return json({ ok: false, error: 'job_required', message: 'Choose a job before applying.' }, 400)
+  }
+
+  // Every application is scored by computeMatch() below — server-side,
+  // never client-supplied. Consent to that AI-assisted scoring is asked
+  // once per candidate tenant, on their first apply, and recorded rather
+  // than re-asked on every subsequent one.
+  const consentRow = await env.DB!
+    .prepare('SELECT ai_consent_at AS aiConsentAt FROM candidate_resume_profiles WHERE tenant_id = ? LIMIT 1')
+    .bind(session.tenantId)
+    .first<{ aiConsentAt: string | null }>()
+  const hasConsented = Boolean(consentRow?.aiConsentAt)
+  const consentGivenNow = body.aiConsent === true
+  if (!hasConsented && !consentGivenNow) {
+    return json(
+      { ok: false, error: 'consent_required', message: 'Confirm you understand AI-assisted matching before applying.' },
+      400,
+    )
+  }
+  if (!hasConsented && consentGivenNow) {
+    await env.DB!
+      .prepare(
+        `INSERT INTO candidate_resume_profiles (tenant_id, user_id, ai_consent_at)
+         VALUES (?, ?, datetime('now'))
+         ON CONFLICT(tenant_id) DO UPDATE SET ai_consent_at = COALESCE(candidate_resume_profiles.ai_consent_at, excluded.ai_consent_at)`,
+      )
+      .bind(session.tenantId, session.userId)
+      .run()
   }
 
   const job = await env.DB!

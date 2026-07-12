@@ -47,7 +47,7 @@ async function apply(env: Env, cookie: string, jobId: string, resumeArtifactId?:
     method: 'POST',
     url: `${base}/api/job-applications`,
     headers: { ...jsonHeaders, cookie },
-    body: JSON.stringify({ action: 'apply', jobId, coverNote: 'Excited to help.', resumeArtifactId }),
+    body: JSON.stringify({ action: 'apply', aiConsent: true, jobId, coverNote: 'Excited to help.', resumeArtifactId }),
   })
   const body = (await res.json()) as { applicationId: string }
   return body.applicationId
