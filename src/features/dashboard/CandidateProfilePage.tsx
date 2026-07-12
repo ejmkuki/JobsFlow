@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import type { BackendSession, ResumeArtifact } from '../../backendClient'
-import { deleteResume, getProfile, humanizeJobsFlowError, listResumes, saveProfile, uploadResume } from '../../backendClient'
+import { deleteAccount, deleteResume, exportAccountData, getProfile, humanizeJobsFlowError, listResumes, saveProfile, uploadResume } from '../../backendClient'
 import { evaluateResumeHealth } from '../../lib/resumeHealth'
 
 export function CandidateProfilePage({ session }: { session: BackendSession | null }) {
@@ -14,6 +14,12 @@ export function CandidateProfilePage({ session }: { session: BackendSession | nu
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [fileMessage, setFileMessage] = useState('')
+
+  const [dataMessage, setDataMessage] = useState('')
+  const [isExporting, setIsExporting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const load = useCallback(async () => {
     if (!session) return
@@ -102,6 +108,38 @@ export function CandidateProfilePage({ session }: { session: BackendSession | nu
       await load()
     } catch (error) {
       setFileMessage(humanizeJobsFlowError(error, 'resume'))
+    }
+  }
+
+  async function handleExport() {
+    setIsExporting(true)
+    setDataMessage('Preparing your export…')
+    try {
+      const result = await exportAccountData()
+      const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `jobsflow-data-export-${new Date().toISOString().slice(0, 10)}.json`
+      link.click()
+      URL.revokeObjectURL(url)
+      setDataMessage('Downloaded.')
+    } catch (error) {
+      setDataMessage(humanizeJobsFlowError(error, 'backend'))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  async function handleDelete() {
+    setIsDeleting(true)
+    setDataMessage('')
+    try {
+      await deleteAccount(deleteConfirmEmail.trim())
+      window.location.href = '/auth'
+    } catch (error) {
+      setDataMessage(humanizeJobsFlowError(error, 'backend'))
+      setIsDeleting(false)
     }
   }
 
@@ -202,6 +240,51 @@ export function CandidateProfilePage({ session }: { session: BackendSession | nu
       <p className="jf-msg">
         Your resume is only used to compute your fit for roles you choose to apply to or preview. It is never shared without you applying.
       </p>
+
+      <div className="jf-panel jf-profile">
+        <h3 style={{ margin: 0 }}>Your data</h3>
+        <p className="jf-msg" style={{ margin: 0 }}>
+          Download everything JobsFlow holds about you, or permanently delete your account and every trace of it.
+        </p>
+        {dataMessage ? <p className="jf-msg">{dataMessage}</p> : null}
+        <div className="jf-item-actions" style={{ justifyContent: 'flex-start' }}>
+          <button className="jf-btn jf-btn-ghost" disabled={isExporting} onClick={() => void handleExport()} type="button">
+            {isExporting ? 'Preparing…' : 'Export my data (JSON)'}
+          </button>
+          {!showDeleteConfirm ? (
+            <button className="jf-btn jf-btn-danger" onClick={() => setShowDeleteConfirm(true)} type="button">
+              Delete my account
+            </button>
+          ) : null}
+        </div>
+        {showDeleteConfirm ? (
+          <div className="jf-item" style={{ gap: 8 }}>
+            <p className="jf-msg" style={{ margin: 0 }}>
+              This permanently deletes your profile, resumes, applications, saved jobs, and notifications. It cannot be undone.
+              Type <strong>{session?.email}</strong> to confirm.
+            </p>
+            <input
+              className="jf-item-note"
+              onChange={(event) => setDeleteConfirmEmail(event.target.value)}
+              placeholder={session?.email ?? 'your email'}
+              value={deleteConfirmEmail}
+            />
+            <div className="jf-item-actions" style={{ justifyContent: 'flex-start' }}>
+              <button
+                className="jf-btn jf-btn-danger"
+                disabled={isDeleting || deleteConfirmEmail.trim().toLowerCase() !== (session?.email ?? '').toLowerCase()}
+                onClick={() => void handleDelete()}
+                type="button"
+              >
+                {isDeleting ? 'Deleting…' : 'Permanently delete my account'}
+              </button>
+              <button className="jf-btn jf-btn-ghost" disabled={isDeleting} onClick={() => setShowDeleteConfirm(false)} type="button">
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
     </main>
   )
 }

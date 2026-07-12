@@ -2042,7 +2042,7 @@ export function resumeDownloadHref(resumeArtifactId: string) {
   return `/api/resumes?id=${encodeURIComponent(resumeArtifactId)}`
 }
 
-export async function applyToJob(input: { jobId: string; coverNote?: string; resumeArtifactId?: string }) {
+export async function applyToJob(input: { jobId: string; coverNote?: string; resumeArtifactId?: string; aiConsent?: boolean }) {
   return readJson<{ applicationId: string; ok: boolean; status: string; match: MatchResult }>(
     await fetch('/api/job-applications', jsonPost({ action: 'apply', ...input })),
   )
@@ -2196,4 +2196,12 @@ export async function addApplicantNote(input: { applicationId: string; body: str
   return readJson<{ ok: boolean; noteId: string; mentionedUserIds: string[] }>(
     await fetch('/api/applicant-notes', jsonPost(input)),
   )
+}
+
+export async function exportAccountData() {
+  return readJson<{ ok: boolean; data: unknown }>(await fetch('/api/account-data'))
+}
+
+export async function deleteAccount(confirmEmail: string) {
+  return readJson<{ ok: boolean }>(await fetch('/api/account-data', jsonPost({ action: 'delete', confirmEmail })))
 }
