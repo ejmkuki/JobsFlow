@@ -234,6 +234,17 @@
   .jf-nav-inner { gap: 14px; }
 }
 
+/* .jf-tabs can shrink all the way to 0 width once nav-right (mode switch +
+   notifications + account) claims its own preferred size in the flex row —
+   verified live at ~400px: tabs were present in the DOM and clickable, but
+   completely invisible. The mode switch is the single biggest nav-right
+   item and the most skippable at this width (redundant with which
+   candidate/employer route the tabs themselves already express), so drop
+   it first to give tabs real width back before anything else gives way. */
+@media (max-width: 480px) {
+  .jf-mode { display: none; }
+}
+
 .jf-desc { color: var(--jf-ink-2); font-size: 13.5px; line-height: 1.55; margin: 0; white-space: pre-wrap; }
 
 /* Job summary (Candidates page collapsible role detail) */

@@ -2,13 +2,17 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-// A live-browser mobile-viewport check wasn't reachable in this environment
-// (local wrangler pages dev couldn't inject secrets into the Functions
-// runtime — unrelated to app code), so this guards the specific bugs found
-// by direct CSS audit: a flex child with overflow-x:auto but no min-width:0
-// never actually shrinks/scrolls inside a flex row (min-width defaults to
-// auto), and an unwrapped flex row of several buttons/inputs overflows the
-// viewport instead of wrapping to a second line.
+// Guards the mobile CSS bugs found this phase — first by direct code audit,
+// then live-verified at 375px with real seeded data via a local wrangler
+// pages dev session (getBoundingClientRect()/scrollWidth checks in the
+// browser, not screenshots). That live pass caught a second-order bug the
+// first fix introduced: .jf-tabs's min-width:0 stopped the *page* from
+// overflowing, but did it by letting the flex row squeeze tabs all the way
+// to a genuine 0px rendered width once nav-right (mode switch + notif +
+// account) claimed its own preferred size — tabs were in the DOM and
+// clickable, but completely invisible. Hiding the mode switch at <=480px
+// (the single biggest nav-right item, and the most skippable at that width)
+// gave tabs real width back; re-verified live afterward.
 const css = readFileSync(join(process.cwd(), 'src/features/dashboard/dashboard.css'), 'utf8')
 
 function ruleBody(selector: string): string {
@@ -35,5 +39,11 @@ describe('dashboard.css mobile-safe flex containers', () => {
 
   it('.jf-board-wrap scrolls the kanban board horizontally rather than squeezing columns', () => {
     expect(ruleBody('.jf-board-wrap')).toContain('overflow-x: auto')
+  })
+
+  it('hides the nav mode switch at <=480px so .jf-tabs keeps real width instead of being squeezed to 0', () => {
+    const match = css.match(/@media \(max-width: 480px\)\s*\{([^}]*\.jf-mode[^}]*)\}/)
+    expect(match).toBeTruthy()
+    expect(match?.[1]).toContain('display: none')
   })
 })
