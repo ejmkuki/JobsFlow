@@ -25,6 +25,7 @@ const candidateTabs = [
 const employerTabs = [
   { to: '/employer/candidates', label: 'Candidates', end: false },
   { to: '/employer/jobs', label: 'Jobs', end: false },
+  { to: '/employer/team', label: 'Team', end: false },
 ]
 
 export function AppTopNav({ session, onSignOut }: { session: BackendSession | null; onSignOut: () => void }) {

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { BackendSession, Job, JobApplicant, MatchMethod } from '../../backendClient'
 import {
   advanceApplication,
+  bulkAdvanceApplications,
   getOverdueApplicationsCount,
   humanizeJobsFlowError,
   listJobApplicants,
@@ -95,6 +96,7 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
   const [isBusy, setIsBusy] = useState(false)
   const [openApplicationId, setOpenApplicationId] = useState<string | null>(null)
   const [overdueAcrossJobs, setOverdueAcrossJobs] = useState(0)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!session) return
@@ -129,6 +131,7 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
 
   useEffect(() => {
     void loadApplicants(selectedJobId)
+    setSelectedIds(new Set())
   }, [selectedJobId, loadApplicants])
 
   async function move(applicationId: string, status: string) {
@@ -137,6 +140,38 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
       await advanceApplication({ applicationId, status })
       await loadApplicants(selectedJobId)
       void getOverdueApplicationsCount().then((result) => setOverdueAcrossJobs(result.overdueCount))
+    } catch (error) {
+      setMessage(humanizeJobsFlowError(error, 'backend'))
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  function toggleSelected(applicationId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(applicationId)) {
+        next.delete(applicationId)
+      } else {
+        next.add(applicationId)
+      }
+      return next
+    })
+  }
+
+  async function bulkMove(status: string) {
+    if (selectedIds.size === 0) return
+    setIsBusy(true)
+    try {
+      const result = await bulkAdvanceApplications({ applicationIds: Array.from(selectedIds), status })
+      setMessage(
+        result.failed > 0
+          ? `Moved ${result.succeeded} of ${result.succeeded + result.failed} selected applicants.`
+          : `Moved ${result.succeeded} applicant${result.succeeded === 1 ? '' : 's'}.`,
+      )
+      setSelectedIds(new Set())
+      await loadApplicants(selectedJobId)
+      void getOverdueApplicationsCount().then((r) => setOverdueAcrossJobs(r.overdueCount))
     } catch (error) {
       setMessage(humanizeJobsFlowError(error, 'backend'))
     } finally {
@@ -217,6 +252,30 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
 
       {message ? <p className="jf-msg">{message}</p> : null}
 
+      {selectedIds.size > 0 ? (
+        <div className="jf-banner jf-banner-warn" style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
+          <span><strong>{selectedIds.size}</strong> selected</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select
+              className="jf-select"
+              disabled={isBusy}
+              onChange={(event) => {
+                if (event.target.value) void bulkMove(event.target.value)
+              }}
+              value=""
+            >
+              <option value="">Move selected to…</option>
+              {moveTargets.map((target) => (
+                <option key={target.value} value={target.value}>{target.label}</option>
+              ))}
+            </select>
+            <button className="jf-btn jf-btn-ghost jf-btn-sm" onClick={() => setSelectedIds(new Set())} type="button">
+              Clear
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {jobs.length === 0 ? (
         <p className="jf-msg">No roles yet. Post a role from the Jobs tab to open your first pipeline.</p>
       ) : (
@@ -244,6 +303,15 @@ export function EmployerPipelinePage({ session }: { session: BackendSession | nu
                         style={closed ? { opacity: 0.72 } : undefined}
                       >
                         <div className="jf-card-top">
+                          {!closed ? (
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(applicant.id)}
+                              onClick={(event) => event.stopPropagation()}
+                              onChange={() => toggleSelected(applicant.id)}
+                              aria-label={`Select ${applicant.candidateName}`}
+                            />
+                          ) : null}
                           <div className="jf-avatar" style={closed ? { background: '#6a7887' } : undefined}>
                             {initials(applicant.candidateName)}
                           </div>

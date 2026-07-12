@@ -2075,3 +2075,125 @@ export async function withdrawApplication(applicationId: string) {
     await fetch('/api/job-applications', jsonPost({ action: 'withdraw', applicationId })),
   )
 }
+
+export async function bulkAdvanceApplications(input: { applicationIds: string[]; status: string; note?: string }) {
+  return readJson<{
+    ok: boolean
+    succeeded: number
+    failed: number
+    results: Array<{ ok: boolean; applicationId: string; status?: string; error?: string }>
+  }>(await fetch('/api/job-applications', jsonPost({ action: 'bulk_advance', ...input })))
+}
+
+export type TeamMember = { userId: string; email: string; displayName: string; role: string; isOwner: boolean }
+export type TeamInvite = { id: string; invitedEmail: string; role: string; createdAt: string; expiresAt: string }
+
+export async function listTeam() {
+  return readJson<{ ok: boolean; members: TeamMember[]; invites: TeamInvite[]; isOwner: boolean }>(await fetch('/api/team'))
+}
+
+export async function inviteTeamMember(input: { email: string; role: string }) {
+  return readJson<{ ok: boolean; inviteId: string }>(await fetch('/api/team', jsonPost(input)))
+}
+
+export async function revokeTeamInvite(inviteId: string) {
+  return readJson<{ ok: boolean }>(await fetch(`/api/team?inviteId=${encodeURIComponent(inviteId)}`, { method: 'DELETE' }))
+}
+
+export async function removeTeamMember(userId: string) {
+  return readJson<{ ok: boolean }>(await fetch(`/api/team?userId=${encodeURIComponent(userId)}`, { method: 'DELETE' }))
+}
+
+export type ScorecardCriterion = { key: string; label: string; weight: number }
+export type ScorecardTemplate = { id: string; jobId: string | null; name: string; criteria: ScorecardCriterion[] }
+export type ScorecardSubmission = {
+  id: string
+  interviewerUserId: string
+  interviewerName: string
+  scores: Record<string, number>
+  recommendation: string
+  notes: string
+  createdAt: string
+  updatedAt: string
+}
+
+export async function getScorecardTemplate(jobId: string) {
+  return readJson<{ ok: boolean; template: ScorecardTemplate | null }>(
+    await fetch(`/api/scorecards?jobId=${encodeURIComponent(jobId)}`),
+  )
+}
+
+export async function saveScorecardTemplate(input: { jobId?: string; name: string; criteria: ScorecardCriterion[] }) {
+  return readJson<{ ok: boolean; templateId: string }>(
+    await fetch('/api/scorecards', jsonPost({ action: 'create_template', ...input })),
+  )
+}
+
+export async function listScorecardSubmissions(applicationId: string) {
+  return readJson<{
+    ok: boolean
+    template: ScorecardTemplate | null
+    submissions: ScorecardSubmission[]
+    aggregateScore: number | null
+    recommendationTally: Record<string, number>
+  }>(await fetch(`/api/scorecards?applicationId=${encodeURIComponent(applicationId)}`))
+}
+
+export async function submitScorecard(input: { applicationId: string; scores: Record<string, number>; recommendation: string; notes?: string }) {
+  return readJson<{ ok: boolean; submissionId: string }>(
+    await fetch('/api/scorecards', jsonPost({ action: 'submit', ...input })),
+  )
+}
+
+export type InterviewSlot = { start: string; end: string }
+export type InterviewProposal = {
+  id: string
+  applicationId: string
+  employerTenantId: string
+  candidateTenantId: string
+  slots: InterviewSlot[]
+  location: string
+  notes: string
+  status: 'pending' | 'confirmed' | 'cancelled'
+  confirmedStart: string | null
+  confirmedEnd: string | null
+  createdAt: string
+}
+
+export async function listInterviewProposals(applicationId: string) {
+  return readJson<{ ok: boolean; proposals: InterviewProposal[] }>(
+    await fetch(`/api/interviews?applicationId=${encodeURIComponent(applicationId)}`),
+  )
+}
+
+export async function proposeInterviewTimes(input: { applicationId: string; slots: InterviewSlot[]; location?: string; notes?: string }) {
+  return readJson<{ ok: boolean; proposalId: string }>(
+    await fetch('/api/interviews', jsonPost({ action: 'propose', ...input })),
+  )
+}
+
+export async function confirmInterviewTime(input: { proposalId: string; slotIndex: number }) {
+  return readJson<{ ok: boolean; proposalId: string }>(
+    await fetch('/api/interviews', jsonPost({ action: 'confirm', ...input })),
+  )
+}
+
+export async function cancelInterviewProposal(proposalId: string) {
+  return readJson<{ ok: boolean; proposalId: string }>(
+    await fetch('/api/interviews', jsonPost({ action: 'cancel', proposalId })),
+  )
+}
+
+export type ApplicantNote = { id: string; body: string; authorName: string; mentionedUserIds: string[]; createdAt: string }
+
+export async function listApplicantNotes(applicationId: string) {
+  return readJson<{ ok: boolean; notes: ApplicantNote[] }>(
+    await fetch(`/api/applicant-notes?applicationId=${encodeURIComponent(applicationId)}`),
+  )
+}
+
+export async function addApplicantNote(input: { applicationId: string; body: string }) {
+  return readJson<{ ok: boolean; noteId: string; mentionedUserIds: string[] }>(
+    await fetch('/api/applicant-notes', jsonPost(input)),
+  )
+}
