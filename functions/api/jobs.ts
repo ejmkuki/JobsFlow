@@ -8,9 +8,11 @@ import {
   tooManyRequests,
   writeAuditEvent,
 } from '../_shared'
+import { buildJobSlug } from '../lib/slug'
 
 type JobRow = {
   id: string
+  slug: string
   employerTenantId: string
   company: string
   title: string
@@ -76,6 +78,7 @@ function toIntOrNull(value: unknown): number | null {
 function serializeJob(row: JobRow) {
   return {
     id: row.id,
+    slug: row.slug,
     company: row.company,
     title: row.title,
     location: row.location,
@@ -95,6 +98,7 @@ function serializeJob(row: JobRow) {
 
 const jobColumns = `
   id,
+  slug,
   employer_tenant_id AS employerTenantId,
   company,
   title,
@@ -233,17 +237,19 @@ export async function onRequestPost({ request, env }: RequestContext) {
   const salaryCurrency = safeString(body.salaryCurrency, 'USD').slice(0, 8)
   const status = body.status === 'draft' ? 'draft' : 'open'
   const jobId = crypto.randomUUID()
+  const slug = buildJobSlug(title, company, jobId)
 
   await env.DB
     .prepare(
       `INSERT INTO jobs (
-        id, employer_tenant_id, created_by_user_id, title, company, location,
+        id, slug, employer_tenant_id, created_by_user_id, title, company, location,
         employment_type, workplace_type, description, required_skills, nice_to_have_skills,
         salary_min_cents, salary_max_cents, salary_currency, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       jobId,
+      slug,
       session.tenantId,
       session.userId,
       title,
