@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { BackendSession, Job } from '../../backendClient'
-import { createJob, deleteJob, humanizeJobsFlowError, listMyJobs, suggestJobIntake, updateJob } from '../../backendClient'
+import type { BackendSession, Job, JobFunnel } from '../../backendClient'
+import { createJob, deleteJob, getJobFunnel, humanizeJobsFlowError, listMyJobs, suggestJobIntake, updateJob } from '../../backendClient'
 import { formatCents } from '../../lib/format'
 
 function salaryLabel(job: Job) {
@@ -49,6 +49,7 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
   const [isSuggesting, setIsSuggesting] = useState(false)
   const [shareJobId, setShareJobId] = useState<string | null>(null)
   const [copyMessage, setCopyMessage] = useState('')
+  const [funnel, setFunnel] = useState<JobFunnel | null>(null)
 
   function copyToClipboard(text: string, label: string) {
     navigator.clipboard
@@ -66,6 +67,9 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
     listMyJobs()
       .then((result) => setJobs(result.jobs))
       .catch((error) => setMessage(humanizeJobsFlowError(error, 'backend')))
+    getJobFunnel()
+      .then((result) => setFunnel(result.funnel))
+      .catch(() => {}) // advisory summary — a failed fetch shouldn't block the page
   }
 
   useEffect(refresh, [session])
@@ -186,6 +190,16 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
 
       {message ? <p className="jf-msg">{message}</p> : null}
 
+      {funnel ? (
+        <section className="jf-tiles">
+          <div className="jf-tile"><div className="jf-k">Posted</div><div className="jf-v">{funnel.posted}</div><div className="jf-d">open + paused + closed roles</div></div>
+          <div className="jf-tile"><div className="jf-k">Views</div><div className="jf-v">{funnel.views}</div><div className="jf-d">public page + embed views</div></div>
+          <div className="jf-tile"><div className="jf-k">Applies</div><div className="jf-v">{funnel.applies}</div><div className="jf-d">{funnel.views > 0 ? `${Math.round((funnel.applies / funnel.views) * 100)}% of views` : 'across all roles'}</div></div>
+          <div className="jf-tile"><div className="jf-k">Advanced</div><div className="jf-v">{funnel.advanced}</div><div className="jf-d">past initial submission</div></div>
+          <div className="jf-tile"><div className="jf-k">Hired</div><div className="jf-v">{funnel.hired}</div><div className="jf-d">offers extended</div></div>
+        </section>
+      ) : null}
+
       <div className="jf-page-grid">
         <div className="jf-list">
           {jobs.map((job) => (
@@ -215,7 +229,7 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
               )}
               <div className="jf-item-actions" style={{ justifyContent: 'space-between' }}>
                 <span className="jf-msg">
-                  {job.applicantCount} applicant{job.applicantCount === 1 ? '' : 's'} · posted {postedWhen(job.createdAt)}
+                  {job.viewCount} view{job.viewCount === 1 ? '' : 's'} · {job.applicantCount} applicant{job.applicantCount === 1 ? '' : 's'} · posted {postedWhen(job.createdAt)}
                 </span>
                 <span className="jf-item-btns">
                   <button className="jf-btn jf-btn-sm jf-btn-ghost" onClick={() => navigate(`../candidates?job=${job.id}`)} type="button">

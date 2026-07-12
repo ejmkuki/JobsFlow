@@ -28,6 +28,7 @@ type JobRow = {
   salaryCurrency: string
   status: string
   applicantCount: number
+  viewCount: number
   createdAt: string
 }
 
@@ -93,6 +94,7 @@ function serializeJob(row: JobRow) {
     salaryCurrency: row.salaryCurrency,
     status: row.status,
     applicantCount: row.applicantCount,
+    viewCount: row.viewCount,
     createdAt: row.createdAt,
   }
 }
@@ -114,6 +116,7 @@ const jobColumns = `
   salary_currency AS salaryCurrency,
   status,
   applicant_count AS applicantCount,
+  view_count AS viewCount,
   created_at AS createdAt
 `
 

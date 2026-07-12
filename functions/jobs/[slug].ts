@@ -71,6 +71,8 @@ export async function onRequestGet({ request, env }: RequestContext) {
     return notFoundPage()
   }
 
+  await env.DB.prepare('UPDATE jobs SET view_count = view_count + 1 WHERE id = ?').bind(job.id).run()
+
   const skills = JSON.parse(job.requiredSkills || '[]') as string[]
   const pageUrl = `${appUrl}/jobs/${job.slug}`
   const description = job.description || `${job.title} at ${job.company}. Apply on JobsFlow AI.`

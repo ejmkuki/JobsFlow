@@ -1773,6 +1773,7 @@ export type Job = {
   salaryCurrency: string
   status: string
   applicantCount: number
+  viewCount: number
   createdAt: string
 }
 
@@ -2221,6 +2222,14 @@ export async function startUpgradeCheckout() {
 
 export async function openBillingPortal() {
   return readJson<{ ok: boolean; url: string }>(await fetch('/api/billing', jsonPost({ action: 'create_portal' })))
+}
+
+export type JobFunnel = { posted: number; views: number; applies: number; advanced: number; hired: number }
+
+export async function getJobFunnel(jobId?: string) {
+  return readJson<{ ok: boolean; funnel: JobFunnel }>(
+    await fetch(jobId ? `/api/job-analytics?jobId=${encodeURIComponent(jobId)}` : '/api/job-analytics'),
+  )
 }
 
 export async function exportAccountData() {

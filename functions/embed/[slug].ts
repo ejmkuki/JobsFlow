@@ -8,6 +8,7 @@ function escapeHtml(value: string) {
 }
 
 type PublicJobRow = {
+  id: string
   slug: string
   title: string
   company: string
@@ -46,7 +47,7 @@ export async function onRequestGet({ request, env }: RequestContext) {
 
   const job = await env.DB
     .prepare(
-      `SELECT slug, title, company, location, workplace_type AS workplaceType, required_skills AS requiredSkills
+      `SELECT id, slug, title, company, location, workplace_type AS workplaceType, required_skills AS requiredSkills
        FROM jobs WHERE slug = ? AND status = 'open' LIMIT 1`,
     )
     .bind(slug)
@@ -55,6 +56,8 @@ export async function onRequestGet({ request, env }: RequestContext) {
   if (!job) {
     return frame('<div class="card"><p>This role is no longer accepting applications.</p></div>', 404)
   }
+
+  await env.DB.prepare('UPDATE jobs SET view_count = view_count + 1 WHERE id = ?').bind(job.id).run()
 
   const skills = JSON.parse(job.requiredSkills || '[]') as string[]
   const applyUrl = `${appUrl}/jobs/${job.slug}`
