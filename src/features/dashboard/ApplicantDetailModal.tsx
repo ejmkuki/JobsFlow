@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useFocusTrap } from '../../lib/useFocusTrap'
 import type {
   ApplicantNote,
   ApplicationDetail,
@@ -77,6 +78,9 @@ export function ApplicantDetailModal({
   onClose: () => void
   onMoved: () => void
 }) {
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, true, onClose)
+
   const [application, setApplication] = useState<ApplicationDetail | null>(null)
   const [events, setEvents] = useState<ApplicationEvent[]>([])
   const [message, setMessage] = useState('')
@@ -145,14 +149,6 @@ export function ApplicantDetailModal({
     void loadProposals()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applicationId])
-
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
 
   async function move(status: string) {
     setIsBusy(true)
@@ -283,8 +279,8 @@ export function ApplicantDetailModal({
   if (!application) {
     return (
       <div className="jf-modal-overlay" onClick={onClose} role="presentation">
-        <div className="jf-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
-          <p className="jf-msg">{message || 'Loading applicant…'}</p>
+        <div className="jf-modal" onClick={(event) => event.stopPropagation()} ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1}>
+          <p className="jf-msg" aria-live="polite" role="status">{message || 'Loading applicant…'}</p>
         </div>
       </div>
     )
@@ -295,10 +291,18 @@ export function ApplicantDetailModal({
 
   return (
     <div className="jf-modal-overlay" onClick={onClose} role="presentation">
-      <div className="jf-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+      <div
+        className="jf-modal"
+        onClick={(event) => event.stopPropagation()}
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="applicant-modal-heading"
+        tabIndex={-1}
+      >
         <div className="jf-modal-head">
           <div>
-            <h2>{application.candidateName}</h2>
+            <h2 id="applicant-modal-heading">{application.candidateName}</h2>
             <p className="jf-msg" style={{ margin: 0 }}>{application.candidateEmail}</p>
           </div>
           <button className="jf-btn jf-btn-ghost" onClick={onClose} type="button">Close</button>
@@ -409,6 +413,7 @@ export function ApplicantDetailModal({
                   key={index}
                   type="datetime-local"
                   className="jf-item-note"
+                  aria-label={`Proposed time ${index + 1}`}
                   value={value}
                   onChange={(event) => setSlotDrafts((prev) => prev.map((v, i) => (i === index ? event.target.value : v)))}
                 />
@@ -417,6 +422,7 @@ export function ApplicantDetailModal({
                 type="text"
                 className="jf-item-note"
                 placeholder="Location or video link (optional)"
+                aria-label="Location or video link (optional)"
                 value={location}
                 onChange={(event) => setLocation(event.target.value)}
               />
@@ -481,7 +487,12 @@ export function ApplicantDetailModal({
                         </select>
                       </label>
                     ))}
-                    <select className="jf-select" value={recommendationDraft} onChange={(event) => setRecommendationDraft(event.target.value)}>
+                    <select
+                      className="jf-select"
+                      aria-label="Recommendation"
+                      value={recommendationDraft}
+                      onChange={(event) => setRecommendationDraft(event.target.value)}
+                    >
                       <option value="">Recommendation…</option>
                       <option value="strong_yes">Strong yes</option>
                       <option value="yes">Yes</option>
@@ -508,6 +519,7 @@ export function ApplicantDetailModal({
                         <input
                           className="jf-item-note"
                           placeholder="Key (e.g. sql)"
+                          aria-label="Criterion key"
                           value={criterion.key}
                           onChange={(event) =>
                             setTemplateCriteria((prev) => prev.map((c, i) => (i === index ? { ...c, key: event.target.value } : c)))
@@ -516,6 +528,7 @@ export function ApplicantDetailModal({
                         <input
                           className="jf-item-note"
                           placeholder="Label (e.g. SQL depth)"
+                          aria-label="Criterion label"
                           value={criterion.label}
                           onChange={(event) =>
                             setTemplateCriteria((prev) => prev.map((c, i) => (i === index ? { ...c, label: event.target.value } : c)))
@@ -528,6 +541,7 @@ export function ApplicantDetailModal({
                           min={1}
                           max={10}
                           placeholder="Weight"
+                          aria-label="Criterion weight"
                           value={criterion.weight}
                           onChange={(event) =>
                             setTemplateCriteria((prev) =>
@@ -574,6 +588,7 @@ export function ApplicantDetailModal({
               <input
                 className="jf-item-note"
                 placeholder="Add a note… use @Name to notify a teammate"
+                aria-label="Add a note"
                 value={noteDraft}
                 onChange={(event) => setNoteDraft(event.target.value)}
                 onKeyDown={(event) => {
@@ -587,12 +602,13 @@ export function ApplicantDetailModal({
           </div>
         ) : null}
 
-        {message ? <p className="jf-msg">{message}</p> : null}
+        {message ? <p className="jf-msg" aria-live="polite" role="status">{message}</p> : null}
 
         {!closed && viewerRole === 'employer' ? (
           <div className="jf-modal-foot">
             <select
               className="jf-select"
+              aria-label="Move applicant to stage"
               disabled={isBusy}
               onChange={(event) => {
                 if (event.target.value) void move(event.target.value)

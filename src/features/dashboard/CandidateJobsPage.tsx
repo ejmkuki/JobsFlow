@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Bookmark, Search, SendHorizontal } from 'lucide-react'
 import type { BackendSession, CandidateApplication, Job, JobBrowseFilters, MatchResult, ResumeArtifact, SavedJob, SavedSearch } from '../../backendClient'
+import { useFocusTrap } from '../../lib/useFocusTrap'
 import {
   applyToJob,
   createReferral,
@@ -60,6 +61,8 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
   const [message, setMessage] = useState('')
   const [isBusy, setIsBusy] = useState(false)
   const [consentJob, setConsentJob] = useState<Job | null>(null)
+  const consentModalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(consentModalRef, consentJob !== null, () => setConsentJob(null))
 
   // A withdrawn or declined application doesn't block reapplying — only an
   // application still in an active stage does.
@@ -352,7 +355,7 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
         ) : null}
       </div>
 
-      {message ? <p className="jf-msg">{message}</p> : null}
+      {message ? <p className="jf-msg" aria-live="polite" role="status">{message}</p> : null}
 
       <div className="jf-list">
         {visibleJobs.map((job) => {
@@ -412,6 +415,7 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
                 <div className="jf-item-actions">
                   <input
                     className="jf-item-note"
+                    aria-label="Cover letter (optional)"
                     onChange={(event) => setNotes((current) => ({ ...current, [job.id]: event.target.value }))}
                     placeholder="Cover letter (optional)"
                     value={notes[job.id] ?? ''}
@@ -454,8 +458,16 @@ export function CandidateJobsPage({ session }: { session: BackendSession | null 
 
       {consentJob ? (
         <div className="jf-modal-overlay" onClick={() => setConsentJob(null)} role="presentation">
-          <div className="jf-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
-            <h2>Before you apply</h2>
+          <div
+            className="jf-modal"
+            onClick={(event) => event.stopPropagation()}
+            ref={consentModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="consent-modal-heading"
+            tabIndex={-1}
+          >
+            <h2 id="consent-modal-heading">Before you apply</h2>
             <p className="jf-msg">
               JobsFlow uses AI-assisted matching to score how well your resume fits {consentJob.title}. This score is
               <strong> informational only</strong> — it never auto-rejects you, and a human always reviews your application. You
