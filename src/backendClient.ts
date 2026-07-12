@@ -1759,6 +1759,7 @@ export async function runAtsDrySync(provider: AtsProvider = 'greenhouse') {
 
 export type Job = {
   id: string
+  slug: string
   company: string
   title: string
   location: string

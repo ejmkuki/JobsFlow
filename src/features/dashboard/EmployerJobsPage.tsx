@@ -47,6 +47,15 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
   const [message, setMessage] = useState('')
   const [isBusy, setIsBusy] = useState(false)
   const [isSuggesting, setIsSuggesting] = useState(false)
+  const [shareJobId, setShareJobId] = useState<string | null>(null)
+  const [copyMessage, setCopyMessage] = useState('')
+
+  function copyToClipboard(text: string, label: string) {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => setCopyMessage(`${label} copied.`))
+      .catch(() => setCopyMessage('Could not copy — select and copy manually.'))
+  }
 
   function set<K extends keyof typeof emptyForm>(key: K, value: (typeof emptyForm)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -212,6 +221,18 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
                   <button className="jf-btn jf-btn-sm jf-btn-ghost" onClick={() => navigate(`../candidates?job=${job.id}`)} type="button">
                     Review applicants
                   </button>
+                  {job.status === 'open' ? (
+                    <button
+                      className="jf-btn jf-btn-sm jf-btn-ghost"
+                      onClick={() => {
+                        setCopyMessage('')
+                        setShareJobId((current) => (current === job.id ? null : job.id))
+                      }}
+                      type="button"
+                    >
+                      Share / Embed
+                    </button>
+                  ) : null}
                   <button className="jf-btn jf-btn-sm jf-btn-ghost" disabled={isBusy} onClick={() => loadForEdit(job)} type="button">
                     Edit
                   </button>
@@ -220,6 +241,46 @@ export function EmployerJobsPage({ session }: { session: BackendSession | null }
                   </button>
                 </span>
               </div>
+              {shareJobId === job.id ? (
+                <div className="jf-item" style={{ gap: 8, marginTop: 4 }}>
+                  <div>
+                    <p className="jf-msg" style={{ margin: '0 0 4px' }}>Public link</p>
+                    <div className="jf-item-actions">
+                      <input className="jf-item-note" readOnly value={`https://jobsflowai.ai/jobs/${job.slug}`} />
+                      <button
+                        className="jf-btn jf-btn-sm jf-btn-ghost"
+                        onClick={() => copyToClipboard(`https://jobsflowai.ai/jobs/${job.slug}`, 'Link')}
+                        type="button"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="jf-msg" style={{ margin: '0 0 4px' }}>Embed on your careers page</p>
+                    <div className="jf-item-actions">
+                      <input
+                        className="jf-item-note"
+                        readOnly
+                        value={`<script src="https://jobsflowai.ai/embed.js" data-job="${job.slug}" async></script>`}
+                      />
+                      <button
+                        className="jf-btn jf-btn-sm jf-btn-ghost"
+                        onClick={() =>
+                          copyToClipboard(
+                            `<script src="https://jobsflowai.ai/embed.js" data-job="${job.slug}" async></script>`,
+                            'Embed code',
+                          )
+                        }
+                        type="button"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                  {copyMessage ? <p className="jf-msg" style={{ margin: 0 }}>{copyMessage}</p> : null}
+                </div>
+              ) : null}
             </div>
           ))}
           {jobs.length === 0 ? <p className="jf-empty">No roles yet. Publish your first role on the right.</p> : null}
